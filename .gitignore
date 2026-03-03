@@ -46,3 +46,6 @@ Thumbs.db
 
 # workspace
 _workspace
+
+# iFlow logs
+.iflow/logs/
