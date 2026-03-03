@@ -459,14 +459,13 @@ class PipelineOrchestrator:
         # Check if stage has a prompt_template from config
         if hasattr(stage, 'prompt_template') and stage.prompt_template:
             # Format the template with context
-            prompt = stage.prompt_template.format(
+            prompt = f"{stage.prompt_template}\n".format(
                 pipeline_name=self.pipeline_name,
                 feature_name=self.feature_name,
                 stage_name=stage.name,
                 stage_order=stage.order,
                 role=stage.role
             )
-            prompt += "\n"
         else:
             prompt = f"""
 You are acting as {stage.role} in the {self.pipeline_name} pipeline.

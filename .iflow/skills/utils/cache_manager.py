@@ -652,7 +652,7 @@ def get_global_cache() -> CacheManager:
     return _global_cache
 
 
-def clear_global_cache():
+def clear_global_cache() -> None:
     """Clear global cache instance."""
     global _global_cache
     if _global_cache is not None:

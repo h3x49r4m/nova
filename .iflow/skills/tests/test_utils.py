@@ -23,6 +23,7 @@ from utils.git_command import (
     get_repo_root,
     validate_branch_name,
     validate_file_path,
+    check_for_secrets,
     GitError,
     ErrorCode,
     ErrorCategory
@@ -214,6 +215,94 @@ class TestGitCommand(unittest.TestCase):
         is_valid, error = validate_file_path(outside_path, self.repo_root)
         self.assertFalse(is_valid)
         self.assertIn('outside', error.lower())
+
+
+class TestSecretDetection(unittest.TestCase):
+    """Test secret detection functionality."""
+
+    def test_check_for_secrets_api_key(self):
+        """Test detecting API key secrets."""
+        stdout = "API_KEY='test_fake_key_for_testing_only_12345'"
+        stderr = ""
+
+        self.assertTrue(check_for_secrets(stdout, stderr))
+
+    def test_check_for_secrets_password(self):
+        """Test detecting password secrets."""
+        stdout = "password='MySecretPassword123'"
+        stderr = ""
+        
+        self.assertTrue(check_for_secrets(stdout, stderr))
+
+    def test_check_for_secrets_aws_keys(self):
+        """Test detecting AWS access keys."""
+        stdout = "aws_access_key_id=AKIAIOSFODNN7EXAMPLE"
+        stderr = "aws_secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+        
+        self.assertTrue(check_for_secrets(stdout, stderr))
+
+    def test_check_for_secrets_jwt_token(self):
+        """Test detecting JWT tokens."""
+        stdout = "token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+        stderr = ""
+        
+        self.assertTrue(check_for_secrets(stdout, stderr))
+
+    def test_check_for_secrets_private_key(self):
+        """Test detecting private keys."""
+        stdout = "-----BEGIN RSA PRIVATE KEY-----"
+        stderr = ""
+        
+        self.assertTrue(check_for_secrets(stdout, stderr))
+
+    def test_check_for_secrets_github_token(self):
+        """Test detecting GitHub tokens."""
+        stdout = "github_token=ghp_1234567890abcdefghijklmnopqrstuvwxyz123456"
+        stderr = ""
+        
+        self.assertTrue(check_for_secrets(stdout, stderr))
+
+    def test_check_for_secrets_database_url(self):
+        """Test detecting database URLs."""
+        stdout = "database_url='postgresql://user:password123@localhost:5432/mydb'"
+        stderr = ""
+        
+        self.assertTrue(check_for_secrets(stdout, stderr))
+
+    def test_check_for_secrets_no_secrets(self):
+        """Test output without secrets."""
+        stdout = "This is normal output"
+        stderr = "Some error message"
+        
+        self.assertFalse(check_for_secrets(stdout, stderr))
+
+    def test_check_for_secrets_empty_output(self):
+        """Test with empty output."""
+        stdout = ""
+        stderr = ""
+        
+        self.assertFalse(check_for_secrets(stdout, stderr))
+
+    def test_check_for_secrets_case_insensitive(self):
+        """Test that secret detection is case insensitive."""
+        stdout = "API_KEY='secret'"
+        stderr = "Password='test'"
+        
+        self.assertTrue(check_for_secrets(stdout, stderr))
+
+    def test_check_for_secrets_multiple_patterns(self):
+        """Test detecting multiple secret types."""
+        stdout = "api_key='abc' and password='def'"
+        stderr = ""
+        
+        self.assertTrue(check_for_secrets(stdout, stderr))
+
+    def test_check_for_secrets_in_stderr(self):
+        """Test detecting secrets in stderr."""
+        stdout = ""
+        stderr = "ERROR: secret token detected: abc123def456"
+        
+        self.assertTrue(check_for_secrets(stdout, stderr))
 
 
 class TestSchemaValidator(unittest.TestCase):

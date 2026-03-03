@@ -6,11 +6,13 @@ Provides centralized git command execution with timeout handling and error manag
 
 import subprocess
 import os
+import re
+import time
 from pathlib import Path
-from typing import Tuple, Optional, List, TypeVar, ParamSpec
+from typing import Tuple, Optional, List, TypeVar, ParamSpec, Union, Dict
 import sys
-from exceptions import GitError, ErrorCode, ErrorCategory, wrap_error
-from constants import RetryPolicy
+from exceptions import GitError, ErrorCode, ErrorCategory, wrap_error, GitCommandTimeout
+from constants import RetryPolicy, Timeouts, ValidationPatterns, SecretPatterns
 
 
 def run_git_command(
@@ -98,14 +100,13 @@ def run_git_command(
             stderr = stderr.replace('\r\n', '\n')
             
             # Check for secrets in output
-            # TODO: Implement check_for_secrets function
-            # if check_secrets:
-            #     secret_found = check_for_secrets(stdout, stderr)
-            #     if secret_found:
-            #         raise GitError(
-            #             f"Secret detected in git command output",
-            #             code=ErrorCode.SECURITY_VIOLATION
-            #         )
+            if check_secrets:
+                secret_found = check_for_secrets(stdout, stderr)
+                if secret_found:
+                    raise GitError(
+                        f"Secret detected in git command output",
+                        code=ErrorCode.SECURITY_VIOLATION
+                    )
             
             return returncode, stdout, stderr
             
@@ -146,6 +147,26 @@ def run_git_command(
         "Git command failed after all retry attempts",
         code=ErrorCode.UNKNOWN_ERROR
     )
+
+
+def check_for_secrets(stdout: str, stderr: str) -> bool:
+    """
+    Check git command output for potential secrets using regex patterns.
+    
+    Args:
+        stdout: Standard output from git command
+        stderr: Standard error from git command
+        
+    Returns:
+        True if a potential secret is detected, False otherwise
+    """
+    combined_output = stdout + stderr
+    
+    for pattern in SecretPatterns:
+        if re.search(pattern.value, combined_output, re.IGNORECASE):
+            return True
+    
+    return False
 
 
 def validate_git_repo(cwd: Optional[Path] = None) -> bool:

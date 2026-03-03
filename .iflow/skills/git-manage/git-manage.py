@@ -571,7 +571,7 @@ class GitManage:
                             lines = f.readlines()[:5]  # First 5 lines
                             if lines:
                                 context.append(f"Content preview:\n{''.join(lines)}")
-                    except:
+                    except (OSError, UnicodeDecodeError, IOError):
                         pass
                 context.append("---")
         return '\n'.join(context)

@@ -61,6 +61,29 @@ class FileSizeLimits(Enum):
     MAX_LOG_SIZE = 50 * 1024 * 1024  # 50MB
 
 
+class BufferSizes(Enum):
+    """Buffer and chunk sizes for I/O operations."""
+    DEFAULT_BUFFER_SIZE = 8192  # 8KB
+    FILE_READ_CHUNK_SIZE = 4096  # 4KB
+    HASH_CHUNK_SIZE = 4096  # 4KB
+    MAX_CACHE_KEY_SIZE = 200  # characters
+
+
+class Percentages(Enum):
+    """Percentage thresholds and calculations."""
+    MIN_PERCENT = 0
+    MAX_PERCENT = 100
+    DEFAULT_PROGRESS_TOTAL = 100
+
+
+class MemoryLimits(Enum):
+    """Memory-related limits."""
+    MIN_DISK_SPACE_MB = 100  # Minimum disk space in MB
+    MAX_STRING_LENGTH = 500  # Maximum string length for error contexts
+    MAX_PROMPT_PREVIEW = 100  # Characters to show in prompt preview
+    MAX_HISTORY_ENTRIES = 100  # Maximum history entries to keep
+
+
 class BackupPolicy(Enum):
     """Backup policy configuration."""
     MAX_BACKUPS = 10

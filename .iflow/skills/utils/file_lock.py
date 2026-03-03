@@ -108,7 +108,7 @@ class FileLock:
 
 
 @contextmanager
-def locked_file(file_path: Union[str, Path], mode: str = 'r', timeout: float = 30.0):
+def locked_file(file_path: Union[str, Path], mode: str = 'r', timeout: float = 30.0) -> Any:
     """
     Context manager that locks a file while working with it.
     

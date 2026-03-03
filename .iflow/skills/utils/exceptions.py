@@ -26,8 +26,10 @@ class ErrorCode(Enum):
     # General errors (1-10)
     UNKNOWN_ERROR = 1
     INVALID_INPUT = 2
+    INVALID_ARGUMENT = 2
     OPERATION_FAILED = 3
     TIMEOUT = 4
+    VALIDATION_ERROR = 5
 
     # Git operations (10-20)
     GIT_NOT_FOUND = 10
@@ -50,6 +52,7 @@ class ErrorCode(Enum):
     STATE_CORRUPTED = 32
     STATE_VERSION_MISMATCH = 33
     SCHEMA_VALIDATION_FAILED = 34
+    DEPENDENCY_ERROR = 35
 
     # Skill/Pipeline (40-50)
     SKILL_NOT_FOUND = 40
@@ -73,9 +76,10 @@ class ErrorCode(Enum):
 
     # Security (70-80)
     SECRET_DETECTED = 70
-    ACCESS_DENIED = 71
-    AUTHENTICATION_FAILED = 72
-    AUTHORIZATION_FAILED = 73
+    SECURITY_VIOLATION = 71
+    ACCESS_DENIED = 72
+    AUTHENTICATION_FAILED = 73
+    AUTHORIZATION_FAILED = 74
 
     # Validation (80-90)
     VALIDATION_FAILED = 80
@@ -148,6 +152,18 @@ class GitError(IFlowError):
 
     def __init__(self, message: str, code: ErrorCode, details: Optional[Dict[str, Any]] = None, cause: Optional[Exception] = None):
         super().__init__(message, code, ErrorCategory.TRANSIENT, details, cause)
+
+
+class GitCommandTimeout(GitError):
+    """Git command timeout errors."""
+
+    def __init__(self, message: str, command: Optional[List[str]] = None, timeout: Optional[int] = None):
+        details = {}
+        if command:
+            details['command'] = ' '.join(command)
+        if timeout:
+            details['timeout'] = timeout
+        super().__init__(message, ErrorCode.TIMEOUT, details)
 
 
 class FileError(IFlowError):

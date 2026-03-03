@@ -269,6 +269,36 @@ i-flow list --versions
     └── {workflow-name}.md
 ```
 
+### Utility Modules
+
+The system includes comprehensive utility modules for common operations:
+
+```
+.iflow/skills/utils/
+├── git_command.py                    # Git command execution with secret detection
+├── file_lock.py                      # File locking for concurrent access
+├── schema_validator.py              # JSON schema validation
+├── structured_logger.py             # Structured JSON logging
+├── cache_manager.py                 # Multi-strategy caching
+├── audit_logger.py                  # Audit logging system
+├── input_sanitizer.py               # Input validation and sanitization (NEW)
+├── shared_validators.py             # Centralized validation utilities (NEW)
+├── base_classes.py                  # Abstract base classes (NEW)
+├── env_paths.py                     # Environment-based path config (NEW)
+├── audit_decorator.py               # Audit logging decorator (NEW)
+├── constants.py                     # Centralized constants
+├── exceptions.py                    # Exception hierarchy
+└── ... (45+ utility modules)
+```
+
+**New Utility Modules:**
+
+- **input_sanitizer.py** - Validates and sanitizes user input to prevent injection attacks
+- **shared_validators.py** - Centralized validation functions to eliminate code duplication
+- **base_classes.py** - Abstract base classes for skills and pipelines
+- **env_paths.py** - Environment-based path configuration with fallback defaults
+- **audit_decorator.py** - Decorator for automatic audit logging of sensitive operations
+
 ### Pipeline Orchestrator Structure
 
 ```
@@ -448,6 +478,8 @@ python3 -m pytest .iflow/skills/tests/test_utils.py -v
 
 The project includes comprehensive test coverage for:
 
+
+
 - Git workflow operations (git-flow, git-manage)
 
 - Utility modules (logging, caching, validation, etc.)
@@ -455,6 +487,34 @@ The project includes comprehensive test coverage for:
 - Version management and compatibility checking
 
 - Error handling and recovery strategies
+
+- **Secret detection and validation**
+
+- **File locking and concurrency**
+
+- **Schema validation**
+
+- **Input sanitization**
+
+
+
+### Security Features
+
+
+
+The system includes built-in security measures:
+
+
+
+- **Secret Detection**: Automatic scanning of git command output for API keys, tokens, passwords, and other sensitive data
+
+- **Input Sanitization**: Centralized input validation and sanitization to prevent injection attacks
+
+- **Audit Logging**: Decorator-based audit logging for sensitive operations
+
+- **Path Traversal Protection**: Validation of file paths to prevent directory traversal attacks
+
+- **RBAC Integration**: Role-based access control support (ready for integration)
 
 
 
@@ -464,6 +524,8 @@ The project includes comprehensive test coverage for:
 
 Automated testing is integrated into the development workflow via:
 
+
+
 - Pre-commit test validation
 
 - Coverage thresholds (configurable)
@@ -472,12 +534,51 @@ Automated testing is integrated into the development workflow via:
 
 - Automated review pipelines
 
+- **Secret detection in pre-commit hooks**
+
+- **Conventional commit enforcement**
+
 ## Documentation
 
 - [Design Document](docs/iflow_skills_design.md) - Architecture and design specifications
 - [Roles](docs/roles.md) - Role definitions and responsibilities
 - [Skills](docs/skills.md) - Skill capabilities and requirements
 - [Team Flow](docs/team_flow.md) - Visual workflow diagram
+
+## Recent Updates
+
+### Security Enhancements
+- ✅ Implemented `check_for_secrets` function for detecting secrets in git output
+- ✅ Added comprehensive input sanitization layer with InputSanitizer class
+- ✅ Created audit decorator for automatic logging of sensitive operations
+- ✅ Added SECURITY_VIOLATION error code to exception hierarchy
+
+### Code Quality Improvements
+- ✅ Fixed bare exception handling in git-manage.py
+- ✅ Created BaseSkill and BasePipeline abstract classes for consistent interfaces
+- ✅ Added complete type hints to all functions
+- ✅ Extracted magic numbers to constants (BufferSizes, Percentages, MemoryLimits)
+- ✅ Created SharedValidators utility to eliminate duplicate validation code
+- ✅ Standardized string formatting to f-strings
+
+### Testing & Validation
+- ✅ Added comprehensive tests for git_command functions
+- ✅ Added tests for secret detection patterns
+- ✅ Verified file_lock and schema validation test coverage
+- ✅ Enhanced test suite with security-focused test cases
+
+### Configuration Management
+- ✅ Added configuration versioning to all config files
+- ✅ Created EnvPaths utility for environment-based path configuration
+- ✅ Added requirements.lock for dependency versioning
+- ✅ Implemented configuration validation and migration support
+
+### New Utility Modules (5)
+1. `input_sanitizer.py` - Input validation and sanitization (372 lines)
+2. `env_paths.py` - Environment-based path configuration (249 lines)
+3. `base_classes.py` - Abstract base classes (435 lines)
+4. `shared_validators.py` - Centralized validation (520 lines)
+5. `audit_decorator.py` - Audit logging decorator (226 lines)
 
 ## Benefits
 

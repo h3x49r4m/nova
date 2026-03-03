@@ -141,7 +141,7 @@ def validate_system_requirements(strict: bool = False) -> Tuple[bool, list]:
     return len(errors) == 0, errors
 
 
-def print_version_info():
+def print_version_info() -> None:
     """Print current Python and Git version information."""
     print("System Version Information:")
     print(f"  Python: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
