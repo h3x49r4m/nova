@@ -79,7 +79,7 @@ ls .iflow/skills/
 
 3. Check skill status:
 ```bash
-python3 .iflow/skills/skill_cli.py list
+i-flow list --skills
 ```
 
 ## Usage
@@ -91,13 +91,13 @@ Activate a specific role to work independently:
 
 ```bash
 # Activate as Client
-iflow skill client
+i-flow invoke client
 
 # Activate as Tech Lead
-iflow skill tech-lead
+i-flow invoke tech-lead
 
 # Activate as Software Engineer
-iflow skill software-engineer
+i-flow invoke software-engineer
 ```
 
 **Workflow:**
@@ -112,13 +112,13 @@ Activate a pipeline to orchestrate multiple roles:
 
 ```bash
 # New project pipeline (full development lifecycle)
-iflow skill team-pipeline-new-project
+i-flow invoke team-pipeline-new-project
 
 # New feature pipeline (add features to existing project)
-iflow skill team-pipeline-new-feature
+i-flow invoke team-pipeline-new-feature
 
 # Bug fix pipeline (rapid bug fixing)
-iflow skill team-pipeline-fix-bug
+i-flow invoke team-pipeline-fix-bug
 ```
 
 **Workflow:**
@@ -134,82 +134,82 @@ iflow skill team-pipeline-fix-bug
 
 **Start a new feature workflow:**
 ```bash
-/git-flow start "User Authentication"
+i-flow invoke git-flow start "User Authentication"
 ```
 
 **Commit changes:**
 ```bash
-/git-flow commit src/auth.py
+i-flow invoke git-flow commit src/auth.py
 ```
 
 **Review pending branches:**
 ```bash
-/git-flow review
+i-flow invoke git-flow review
 ```
 
 **Approve a branch:**
 ```bash
-/git-flow approve tech-lead/auth-architecture
+i-flow invoke git-flow approve tech-lead/auth-architecture
 ```
 
 **Reject a branch:**
 ```bash
-/git-flow reject software-engineer/auth-api --reason "Tests failing"
+i-flow invoke git-flow reject software-engineer/auth-api --reason "Tests failing"
 ```
 
 **View workflow status:**
 ```bash
-/git-flow status
+i-flow invoke git-flow status
 ```
 
 **Advance to next phase:**
 ```bash
-/git-flow phase-next
+i-flow invoke git-flow phase-next
 ```
 
 #### Git-Manage Workflow
 
 **Check status with test results:**
 ```bash
-/git-manage status
+i-flow invoke git-manage status
 ```
 
 **Stage and commit changes:**
 ```bash
-/git-manage add src/auth.py
-/git-manage commit feat: implement user authentication
+i-flow invoke git-manage add src/auth.py
+i-flow invoke git-manage commit src/auth.py --type feat --description "implement user authentication"
 ```
 
 **View changes:**
 ```bash
-/git-manage diff
+i-flow invoke git-manage diff
 ```
 
 **Undo last commit:**
 ```bash
-/git-manage undo soft
+i-flow invoke git-manage undo soft
 ```
 
 **Push to remote:**
 ```bash
-/git-manage push origin feat/authentication
+i-flow invoke git-manage push origin feat/authentication
 ```
 
 ### Version Management
 
 **List all skills:**
 ```bash
-python3 .iflow/skills/skill_cli.py list
+i-flow list --skills
 ```
 
 **Check skill version:**
 ```bash
-python3 .iflow/skills/skill_cli.py info software-engineer
+i-flow status software-engineer
 ```
 
 **Check compatibility:**
 ```bash
-python3 .iflow/skills/skill_cli.py check team-pipeline-new-feature
+i-flow list --versions
 ```
 
 ## Architecture
@@ -390,17 +390,87 @@ Edit `.iflow/skills/git-manage/config.json`:
 
 ## Testing
 
+
+
 Run the test suite:
 
+
+
 ```bash
-python3 .iflow/skills/tests/run_tests.py
+
+i-flow invoke testing-engineer --run-all
+
 ```
+
+
+
+Or run directly:
+
+
+
+```bash
+
+python3 -m pytest .iflow/skills/tests/ -v
+
+```
+
+
 
 Run specific tests:
 
+
+
 ```bash
-python3 -m pytest .iflow/skills/tests/test_skill_manager.py -v
+
+# Git-flow tests
+
+python3 -m pytest .iflow/skills/tests/test_git_flow.py -v
+
+
+
+# Git-manage tests
+
+python3 -m pytest .iflow/skills/tests/test_git_manage.py -v
+
+
+
+# Utility tests
+
+python3 -m pytest .iflow/skills/tests/test_utils.py -v
+
 ```
+
+
+
+### Test Coverage
+
+
+
+The project includes comprehensive test coverage for:
+
+- Git workflow operations (git-flow, git-manage)
+
+- Utility modules (logging, caching, validation, etc.)
+
+- Version management and compatibility checking
+
+- Error handling and recovery strategies
+
+
+
+### CI/CD Integration
+
+
+
+Automated testing is integrated into the development workflow via:
+
+- Pre-commit test validation
+
+- Coverage thresholds (configurable)
+
+- Quality gates for merges
+
+- Automated review pipelines
 
 ## Documentation
 
