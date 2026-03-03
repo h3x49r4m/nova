@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Optional, Union, Any
 from contextlib import contextmanager
 
+from .constants import Timeouts
+
 
 class FileLockError(Exception):
     """Exception raised when file locking fails."""

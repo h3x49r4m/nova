@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test runner for skill_manager tests.
+Test runner for all iFlow CLI skills tests.
 Provides convenient command-line interface for running tests.
 """
 
@@ -17,6 +17,30 @@ from test_skill_manager import (
     TestSkillDependencyResolver,
     TestSkillCompatibilityChecker
 )
+from test_git_flow import (
+    TestBranchStatus,
+    TestPhaseStatus,
+    TestWorkflowStatus,
+    TestReviewEvent,
+    TestBranchState,
+    TestPhase,
+    TestWorkflowState,
+    TestDependencyGraph,
+    TestGitFlow,
+    TestGitFlowAdvanced
+)
+from test_git_manage import (
+    TestGitManage,
+    TestGitManageConfig,
+    TestGitManageConstants
+)
+from test_utils import (
+    TestGitCommand,
+    TestSchemaValidator,
+    TestFileLock,
+    TestConstants,
+    TestIntegration
+)
 
 
 def run_tests(verbosity=2):
@@ -25,11 +49,35 @@ def run_tests(verbosity=2):
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
     
-    # Add all test classes
+    # Add skill manager tests
     suite.addTests(loader.loadTestsFromTestCase(TestSkillVersionManager))
     suite.addTests(loader.loadTestsFromTestCase(TestSkillRegistry))
     suite.addTests(loader.loadTestsFromTestCase(TestSkillDependencyResolver))
     suite.addTests(loader.loadTestsFromTestCase(TestSkillCompatibilityChecker))
+    
+    # Add git-flow tests
+    suite.addTests(loader.loadTestsFromTestCase(TestBranchStatus))
+    suite.addTests(loader.loadTestsFromTestCase(TestPhaseStatus))
+    suite.addTests(loader.loadTestsFromTestCase(TestWorkflowStatus))
+    suite.addTests(loader.loadTestsFromTestCase(TestReviewEvent))
+    suite.addTests(loader.loadTestsFromTestCase(TestBranchState))
+    suite.addTests(loader.loadTestsFromTestCase(TestPhase))
+    suite.addTests(loader.loadTestsFromTestCase(TestWorkflowState))
+    suite.addTests(loader.loadTestsFromTestCase(TestDependencyGraph))
+    suite.addTests(loader.loadTestsFromTestCase(TestGitFlow))
+    suite.addTests(loader.loadTestsFromTestCase(TestGitFlowAdvanced))
+    
+    # Add git-manage tests
+    suite.addTests(loader.loadTestsFromTestCase(TestGitManage))
+    suite.addTests(loader.loadTestsFromTestCase(TestGitManageConfig))
+    suite.addTests(loader.loadTestsFromTestCase(TestGitManageConstants))
+    
+    # Add utility tests
+    suite.addTests(loader.loadTestsFromTestCase(TestGitCommand))
+    suite.addTests(loader.loadTestsFromTestCase(TestSchemaValidator))
+    suite.addTests(loader.loadTestsFromTestCase(TestFileLock))
+    suite.addTests(loader.loadTestsFromTestCase(TestConstants))
+    suite.addTests(loader.loadTestsFromTestCase(TestIntegration))
     
     # Run tests
     runner = unittest.TextTestRunner(verbosity=verbosity)

@@ -240,3 +240,18 @@ def validate_branch_state(data: Dict, schema_dir: Optional[Path] = None) -> Tupl
     """
     validator = SchemaValidator(schema_dir)
     return validator.validate(data, 'branch-state')
+
+
+def validate_pipeline_state(data: Dict, schema_dir: Optional[Path] = None) -> Tuple[bool, List[str]]:
+    """
+    Convenience function to validate pipeline state.
+    
+    Args:
+        data: Pipeline state data
+        schema_dir: Directory containing schemas
+        
+    Returns:
+        Tuple of (is_valid, error_messages)
+    """
+    validator = SchemaValidator(schema_dir)
+    return validator.validate(data, 'pipeline-state')
