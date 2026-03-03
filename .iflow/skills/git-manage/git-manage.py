@@ -333,8 +333,8 @@ class GitManage:
         if protected:
             return ErrorCode.GIT_BRANCH_PROTECTED.value, msg
 
-        # Detect secrets
-        if self.config['detect_secrets']:
+        # Detect secrets (unless no_verify is set)
+        if not no_verify and self.config['detect_secrets']:
             has_secrets, secrets = self.detect_secrets(staged_files)
             if has_secrets:
                 return ErrorCode.SECRET_DETECTED.value, f'Secrets detected in staged files:\n' + '\n'.join(secrets)
