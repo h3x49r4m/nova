@@ -11,8 +11,16 @@ import time
 from pathlib import Path
 from typing import Tuple, Optional, List, TypeVar, ParamSpec, Union, Dict
 import sys
-from exceptions import GitError, ErrorCode, ErrorCategory, wrap_error, GitCommandTimeout
-from constants import RetryPolicy, Timeouts, ValidationPatterns, SecretPatterns
+from .exceptions import GitError, ErrorCode, ErrorCategory, wrap_error, GitCommandTimeout
+from .constants import RetryPolicy, Timeouts, ValidationPatterns, SecretPatterns
+from .shared_validators import SharedValidators, ValidationResult
+
+# Global metrics collector for git operations
+try:
+    from .metrics_collector import MetricsCollector
+    _metrics = MetricsCollector()
+except ImportError:
+    _metrics = None
 
 
 def run_git_command(
@@ -38,9 +46,9 @@ def run_git_command(
         Tuple of (return_code, stdout, stderr)
         
     Raises:
-        GitCommandError: If command fails
+        GitError: If command fails
         GitCommandTimeout: If command times out
-        SecurityError: If secrets are detected in output
+        GitError: If secrets are detected in output
     """
     if cwd is None:
         cwd = os.getcwd()
@@ -81,6 +89,7 @@ def run_git_command(
     
     for attempt in range(max_retries):
         try:
+            start_time = time.time()
             result = subprocess.run(
                 command_strings,
                 cwd=cwd,
@@ -90,10 +99,21 @@ def run_git_command(
                 env=env,
                 shell=False  # Security: always use shell=False
             )
+            execution_time = time.time() - start_time
             
             stdout = result.stdout
             stderr = result.stderr
             returncode = result.returncode
+            
+            # Track metrics if available
+            if _metrics:
+                command_name = command[0] if command else "unknown"
+                _metrics.record_timer(f"git_command_{command_name}", execution_time)
+                _metrics.increment_counter("git_commands_total")
+                if returncode == 0:
+                    _metrics.increment_counter("git_commands_success")
+                else:
+                    _metrics.increment_counter("git_commands_failed")
             
             # Normalize line endings for cross-platform consistency
             stdout = stdout.replace('\r\n', '\n')
@@ -182,7 +202,7 @@ def validate_git_repo(cwd: Optional[Path] = None) -> bool:
     try:
         returncode, _, _ = run_git_command(['rev-parse', '--git-dir'], cwd=cwd, timeout=10)
         return returncode == 0
-    except (GitCommandError, GitCommandTimeout):
+    except (GitError, GitCommandTimeout):
         return False
 
 
@@ -199,7 +219,7 @@ def get_current_branch(cwd: Optional[Path] = None) -> str:
     try:
         code, stdout, _ = run_git_command(['rev-parse', '--abbrev-ref', 'HEAD'], cwd=cwd, timeout=10)
         return stdout.strip() if code == 0 else 'unknown'
-    except (GitCommandError, GitCommandTimeout):
+    except (GitError, GitCommandTimeout):
         return 'unknown'
 
 
@@ -225,86 +245,51 @@ def get_repo_root(cwd: Optional[Path] = None) -> Optional[Path]:
 def validate_branch_name(branch_name: str) -> Tuple[bool, Optional[str]]:
     """
     Validate a git branch name according to git naming rules.
-    
+
+    This function uses the shared validator from shared_validators module
+    to ensure consistency across the codebase.
+
     Args:
         branch_name: The branch name to validate
-        
+
     Returns:
         Tuple of (is_valid, error_message)
     """
-    if not branch_name:
-        return False, "Branch name cannot be empty"
-    
-    # Check for maximum length
-    if len(branch_name) > ValidationPatterns.BRANCH_MAX_LENGTH.value:
-        return False, f"Branch name too long (max {ValidationPatterns.BRANCH_MAX_LENGTH.value} characters)"
-    
-    # Sanitize: remove any control characters first
-    sanitized = ''.join(char for char in branch_name if ord(char) >= 32)
-    if sanitized != branch_name:
-        return False, "Branch name contains invalid control characters"
-    
-    # Check for invalid characters
-    invalid_chars_pattern = ValidationPatterns.BRANCH_INVALID_CHARS.value
-    if re.search(invalid_chars_pattern, branch_name):
-        invalid_chars = set(re.findall(invalid_chars_pattern, branch_name))
-        return False, f"Branch name contains invalid characters: {', '.join(sorted(invalid_chars))}"
-    
-    # Check for reserved names
-    reserved_patterns = [
-        r'\.lock',
-    ]
-    
-    for pattern in reserved_patterns:
-        if re.match(pattern, branch_name):
-            return False, f"Branch name '{branch_name}' matches reserved pattern '{pattern}'"
-    
-    return True, None
+    result = SharedValidators.validate_branch_name(branch_name)
+    return (result.is_valid, result.error_message)
 
 
 def validate_file_path(file_path: str, repo_root: Optional[Path] = None) -> Tuple[bool, Optional[str]]:
     """
     Validate a file path for security (prevent path traversal).
-    
+
+    This function uses the shared validator from shared_validators module
+    to ensure consistency across the codebase.
+
     Args:
         file_path: File path to validate
         repo_root: Repository root directory
-    
+
     Returns:
         Tuple of (is_valid, error_message)
     """
-    if not file_path:
-        return False, "File path cannot be empty"
-    
-    # Sanitize: remove null bytes and other dangerous characters
-    if '\x00' in file_path:
-        return False, "File path contains null bytes"
-    
-    # Check for path traversal attempts
-    if '../' in file_path or '..\\' in file_path:
-        return False, "Path traversal detected"
-    
-    # Check for encoded path traversal attempts
-    if '%2e%2e' in file_path.lower() or '%2e%2e%2f' in file_path.lower():
-        return False, "Encoded path traversal detected"
-    
-    if file_path.startswith('/') or (len(file_path) > 1 and file_path[1] == ':'):
-        # Absolute path - resolve and check if within repo
-        try:
-            path = Path(file_path).resolve()
-            if repo_root:
-                try:
-                    path.relative_to(repo_root)
-                except ValueError:
-                    return False, "File path is outside repository"
-        except Exception:
-            return False, "Invalid file path"
-    
-    # Check for shell command injection patterns
-    shell_injection_patterns = [';', '&', '|', '`', '$(', '<', '>', '\n', '\r']
-    for pattern in shell_injection_patterns:
-        if pattern in file_path and file_path.strip().endswith('.py'):
-            # Only suspicious if it looks like a command in a code file
-            return False, f"Potential shell injection detected: '{pattern}'"
-    
-    return True, None
+    result = SharedValidators.validate_file_path(file_path, repo_root)
+    return (result.is_valid, result.error_message)
+
+
+def get_git_metrics() -> Optional[Dict[str, Any]]:
+    """
+    Get git operation metrics statistics.
+
+    Returns:
+        Dictionary of metrics or None if metrics collector is not available
+    """
+    if _metrics:
+        return _metrics.get_statistics()
+    return None
+
+
+def reset_git_metrics() -> None:
+    """Reset all git operation metrics."""
+    if _metrics:
+        _metrics.reset()

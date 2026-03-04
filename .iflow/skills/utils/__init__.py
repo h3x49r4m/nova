@@ -4,8 +4,6 @@ Shared utilities for iFlow CLI skills.
 """
 
 from .git_command import (
-    GitCommandError,
-    GitCommandTimeout,
     run_git_command,
     validate_git_repo,
     get_current_branch,
@@ -29,8 +27,32 @@ from .schema_validator import (
     validate_branch_state
 )
 
+from .exceptions import (
+    IFlowError,
+    ErrorCode,
+    ValidationError,
+    SecurityError,
+    FileError,
+    GitError,
+    GitCommandTimeout
+)
+
+from .constants import (
+    Timeouts,
+    CoverageThresholds,
+    CommitTypes,
+    SecretPatterns,
+    DEFAULT_PROTECTED_BRANCHES,
+    DEFAULT_COVERAGE_THRESHOLDS
+)
+
+from .structured_logger import (
+    StructuredLogger,
+    LogFormat
+)
+
 __all__ = [
-    'GitCommandError',
+    'GitError',
     'GitCommandTimeout',
     'run_git_command',
     'validate_git_repo',
@@ -46,5 +68,18 @@ __all__ = [
     'SchemaValidator',
     'SchemaValidationError',
     'validate_workflow_state',
-    'validate_branch_state'
+    'validate_branch_state',
+    'IFlowError',
+    'ErrorCode',
+    'ValidationError',
+    'SecurityError',
+    'FileError',
+    'Timeouts',
+    'CoverageThresholds',
+    'CommitTypes',
+    'SecretPatterns',
+    'DEFAULT_PROTECTED_BRANCHES',
+    'DEFAULT_COVERAGE_THRESHOLDS',
+    'StructuredLogger',
+    'LogFormat'
 ]

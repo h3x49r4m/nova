@@ -13,56 +13,29 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-# Import shared git command utility
+# Import shared utilities
 utils_path = Path(__file__).parent.parent / 'utils'
 sys.path.insert(0, str(utils_path))
 
-# Import modules that may use relative imports
-import importlib.util
-import importlib
-
-def import_module(module_name: str):
-    """Import a module from utils directory, handling relative imports."""
-    try:
-        # Try direct import first
-        return importlib.import_module(module_name)
-    except ImportError:
-        # If that fails, try importing from utils path
-        spec = importlib.util.spec_from_file_location(module_name, utils_path / f"{module_name}.py")
-        if spec and spec.loader:
-            module = importlib.util.module_from_spec(spec)
-            sys.modules[module_name] = module
-            spec.loader.exec_module(module)
-            return module
-        raise
-
-# Import required modules
-git_command = import_module('git_command')
-exceptions = import_module('exceptions')
-constants = import_module('constants')
-structured_logger = import_module('structured_logger')
-
-# Extract required items
-run_git_command = git_command.run_git_command
-get_current_branch = git_command.get_current_branch
-validate_branch_name = git_command.validate_branch_name
-validate_file_path = git_command.validate_file_path
-
-IFlowError = exceptions.IFlowError
-ErrorCode = exceptions.ErrorCode
-ValidationError = exceptions.ValidationError
-SecurityError = exceptions.SecurityError
-FileError = exceptions.FileError
-
-Timeouts = constants.Timeouts
-CoverageThresholds = constants.CoverageThresholds
-CommitTypes = constants.CommitTypes
-SecretPatterns = constants.SecretPatterns
-DEFAULT_PROTECTED_BRANCHES = constants.DEFAULT_PROTECTED_BRANCHES
-DEFAULT_COVERAGE_THRESHOLDS = constants.DEFAULT_COVERAGE_THRESHOLDS
-
-StructuredLogger = structured_logger.StructuredLogger
-LogFormat = structured_logger.LogFormat
+from utils import (
+    run_git_command,
+    get_current_branch,
+    validate_branch_name,
+    validate_file_path,
+    IFlowError,
+    ErrorCode,
+    ValidationError,
+    SecurityError,
+    FileError,
+    Timeouts,
+    CoverageThresholds,
+    CommitTypes,
+    SecretPatterns,
+    DEFAULT_PROTECTED_BRANCHES,
+    DEFAULT_COVERAGE_THRESHOLDS,
+    StructuredLogger,
+    LogFormat
+)
 
 
 class GitManage:
@@ -110,6 +83,14 @@ class GitManage:
             try:
                 with open(self.config_file, 'r') as f:
                     user_config = json.load(f)
+                    
+                # Validate user config against schema
+                from utils.json_schema_validator import validate_json_schema
+                schema_dir = self.repo_root / '.iflow' / 'schemas'
+                is_valid, errors = validate_json_schema(user_config, schema_dir / 'skill-config.json')
+                if not is_valid:
+                    print(f"Warning: Config validation failed: {errors}. Using default config.", file=sys.stderr)
+                else:
                     self.config.update(user_config)
                     
                     # Merge coverage thresholds if provided

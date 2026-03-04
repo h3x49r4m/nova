@@ -28,6 +28,7 @@ from git_command import (
 )
 from file_lock import write_locked_json, read_locked_json, FileLockError
 from schema_validator import validate_workflow_state, validate_branch_state, SchemaValidationError
+from json_schema_validator import validate_json_schema
 from structured_logger import StructuredLogger, LogLevel, LogFormat
 from deadlock_detector import DeadlockDetector, validate_git_flow_dependencies
 from checkpoint_manager import CheckpointManager
@@ -379,6 +380,14 @@ class GitFlow:
             try:
                 with open(self.config_file, 'r') as f:
                     user_config = json.load(f)
+                    
+                # Validate user config against schema
+                schema_dir = self.repo_root / '.iflow' / 'schemas'
+                is_valid, errors = validate_json_schema(user_config, schema_dir / 'git-flow-config.json')
+                if not is_valid:
+                    self.logger.warning(f"Config validation failed: {errors}. Using default config.")
+                    self.config = default_config
+                else:
                     self.config = self._merge_config(default_config, user_config)
             except (json.JSONDecodeError, IOError):
                 self.config = default_config

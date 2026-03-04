@@ -33,6 +33,13 @@ class PipelineStateManager:
         pipeline_name: str,
         feature_name: str
     ):
+        """Initialize the pipeline state manager.
+
+        Args:
+            repo_root: Path to the repository root
+            pipeline_name: Name of the pipeline
+            feature_name: Name of the feature/branch
+        """
         self.repo_root = repo_root
         self.pipeline_name = pipeline_name
         self.feature_name = feature_name

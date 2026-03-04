@@ -39,9 +39,10 @@ from utils.constants import (
     Timeouts,
     CommitTypes,
     SecretPatterns,
-    ValidationPatterns,
-    ErrorCode as ConstantsErrorCode
+    ValidationPatterns
 )
+from utils.input_sanitizer import InputSanitizer
+from utils.exceptions import IFlowError, ValidationError
 
 
 class TestGitCommand(unittest.TestCase):
@@ -699,6 +700,362 @@ class TestIntegration(unittest.TestCase):
         # All validations should succeed
         self.assertEqual(len(results), 5)
         self.assertTrue(all(is_valid for _, is_valid in results))
+
+
+class TestInputSanitizer(unittest.TestCase):
+    """Test input sanitizer functionality."""
+
+    def test_sanitize_string_basic(self):
+        """Test basic string sanitization."""
+        result = InputSanitizer.sanitize_string("test string")
+        self.assertEqual(result, "test string")
+
+    def test_sanitize_string_null_bytes(self):
+        """Test null byte removal."""
+        result = InputSanitizer.sanitize_string("test\x00string")
+        self.assertEqual(result, "teststring")
+        self.assertNotIn('\x00', result)
+
+    def test_sanitize_string_max_length(self):
+        """Test max length validation."""
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_string("test", max_length=3)
+        self.assertIn("maximum length", str(context.exception))
+
+    def test_sanitize_string_allowed_chars(self):
+        """Test allowed character filtering."""
+        result = InputSanitizer.sanitize_string(
+            "test-123",
+            allowed_chars=r'[a-zA-Z0-9\-]'
+        )
+        self.assertEqual(result, "test-123")
+
+    def test_sanitize_string_disallowed_chars(self):
+        """Test disallowed character rejection."""
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_string(
+                "test@123",
+                allowed_chars=r'[a-zA-Z0-9]'
+            )
+        self.assertIn("disallowed characters", str(context.exception))
+
+    def test_sanitize_string_non_string_input(self):
+        """Test non-string input rejection."""
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_string(123)
+        self.assertIn("must be a string", str(context.exception))
+
+    def test_sanitize_branch_name_valid(self):
+        """Test valid branch name sanitization."""
+        test_cases = [
+            "main",
+            "feature/test",
+            "bugfix/issue-123",
+            "release/v1.0.0"
+        ]
+
+        for branch in test_cases:
+            result = InputSanitizer.sanitize_branch_name(branch)
+            self.assertEqual(result, branch)
+
+    def test_sanitize_branch_name_start_with_dot(self):
+        """Test branch name starting with dot is rejected."""
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_branch_name(".hidden")
+        self.assertIn("cannot start or end with a dot", str(context.exception))
+
+    def test_sanitize_branch_name_end_with_dot(self):
+        """Test branch name ending with dot is rejected."""
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_branch_name("feature.")
+        self.assertIn("cannot start or end with a dot", str(context.exception))
+
+    def test_sanitize_branch_name_consecutive_dots(self):
+        """Test branch name with consecutive dots is rejected."""
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_branch_name("feature..test")
+        self.assertIn("cannot contain consecutive dots", str(context.exception))
+
+    def test_sanitize_branch_name_at_brace(self):
+        """Test branch name with @{ is rejected."""
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_branch_name("feature@{test")
+        self.assertIn("cannot contain '@{'", str(context.exception))
+
+    def test_sanitize_branch_name_lock_suffix(self):
+        """Test branch name ending with .lock is rejected."""
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_branch_name("feature.lock")
+        self.assertIn("cannot end with '.lock'", str(context.exception))
+
+    def test_sanitize_commit_message_valid(self):
+        """Test valid commit message sanitization."""
+        result = InputSanitizer.sanitize_commit_message("Add new feature")
+        self.assertEqual(result, "Add new feature")
+
+    def test_sanitize_commit_message_command_injection(self):
+        """Test commit message with command injection is rejected."""
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_commit_message("test; rm -rf /")
+        self.assertIn("dangerous characters", str(context.exception))
+
+    def test_sanitize_commit_message_max_length(self):
+        """Test commit message max length."""
+        long_message = "x" * 10001
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_commit_message(long_message)
+        self.assertIn("maximum length", str(context.exception))
+
+    def test_sanitize_file_path_valid(self):
+        """Test valid file path sanitization."""
+        result = InputSanitizer.sanitize_file_path("src/main.py")
+        self.assertEqual(result, "src/main.py")
+
+    def test_sanitize_file_path_traversal(self):
+        """Test path traversal detection."""
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_file_path("../etc/passwd")
+        self.assertIn("path traversal", str(context.exception))
+
+    def test_sanitize_file_path_windows_traversal(self):
+        """Test Windows path traversal detection."""
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_file_path("..\\windows\\system32")
+        self.assertIn("path traversal", str(context.exception))
+
+    def test_sanitize_file_path_tilde(self):
+        """Test tilde expansion rejection."""
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_file_path("~/config")
+        self.assertIn("Tilde expansion not allowed", str(context.exception))
+
+    def test_sanitize_file_path_with_base_dir(self):
+        """Test file path sanitization with base directory."""
+        base_dir = Path("/tmp/test")
+        result = InputSanitizer.sanitize_file_path("file.py", base_dir)
+        self.assertIn("/tmp/test", result)
+
+    def test_sanitize_file_path_absolute_outside_base(self):
+        """Test absolute path outside base directory is rejected."""
+        base_dir = Path("/tmp/test")
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_file_path("/etc/passwd", base_dir)
+        self.assertIn("outside base directory", str(context.exception))
+
+    def test_sanitize_username_valid(self):
+        """Test valid username sanitization."""
+        result = InputSanitizer.sanitize_username("john.doe")
+        self.assertEqual(result, "john.doe")
+
+    def test_sanitize_username_max_length(self):
+        """Test username max length."""
+        long_username = "x" * 101
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_username(long_username)
+        self.assertIn("maximum length", str(context.exception))
+
+    def test_sanitize_email_valid(self):
+        """Test valid email sanitization."""
+        result = InputSanitizer.sanitize_email("Test@Example.COM")
+        self.assertEqual(result, "test@example.com")
+
+    def test_sanitize_email_invalid_format(self):
+        """Test invalid email format is rejected."""
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_email("invalid-email")
+        self.assertIn("Invalid email format", str(context.exception))
+
+    def test_check_command_injection_true(self):
+        """Test command injection detection returns True."""
+        test_cases = [
+            "test; rm -rf /",
+            "test && malicious",
+            "test | cat",
+            "test`whoami`",
+            "$(cat /etc/passwd)"
+        ]
+
+        for test_input in test_cases:
+            result = InputSanitizer.check_command_injection(test_input)
+            self.assertTrue(result, f"Failed to detect injection in: {test_input}")
+
+    def test_check_command_injection_false(self):
+        """Test clean input returns False."""
+        result = InputSanitizer.check_command_injection("normal text")
+        self.assertFalse(result)
+
+    def test_check_sql_injection_true(self):
+        """Test SQL injection detection returns True."""
+        test_cases = [
+            "admin' OR '1'='1",
+            "' OR 1=1 --",
+            "'; DROP TABLE users; --",
+            "' UNION SELECT * FROM passwords"
+        ]
+
+        for test_input in test_cases:
+            result = InputSanitizer.check_sql_injection(test_input)
+            self.assertTrue(result, f"Failed to detect SQL injection in: {test_input}")
+
+    def test_check_sql_injection_false(self):
+        """Test clean input returns False."""
+        result = InputSanitizer.check_sql_injection("normal text")
+        self.assertFalse(result)
+
+    def test_check_xss_true(self):
+        """Test XSS detection returns True."""
+        test_cases = [
+            "<script>alert('xss')</script>",
+            "<img src=x onerror=alert('xss')>",
+            "javascript:alert('xss')",
+            "data:text/html,<script>alert('xss')</script>"
+        ]
+
+        for test_input in test_cases:
+            result = InputSanitizer.check_xss(test_input)
+            self.assertTrue(result, f"Failed to detect XSS in: {test_input}")
+
+    def test_check_xss_false(self):
+        """Test clean input returns False."""
+        result = InputSanitizer.check_xss("normal text")
+        self.assertFalse(result)
+
+    def test_sanitize_html(self):
+        """Test HTML escaping."""
+        result = InputSanitizer.sanitize_html("<script>alert('xss')</script>")
+        self.assertEqual(result, "&lt;script&gt;alert('xss')&lt;/script&gt;")
+
+    def test_sanitize_json_valid(self):
+        """Test valid JSON sanitization."""
+        input_json = '{"key": "value"}'
+        result = InputSanitizer.sanitize_json(input_json)
+        self.assertEqual(result, input_json)
+
+    def test_sanitize_json_invalid(self):
+        """Test invalid JSON is rejected."""
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_json("{invalid json}")
+        self.assertIn("Invalid JSON", str(context.exception))
+
+    def test_sanitize_list_valid(self):
+        """Test list sanitization."""
+        input_list = ["item1", "item2", "item3"]
+        result = InputSanitizer.sanitize_list(input_list)
+        self.assertEqual(result, input_list)
+
+    def test_sanitize_list_non_list(self):
+        """Test non-list input is rejected."""
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_list("not a list")
+        self.assertIn("must be a list", str(context.exception))
+
+    def test_sanitize_list_non_string_item(self):
+        """Test list with non-string item is rejected."""
+        with self.assertRaises(ValueError) as context:
+            InputSanitizer.sanitize_list(["item1", 123, "item3"])
+        self.assertIn("must be strings", str(context.exception))
+
+    def test_sanitize_list_with_custom_sanitizer(self):
+        """Test list with custom sanitizer."""
+        input_list = ["item1", "item2", "item3"]
+        result = InputSanitizer.sanitize_list(
+            input_list,
+            item_sanitizer=lambda x: x.upper()
+        )
+        self.assertEqual(result, ["ITEM1", "ITEM2", "ITEM3"])
+
+
+class TestExceptions(unittest.TestCase):
+    """Test exception classes and error codes."""
+
+    def test_error_category_enum(self):
+        """Test ErrorCategory enum values."""
+        self.assertEqual(ErrorCategory.TRANSIENT.value, "transient")
+        self.assertEqual(ErrorCategory.PERMANENT.value, "permanent")
+        self.assertEqual(ErrorCategory.CONFIGURATION.value, "configuration")
+        self.assertEqual(ErrorCategory.DEPENDENCY.value, "dependency")
+        self.assertEqual(ErrorCategory.USER_ERROR.value, "user_error")
+        self.assertEqual(ErrorCategory.SYSTEM_ERROR.value, "system_error")
+
+    def test_error_code_success(self):
+        """Test SUCCESS error code."""
+        self.assertEqual(ErrorCode.SUCCESS.value, 0)
+
+    def test_error_code_general_errors(self):
+        """Test general error codes."""
+        self.assertEqual(ErrorCode.UNKNOWN_ERROR.value, 1)
+        self.assertEqual(ErrorCode.INVALID_INPUT.value, 2)
+        self.assertEqual(ErrorCode.TIMEOUT.value, 4)
+        self.assertEqual(ErrorCode.VALIDATION_ERROR.value, 5)
+
+    def test_error_code_git_operations(self):
+        """Test git operation error codes."""
+        self.assertEqual(ErrorCode.GIT_NOT_FOUND.value, 10)
+        self.assertEqual(ErrorCode.GIT_COMMAND_FAILED.value, 11)
+        self.assertEqual(ErrorCode.GIT_REPOSITORY_NOT_FOUND.value, 12)
+        self.assertEqual(ErrorCode.GIT_BRANCH_PROTECTED.value, 13)
+        self.assertEqual(ErrorCode.GIT_MERGE_CONFLICT.value, 14)
+
+    def test_error_code_file_operations(self):
+        """Test file operation error codes."""
+        self.assertEqual(ErrorCode.FILE_NOT_FOUND.value, 20)
+        self.assertEqual(ErrorCode.FILE_READ_ERROR.value, 21)
+        self.assertEqual(ErrorCode.FILE_WRITE_ERROR.value, 22)
+        self.assertEqual(ErrorCode.INVALID_PATH.value, 23)
+        self.assertEqual(ErrorCode.PATH_TRAVERSAL_DETECTED.value, 24)
+
+    def test_error_code_state_configuration(self):
+        """Test state/configuration error codes."""
+        self.assertEqual(ErrorCode.CONFIG_NOT_FOUND.value, 30)
+        self.assertEqual(ErrorCode.CONFIG_INVALID.value, 31)
+        self.assertEqual(ErrorCode.STATE_CORRUPTED.value, 32)
+        self.assertEqual(ErrorCode.SCHEMA_VALIDATION_FAILED.value, 34)
+
+    def test_error_code_security(self):
+        """Test security error codes."""
+        self.assertEqual(ErrorCode.SECRET_DETECTED.value, 70)
+        self.assertEqual(ErrorCode.SECURITY_VIOLATION.value, 71)
+        self.assertEqual(ErrorCode.ACCESS_DENIED.value, 72)
+        self.assertEqual(ErrorCode.AUTHENTICATION_FAILED.value, 73)
+
+    def test_iflow_error_basic(self):
+        """Test basic IFlowError creation."""
+        error = IFlowError("Test error message")
+        self.assertEqual(str(error), "[UNKNOWN_ERROR] Test error message")
+        self.assertEqual(error.code, ErrorCode.UNKNOWN_ERROR)
+        self.assertEqual(error.category, ErrorCategory.PERMANENT)
+
+    def test_iflow_error_with_code(self):
+        """Test IFlowError with custom error code."""
+        error = IFlowError("Test error", code=ErrorCode.INVALID_INPUT)
+        self.assertEqual(error.code, ErrorCode.INVALID_INPUT)
+
+    def test_iflow_error_with_category(self):
+        """Test IFlowError with custom category."""
+        error = IFlowError("Test error", code=ErrorCode.UNKNOWN_ERROR, category=ErrorCategory.SYSTEM_ERROR)
+        self.assertEqual(error.category, ErrorCategory.SYSTEM_ERROR)
+
+    def test_iflow_error_with_details(self):
+        """Test IFlowError with details."""
+        details = {"file": "test.py", "line": 42}
+        error = IFlowError("Test error", details=details)
+        self.assertEqual(error.details, details)
+
+    def test_validation_error(self):
+        """Test ValidationError creation."""
+        details = {"field": "username"}
+        error = ValidationError("Invalid input", ErrorCode.VALIDATION_ERROR, details=details)
+        self.assertEqual(error.details["field"], "username")
+        self.assertEqual(error.code, ErrorCode.VALIDATION_ERROR)
+        self.assertEqual(error.category, ErrorCategory.USER_ERROR)
+
+    def test_git_error(self):
+        """Test GitError creation."""
+        details = {"command": "git status"}
+        error = GitError("Git command failed", ErrorCode.GIT_COMMAND_FAILED, details=details)
+        self.assertEqual(error.details["command"], "git status")
+        self.assertEqual(error.code, ErrorCode.GIT_COMMAND_FAILED)
+        self.assertEqual(error.category, ErrorCategory.TRANSIENT)
 
 
 if __name__ == '__main__':

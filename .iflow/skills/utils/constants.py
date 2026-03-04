@@ -21,6 +21,11 @@ class Timeouts(Enum):
     VALIDATION = 60
     SCAN_TIMEOUT = 600
     LINT_TIMEOUT = 300
+    REVIEW_TOOL = 10
+    VERSION_CHECK = 10
+    NOTIFICATION = 10
+    SKILL_INVOCATION = 300
+    PHASE_DEFAULT = 604800  # 7 days
 
 
 class RetryPolicy(Enum):
@@ -88,6 +93,8 @@ class BackupPolicy(Enum):
     """Backup policy configuration."""
     MAX_BACKUPS = 10
     RETENTION_DAYS = 30
+    MAX_DIFF_SIZE_MB = 10
+    MAX_BACKUP_SIZE_MB = 100
 
 
 class CachePolicy(Enum):
@@ -99,6 +106,7 @@ class CachePolicy(Enum):
 class ValidationPatterns(Enum):
     """Patterns for validation."""
     BRANCH_MAX_LENGTH = 255
+    BRANCH_INVALID_CHARS = r'[~\^:?\*\[\]@{}\\]'
     COMMIT_MAX_LENGTH = 72
     FILE_MAX_LENGTH = 4096
     TAG_MAX_LENGTH = 128
