@@ -4,6 +4,7 @@ File Locking Utility
 Provides cross-platform file locking to prevent race conditions.
 """
 
+import json
 import os
 import sys
 import time
@@ -75,7 +76,7 @@ class FileLock:
                 if self._is_windows and self._file_handle is not None:
                     try:
                         self._file_handle.close()
-                    except:
+                    except (IOError, OSError):
                         pass
                     self._file_handle = None
                 raise FileLockError(f"Failed to create lock file: {e}")
@@ -119,7 +120,7 @@ class FileLock:
             if self._file_handle:
                 try:
                     self._file_handle.close()
-                except:
+                except (IOError, OSError):
                     pass
                 self._file_handle = None
             self._lock_fd = None

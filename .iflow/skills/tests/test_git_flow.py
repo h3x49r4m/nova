@@ -15,7 +15,11 @@ from copy import deepcopy
 
 # Import git-flow classes
 import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from git_flow.git_flow import (
     GitFlow,
     BranchStatus,
@@ -27,8 +31,8 @@ from git_flow.git_flow import (
     WorkflowState,
     DependencyGraph
 )
-from git_flow.exceptions import WorkflowError, ErrorCode, ValidationError
-from git_flow.constants import Timeouts, GitBranches, WorkflowConstants
+# Import exceptions and constants from utils
+from utils import IFlowError, ErrorCode, ValidationError
 
 
 class TestBranchStatus(unittest.TestCase):
@@ -323,9 +327,9 @@ class TestGitFlow(unittest.TestCase):
         self.phases_file = self.skill_dir / 'phases.json'
         self.phases_file.write_text(json.dumps({
             "phases": [
-                {"name": "Requirements", "role": "Client", "order": 1, "required": True},
-                {"name": "Design", "role": "UI/UX Designer", "order": 2, "required": True},
-                {"name": "Implementation", "role": "Software Engineer", "order": 3, "required": True}
+                {"name": "Requirements", "role": "Client", "order": 1, "required": True, "status": "pending"},
+                {"name": "Design", "role": "UI/UX Designer", "order": 2, "required": True, "status": "pending"},
+                {"name": "Implementation", "role": "Software Engineer", "order": 3, "required": True, "status": "pending"}
             ]
         }))
 
@@ -519,8 +523,8 @@ class TestGitFlowAdvanced(unittest.TestCase):
         # Create phases
         (self.skill_dir / 'phases.json').write_text(json.dumps({
             "phases": [
-                {"name": "Requirements", "role": "Client", "order": 1, "required": True},
-                {"name": "Implementation", "role": "Software Engineer", "order": 2, "required": True}
+                {"name": "Requirements", "role": "Client", "order": 1, "required": True, "status": "pending"},
+                {"name": "Implementation", "role": "Software Engineer", "order": 2, "required": True, "status": "pending"}
             ]
         }))
 

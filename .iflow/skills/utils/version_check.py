@@ -12,6 +12,26 @@ from .exceptions import ValidationError, ErrorCode, ErrorCategory
 from .constants import SystemRequirements
 
 
+class VersionChecker:
+    """Version checker utility class."""
+    
+    def __init__(self):
+        """Initialize version checker."""
+        pass
+    
+    def check_python(self, min_version: Tuple[int, int] = None) -> Tuple[bool, Optional[str]]:
+        """Check Python version."""
+        return check_python_version(min_version)
+    
+    def check_git(self, min_version: Tuple[int, int, int] = None) -> Tuple[bool, Optional[str]]:
+        """Check Git version."""
+        return check_git_version(min_version)
+    
+    def validate_system(self, strict: bool = False) -> Tuple[bool, list]:
+        """Validate system requirements."""
+        return validate_system_requirements(strict)
+
+
 def check_python_version(min_version: Tuple[int, int] = None) -> Tuple[bool, Optional[str]]:
     """
     Check if Python version meets minimum requirements.

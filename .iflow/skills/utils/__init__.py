@@ -24,7 +24,8 @@ from .schema_validator import (
     SchemaValidator,
     SchemaValidationError,
     validate_workflow_state,
-    validate_branch_state
+    validate_branch_state,
+    validate_json_schema
 )
 
 from .exceptions import (
@@ -34,7 +35,8 @@ from .exceptions import (
     SecurityError,
     FileError,
     GitError,
-    GitCommandTimeout
+    GitCommandTimeout,
+    ErrorCategory
 )
 
 from .constants import (
@@ -43,13 +45,21 @@ from .constants import (
     CommitTypes,
     SecretPatterns,
     DEFAULT_PROTECTED_BRANCHES,
-    DEFAULT_COVERAGE_THRESHOLDS
+    DEFAULT_COVERAGE_THRESHOLDS,
+    BranchStatus,
+    PhaseStatus,
+    WorkflowStatus
 )
 
 from .structured_logger import (
     StructuredLogger,
-    LogFormat
+    LogFormat,
+    LogLevel
 )
+
+from .checkpoint_manager import CheckpointManager
+from .prerequisite_checker import PrerequisiteChecker, validate_workflow_prerequisites
+from .input_sanitizer import InputSanitizer
 
 __all__ = [
     'GitError',
@@ -69,11 +79,13 @@ __all__ = [
     'SchemaValidationError',
     'validate_workflow_state',
     'validate_branch_state',
+    'validate_json_schema',
     'IFlowError',
     'ErrorCode',
     'ValidationError',
     'SecurityError',
     'FileError',
+    'ErrorCategory',
     'Timeouts',
     'CoverageThresholds',
     'CommitTypes',
@@ -81,5 +93,13 @@ __all__ = [
     'DEFAULT_PROTECTED_BRANCHES',
     'DEFAULT_COVERAGE_THRESHOLDS',
     'StructuredLogger',
-    'LogFormat'
+    'LogFormat',
+    'LogLevel',
+    'BranchStatus',
+    'PhaseStatus',
+    'WorkflowStatus',
+    'CheckpointManager',
+    'PrerequisiteChecker',
+    'validate_workflow_prerequisites',
+    'InputSanitizer'
 ]

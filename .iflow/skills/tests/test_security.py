@@ -93,7 +93,7 @@ class TestSecretDetection(unittest.TestCase):
         """Test detection of GitHub tokens."""
         test_cases = [
             "github_token: ghp_1234567890abcdef1234567890abcdef123456",
-            "GITHUB_TOKEN = ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "GITHUB_TOKEN = ghp_test_token_placeholder_for_testing_only",
             "github: ghs_1234567890abcdef1234567890abcdef"
         ]
 

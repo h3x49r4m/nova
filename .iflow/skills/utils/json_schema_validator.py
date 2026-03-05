@@ -7,6 +7,7 @@ against JSON Schema specifications, ensuring data integrity and correctness.
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from enum import Enum
 import re
 
 from .exceptions import IFlowError, ErrorCode, ValidationError

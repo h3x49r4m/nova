@@ -14,15 +14,18 @@ from datetime import datetime
 
 # Import git-manage classes
 import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from git_manage.git_manage import GitManage
-from git_manage.exceptions import (
+# Import exceptions and constants from utils
+from utils import (
     ValidationError,
     SecurityError,
     ErrorCode,
-    ErrorCategory
-)
-from git_manage.constants import (
+    ErrorCategory,
     Timeouts,
     CommitTypes,
     CoverageThresholds,

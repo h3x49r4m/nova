@@ -255,3 +255,21 @@ def validate_pipeline_state(data: Dict, schema_dir: Optional[Path] = None) -> Tu
     """
     validator = SchemaValidator(schema_dir)
     return validator.validate(data, 'pipeline-state')
+
+
+def validate_json_schema(data: Dict, schema_path: Path) -> Tuple[bool, List[str]]:
+    """
+    Validate data against a JSON schema file.
+    
+    Args:
+        data: Data to validate
+        schema_path: Path to the schema file
+        
+    Returns:
+        Tuple of (is_valid, error_messages)
+    """
+    schema_dir = schema_path.parent if schema_path.parent.name == 'schemas' else schema_path.parent.parent / 'schemas'
+    schema_name = schema_path.stem
+    
+    validator = SchemaValidator(schema_dir)
+    return validator.validate(data, schema_name)

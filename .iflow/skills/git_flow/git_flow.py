@@ -15,49 +15,31 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 from enum import Enum
-from pipeline_manager import PipelineUpdateManager
+from .pipeline_manager import PipelineUpdateManager
 
 # Import shared git command utility
 sys.path.insert(0, str(Path(__file__).parent.parent / 'utils'))
-from git_command import (
+from utils import (
     run_git_command,
     get_current_branch,
     validate_branch_name,
-    GitCommandError,
-    GitCommandTimeout
+    GitError,
+    GitCommandTimeout,
+    write_locked_json,
+    read_locked_json,
+    FileLockError,
+    validate_workflow_state,
+    validate_branch_state,
+    SchemaValidationError,
+    StructuredLogger,
+    LogFormat,
+    LogLevel,
+    validate_json_schema,
+    BranchStatus,
+    PhaseStatus,
+    WorkflowStatus
 )
-from file_lock import write_locked_json, read_locked_json, FileLockError
-from schema_validator import validate_workflow_state, validate_branch_state, SchemaValidationError
-from json_schema_validator import validate_json_schema
-from structured_logger import StructuredLogger, LogLevel, LogFormat
-from deadlock_detector import DeadlockDetector, validate_git_flow_dependencies
-from checkpoint_manager import CheckpointManager
-from prerequisite_checker import PrerequisiteChecker, validate_workflow_prerequisites
-
-
-class BranchStatus(Enum):
-    PENDING = "pending"
-    REVIEWING = "reviewing"
-    APPROVED = "approved"
-    MERGED = "merged"
-    UNAPPROVED = "unapproved"
-    REVERTED = "reverted"
-    NEEDS_CHANGES = "needs_changes"
-    REJECTED = "rejected"
-
-
-class PhaseStatus(Enum):
-    PENDING = "pending"
-    ACTIVE = "active"
-    COMPLETE = "complete"
-    BLOCKED = "blocked"
-
-
-class WorkflowStatus(Enum):
-    INITIALIZED = "initialized"
-    IN_PROGRESS = "in_progress"
-    COMPLETE = "complete"
-    PAUSED = "paused"
+from utils import CheckpointManager, PrerequisiteChecker, validate_workflow_prerequisites, InputSanitizer
 
 
 class ReviewEvent:
@@ -323,12 +305,6 @@ class GitFlow:
         self.git_manage_path = self.skill_dir / '..' / 'git-manage' / 'git-manage.py'
         self.dry_run = dry_run
         
-        self.load_config()
-        self.load_phases()
-        self.workflow_state: Optional[WorkflowState] = None
-        self.dependency_graph = DependencyGraph()
-        self.load_workflow_state()
-        self.load_branch_states()
         self.logger = StructuredLogger(
             name="git-flow",
             log_dir=self.repo_root / ".iflow" / "logs",
@@ -338,6 +314,13 @@ class GitFlow:
         self.checkpoint_manager = CheckpointManager(self.repo_root)
         self.prerequisite_checker = PrerequisiteChecker(self.repo_root)
         self.pipeline_update_manager = PipelineUpdateManager('git-flow', self.skill_dir)
+        
+        self.load_config()
+        self.load_phases()
+        self.workflow_state: Optional[WorkflowState] = None
+        self.dependency_graph = DependencyGraph()
+        self.load_workflow_state()
+        self.load_branch_states()
     
     def load_config(self):
         """Load configuration from config.json file."""
@@ -346,6 +329,7 @@ class GitFlow:
                 "auto_detect_role": True,
                 "auto_create_branch": True,
                 "auto_phase_transition": True,
+                "require_all_phases": False,
                 "require_all_phases": False,
                 "allow_parallel_phases": False,
                 "phases_file": None
@@ -381,13 +365,18 @@ class GitFlow:
                 with open(self.config_file, 'r') as f:
                     user_config = json.load(f)
                     
-                # Validate user config against schema
+                # Validate user config against schema if schema exists
                 schema_dir = self.repo_root / '.iflow' / 'schemas'
-                is_valid, errors = validate_json_schema(user_config, schema_dir / 'git-flow-config.json')
-                if not is_valid:
-                    self.logger.warning(f"Config validation failed: {errors}. Using default config.")
-                    self.config = default_config
+                schema_file = schema_dir / 'git-flow-config.json'
+                if schema_file.exists():
+                    is_valid, errors = validate_json_schema(user_config, schema_file)
+                    if not is_valid:
+                        self.logger.warning(f"Config validation failed: {errors}. Using default config.")
+                        self.config = default_config
+                    else:
+                        self.config = self._merge_config(default_config, user_config)
                 else:
+                    # No schema file, just merge configs
                     self.config = self._merge_config(default_config, user_config)
             except (json.JSONDecodeError, IOError):
                 self.config = default_config
@@ -565,7 +554,7 @@ class GitFlow:
         """Get current branch name."""
         try:
             return get_current_branch(self.repo_root)
-        except Exception:
+        except (GitError, IOError, OSError):
             return 'unknown'
     
     def is_protected_branch(self, branch: str) -> bool:
@@ -616,7 +605,7 @@ class GitFlow:
                 return 1, 'Workflow already exists. Use status to view current workflow.'
         
         self.workflow_state = WorkflowState(feature)
-        self.workflow_state.phases = [Phase.from_dict(p) for p in self.phases]
+        self.workflow_state.phases = [p for p in self.phases]
         self.workflow_state.status = WorkflowStatus.IN_PROGRESS
         
         self.save_workflow_state()
@@ -920,7 +909,7 @@ class GitFlow:
         
         return 0, '\n'.join(output)
     
-def check_for_conflicts(self) -> Tuple[bool, List[str]]:
+    def check_for_conflicts(self) -> Tuple[bool, List[str]]:
         """
         Check if there are any git merge conflicts.
         
@@ -1133,7 +1122,7 @@ def check_for_conflicts(self) -> Tuple[bool, List[str]]:
         if self.config.get("merge", {}).get("require_dependencies_merged", True):
             validation_result = self._validate_dependencies_for_merge(branch_name)
             if not validation_result[0]:
-                return validation_result
+                return 1, validation_result[1]
         
         output = []
         
@@ -1827,7 +1816,7 @@ def check_for_conflicts(self) -> Tuple[bool, List[str]]:
             f'✓ Changes requested: {branch_name}',
             f'💬 Comment: "{comment}"',
             '',
-            f'To fix:')
+            f'To fix:']
         output.append(f'1. git checkout {branch_name}')
         output.append('2. Make changes')
         output.append('3. /git-flow commit <files>')
@@ -1901,7 +1890,7 @@ def check_for_conflicts(self) -> Tuple[bool, List[str]]:
             if code != 0:
                 return f'Failed to checkout main: {stderr}'
             
-            revert_msg = f'Revert "Merge {branch_name}"\n\n" \
+            revert_msg = f'Revert "Merge {branch_name}"\n\n' \
                         f"Original approval: {branch.approved_at}\n" \
                         f"Approver: {branch.approved_by}\n" \
                         f"Unapproved at: {datetime.now().isoformat()}"
@@ -2225,19 +2214,28 @@ def main():
     git_flow = GitFlow()
     
     if args.command == 'start':
-        code, output = git_flow.start_workflow(args.feature)
+        feature = InputSanitizer.sanitize_string(args.feature, allowed_chars=InputSanitizer.ALLOWED_ALPHANUMERIC, max_length=100)
+        code, output = git_flow.start_workflow(feature)
     elif args.command == 'commit':
-        code, output = git_flow.commit(args.files if args.files else [])
+        files = [InputSanitizer.sanitize_file_path(f) for f in args.files] if args.files else []
+        code, output = git_flow.commit(files)
     elif args.command == 'review':
         code, output = git_flow.review()
     elif args.command == 'approve':
-        code, output = git_flow.review_approve(args.branch, args.comment)
+        branch = InputSanitizer.sanitize_string(args.branch, allowed_chars=InputSanitizer.ALLOWED_BRANCH_CHARS, max_length=100)
+        comment = InputSanitizer.sanitize_html(args.comment) if args.comment else None
+        code, output = git_flow.review_approve(branch, comment)
     elif args.command == 'reject':
-        code, output = git_flow.review_reject(args.branch, args.reason, args.keep_branch)
+        branch = InputSanitizer.sanitize_string(args.branch, allowed_chars=InputSanitizer.ALLOWED_BRANCH_CHARS, max_length=100)
+        reason = InputSanitizer.sanitize_html(args.reason)
+        code, output = git_flow.review_reject(branch, reason, args.keep_branch)
     elif args.command == 'request-changes':
-        code, output = git_flow.review_request_changes(args.branch, args.comment)
+        branch = InputSanitizer.sanitize_string(args.branch, allowed_chars=InputSanitizer.ALLOWED_BRANCH_CHARS, max_length=100)
+        comment = InputSanitizer.sanitize_html(args.comment)
+        code, output = git_flow.review_request_changes(branch, comment)
     elif args.command == 'unapprove':
-        code, output = git_flow.unapprove(args.branch, args.cascade)
+        branch = InputSanitizer.sanitize_string(args.branch, allowed_chars=InputSanitizer.ALLOWED_BRANCH_CHARS, max_length=100)
+        code, output = git_flow.unapprove(branch, args.cascade)
     elif args.command == 'status':
         code, output = git_flow.status()
     elif args.command == 'phase-next':

@@ -34,7 +34,9 @@ from utils import (
     DEFAULT_PROTECTED_BRANCHES,
     DEFAULT_COVERAGE_THRESHOLDS,
     StructuredLogger,
-    LogFormat
+    LogFormat,
+    LogLevel,
+    InputSanitizer
 )
 
 
@@ -85,7 +87,7 @@ class GitManage:
                     user_config = json.load(f)
                     
                 # Validate user config against schema
-                from utils.json_schema_validator import validate_json_schema
+                from utils import validate_json_schema
                 schema_dir = self.repo_root / '.iflow' / 'schemas'
                 is_valid, errors = validate_json_schema(user_config, schema_dir / 'skill-config.json')
                 if not is_valid:
@@ -117,7 +119,8 @@ class GitManage:
         """Get current branch name."""
         try:
             return get_current_branch(self.repo_root)
-        except Exception:
+        except (GitError, IOError, OSError) as e:
+            self.logger.error(f"Failed to get current branch: {e}")
             return 'unknown'
     
     def get_staged_files(self) -> List[str]:
@@ -387,6 +390,11 @@ class GitManage:
         Returns:
             Diff output as string
         """
+        # Check for secrets before generating diff
+        if self.config['detect_secrets'] and files:
+            has_secrets, _ = self.check_for_secrets_in_files(files)
+            if has_secrets:
+                return '[SECRET DETECTED: Potential secrets found in files. Review and remove before committing.]'
         import io
         max_size_bytes = max_size_mb * 1024 * 1024
         
@@ -573,6 +581,12 @@ class GitManage:
             diff_output = self.get_file_diffs_streaming(files, max_diff_size_mb)
         else:
             diff_output = self.get_file_diffs(files)
+        
+        # Check for secrets in diff output
+        if diff_output and self.config['detect_secrets']:
+            has_secrets, _ = self.check_for_secrets_in_files(files)
+            if has_secrets:
+                self.logger.warning("Potential secrets detected in diff output")
         
         file_context = self.analyze_files(files)
         branch = self.get_current_branch()
@@ -785,14 +799,20 @@ def main():
     if args.command == 'status':
         code, output = git.status()
     elif args.command == 'add':
-        code, output = git.add_files(args.files)
+        files = [InputSanitizer.sanitize_file_path(f) for f in args.files]
+        code, output = git.add_files(files)
     elif args.command == 'commit':
         # Check if LLM-generated parameters are provided
         if args.type and args.description:
+            # Sanitize inputs
+            commit_type = InputSanitizer.sanitize_string(args.type, allowed_chars=InputSanitizer.ALLOWED_ALPHANUMERIC, max_length=20)
+            scope = InputSanitizer.sanitize_string(args.scope, allowed_chars=InputSanitizer.ALLOWED_ALPHANUMERIC, max_length=50) if args.scope else None
+            description = InputSanitizer.sanitize_html(args.description)
+            body = InputSanitizer.sanitize_html(args.body) if args.body else None
             # LLM has generated the commit message, proceed with commit
             code, output = git.commit(
-                args.type, args.scope, args.description,
-                args.body, args.no_verify
+                commit_type, scope, description,
+                body, args.no_verify
             )
         else:
             # No LLM parameters provided, output context for LLM generation
@@ -827,9 +847,12 @@ def main():
     elif args.command == 'amend':
         code, output = git.amend(description=args.description)
     elif args.command == 'stash':
-        code, output = git.stash(args.action, args.message)
+        message = InputSanitizer.sanitize_html(args.message) if args.message else None
+        code, output = git.stash(args.action, message)
     elif args.command == 'push':
-        code, output = git.push(args.remote, args.branch)
+        remote = InputSanitizer.sanitize_string(args.remote, allowed_chars=InputSanitizer.ALLOWED_ALPHANUMERIC, max_length=50)
+        branch = InputSanitizer.sanitize_string(args.branch, allowed_chars=InputSanitizer.ALLOWED_BRANCH_CHARS, max_length=100) if args.branch else None
+        code, output = git.push(remote, branch)
     else:
         code, output = 1, f'Unknown command: {args.command}'
     
