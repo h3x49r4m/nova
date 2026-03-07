@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .exceptions import (
     IFlowError,
-    PipelineError,
+    WorkflowError,
     SkillError,
     ValidationError,
     ErrorCode,
@@ -268,6 +268,7 @@ class PipelineOrchestrator:
     
     def cancel(self) -> Tuple[int, str]:
         """Cancel pipeline execution."""
+        # Cannot cancel if already completed or cancelled
         if self.state.status in [PipelineStatus.COMPLETED, PipelineStatus.CANCELLED]:
             return 1, f"Cannot cancel pipeline in {self.state.status.value} state."
         
@@ -319,6 +320,9 @@ class PipelineOrchestrator:
                     if code != 0:
                         if next_stage.retries < next_stage.max_retries:
                             next_stage.retries += 1
+                            # Reset stage status to PENDING so it can be retried
+                            next_stage.status = StageStatus.PENDING
+                            next_stage.started_at = None
                             self.state.issues.append({
                                 "severity": "error",
                                 "title": f"Stage {next_stage.order} failed",
@@ -329,6 +333,12 @@ class PipelineOrchestrator:
                             })
                             continue
                         else:
+                            # Max retries exceeded - mark stage as failed
+                            next_stage.status = StageStatus.FAILED
+                            # Set pipeline status to FAILED before returning
+                            self.state.status = PipelineStatus.FAILED
+                            self.state.completed_at = datetime.now().isoformat()
+                            self.state.updated_at = datetime.now().isoformat()
                             return 1, self._get_stage_failure_message(next_stage, output)
                 
                 self.state.updated_at = datetime.now().isoformat()

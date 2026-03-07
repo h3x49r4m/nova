@@ -9,13 +9,14 @@ import os
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Union
-from dataclasses import dataclass, asdict
-from enum import Enum
 from copy import deepcopy
 
 from .file_lock import FileLock, FileLockError
 from .exceptions import IFlowError, ErrorCode, ErrorCategory
 from .constants import AuditConstants
+
+# Import audit types from separate module
+from .audit_types import AuditEventType, AuditSeverity, AuditEvent
 
 
 class AuditEventType(Enum):

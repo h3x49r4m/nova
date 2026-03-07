@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 from functools import wraps
+import threading
 
 from .exceptions import IFlowError
 
@@ -29,6 +30,11 @@ class ErrorContext:
         self.variables: Dict[str, Any] = {}
         self.files: Dict[str, Dict[str, Any]] = {}
         self.process_info: Dict[str, Any] = {}
+        self.thread_info: Dict[str, Any] = {}
+        self.network_info: Dict[str, Any] = {}
+        self.disk_info: Dict[str, Any] = {}
+        self.memory_info: Dict[str, Any] = {}
+        self.performance_metrics: Dict[str, Any] = {}
         self.custom_context: Dict[str, Any] = {}
     
     def to_dict(self) -> Dict[str, Any]:
@@ -41,6 +47,11 @@ class ErrorContext:
             "variables": self.variables,
             "files": self.files,
             "process_info": self.process_info,
+            "thread_info": self.thread_info,
+            "network_info": self.network_info,
+            "disk_info": self.disk_info,
+            "memory_info": self.memory_info,
+            "performance_metrics": self.performance_metrics,
             "custom_context": self.custom_context
         }
 
@@ -55,6 +66,10 @@ class ErrorContextCollector:
         collect_environment: bool = True,
         collect_call_stack: bool = True,
         collect_variables: bool = True,
+        collect_thread_info: bool = True,
+        collect_network_info: bool = False,
+        collect_disk_info: bool = False,
+        collect_performance_metrics: bool = True,
         max_stack_frames: int = 20,
         max_variable_depth: int = 3
     ):
@@ -67,6 +82,10 @@ class ErrorContextCollector:
             collect_environment: Whether to collect environment variables
             collect_call_stack: Whether to collect call stack
             collect_variables: Whether to collect local variables
+            collect_thread_info: Whether to collect thread information
+            collect_network_info: Whether to collect network information
+            collect_disk_info: Whether to collect disk information
+            collect_performance_metrics: Whether to collect performance metrics
             max_stack_frames: Maximum number of stack frames to collect
             max_variable_depth: Maximum depth for variable inspection
         """
@@ -75,6 +94,10 @@ class ErrorContextCollector:
         self.collect_environment = collect_environment
         self.collect_call_stack = collect_call_stack
         self.collect_variables = collect_variables
+        self.collect_thread_info = collect_thread_info
+        self.collect_network_info = collect_network_info
+        self.collect_disk_info = collect_disk_info
+        self.collect_performance_metrics = collect_performance_metrics
         self.max_stack_frames = max_stack_frames
         self.max_variable_depth = max_variable_depth
         
@@ -83,6 +106,9 @@ class ErrorContextCollector:
             "PASSWORD", "SECRET", "TOKEN", "KEY", "API_KEY", "PRIVATE_KEY",
             "CREDENTIAL", "AUTH", "SESSION", "COOKIE"
         }
+        
+        # Performance tracking
+        self.start_time = datetime.now().timestamp()
     
     def collect(
         self,
@@ -117,6 +143,21 @@ class ErrorContextCollector:
             context.variables = self._collect_variables()
         
         context.process_info = self._collect_process_info()
+        
+        if self.collect_thread_info:
+            context.thread_info = self._collect_thread_info()
+        
+        if self.collect_network_info:
+            context.network_info = self._collect_network_info()
+        
+        if self.collect_disk_info:
+            context.disk_info = self._collect_disk_info()
+        
+        context.memory_info = self._collect_memory_info()
+        
+        if self.collect_performance_metrics:
+            context.performance_metrics = self._collect_performance_metrics()
+        
         context.files = self._collect_file_info()
         
         if custom_context:
@@ -136,6 +177,7 @@ class ErrorContextCollector:
             "python_version": sys.version,
             "python_implementation": platform.python_implementation(),
             "hostname": platform.node(),
+            "architecture": platform.architecture(),
         }
     
     def _collect_environment(self) -> Dict[str, str]:
@@ -219,6 +261,10 @@ class ErrorContextCollector:
             if key in ["self", "cls", "__class__"]:
                 continue
             
+            # Skip sensitive keys
+            if any(sensitive in key.upper() for sensitive in self.sensitive_keys):
+                continue
+            
             try:
                 sanitized_value = self._sanitize_value(value, depth)
                 sanitized[key] = sanitized_value
@@ -252,6 +298,10 @@ class ErrorContextCollector:
                 return f"{value[:200]}... (truncated)"
             return value
         
+        # Handle bytes
+        if isinstance(value, bytes):
+            return f"<bytes: {len(value)} bytes>"
+        
         # Handle lists
         if isinstance(value, (list, tuple)):
             if depth >= self.max_variable_depth - 1:
@@ -267,17 +317,35 @@ class ErrorContextCollector:
                 for k, v in list(value.items())[:10]
             }
         
+        # Handle sets
+        if isinstance(value, set):
+            if depth >= self.max_variable_depth - 1:
+                return f"<set with {len(value)} items>"
+            return [self._sanitize_value(item, depth + 1) for item in list(value)[:10]]
+        
         # Handle objects
         if hasattr(value, "__dict__"):
             return f"<{type(value).__name__} object>"
+        
+        # Handle generators/iterators
+        if inspect.isgenerator(value) or inspect.isgeneratorfunction(value):
+            return "<generator>"
+        
+        # Handle functions
+        if inspect.isfunction(value) or inspect.ismethod(value):
+            return f"<function: {value.__name__}>"
+        
+        # Handle modules
+        if inspect.ismodule(value):
+            return f"<module: {value.__name__}>"
         
         # Handle other types
         return f"<{type(value).__name__}>"
     
     def _collect_process_info(self) -> Dict[str, Any]:
         """Collect process information."""
-        import psutil
         try:
+            import psutil
             process = psutil.Process()
             return {
                 "pid": process.pid,
@@ -292,7 +360,10 @@ class ErrorContextCollector:
                     "vms": process.memory_info().vms
                 },
                 "num_threads": process.num_threads(),
-                "num_fds": process.num_fds() if hasattr(process, 'num_fds') else None
+                "num_fds": process.num_fds() if hasattr(process, 'num_fds') else None,
+                "cmdline": process.cmdline(),
+                "cwd": process.cwd(),
+                "exe": process.exe(),
             }
         except (ImportError, Exception):
             # psutil not available or error collecting info
@@ -302,6 +373,101 @@ class ErrorContextCollector:
                 "uid": os.getuid(),
                 "gid": os.getgid(),
             }
+    
+    def _collect_thread_info(self) -> Dict[str, Any]:
+        """Collect thread information."""
+        current_thread = threading.current_thread()
+        all_threads = threading.enumerate()
+        
+        return {
+            "current_thread": {
+                "id": current_thread.ident,
+                "name": current_thread.name,
+                "is_alive": current_thread.is_alive(),
+                "is_daemon": current_thread.daemon
+            },
+            "total_threads": len(all_threads),
+            "active_threads": sum(1 for t in all_threads if t.is_alive()),
+            "thread_names": [t.name for t in all_threads]
+        }
+    
+    def _collect_network_info(self) -> Dict[str, Any]:
+        """Collect network information."""
+        try:
+            import psutil
+            net_io = psutil.net_io_counters()
+            net_connections = psutil.net_connections(kind='inet')
+            
+            return {
+                "bytes_sent": net_io.bytes_sent,
+                "bytes_recv": net_io.bytes_recv,
+                "packets_sent": net_io.packets_sent,
+                "packets_recv": net_io.packets_recv,
+                "connections": len(net_connections),
+                "active_connections": sum(1 for c in net_connections if c.status == 'ESTABLISHED')
+            }
+        except (ImportError, Exception):
+            return {"error": "Unable to collect network info"}
+    
+    def _collect_disk_info(self) -> Dict[str, Any]:
+        """Collect disk information."""
+        try:
+            import psutil
+            disk_usage = psutil.disk_usage(self.repo_root)
+            disk_io = psutil.disk_io_counters()
+            
+            return {
+                "repository_path": str(self.repo_root),
+                "total": disk_usage.total,
+                "used": disk_usage.used,
+                "free": disk_usage.free,
+                "percent": disk_usage.percent,
+                "disk_io": {
+                    "read_bytes": disk_io.read_bytes if disk_io else 0,
+                    "write_bytes": disk_io.write_bytes if disk_io else 0,
+                } if disk_io else None
+            }
+        except (ImportError, Exception):
+            return {"error": "Unable to collect disk info"}
+    
+    def _collect_memory_info(self) -> Dict[str, Any]:
+        """Collect memory information."""
+        try:
+            import psutil
+            process = psutil.Process()
+            mem_info = process.memory_info()
+            swap = psutil.swap_memory()
+            
+            return {
+                "process": {
+                    "rss": mem_info.rss,
+                    "vms": mem_info.vms,
+                    "percent": process.memory_percent(),
+                },
+                "system": {
+                    "total": psutil.virtual_memory().total,
+                    "available": psutil.virtual_memory().available,
+                    "percent": psutil.virtual_memory().percent,
+                },
+                "swap": {
+                    "total": swap.total,
+                    "used": swap.used,
+                    "percent": swap.percent,
+                }
+            }
+        except (ImportError, Exception):
+            return {"error": "Unable to collect memory info"}
+    
+    def _collect_performance_metrics(self) -> Dict[str, Any]:
+        """Collect performance metrics."""
+        current_time = datetime.now().timestamp()
+        duration = current_time - self.start_time
+        
+        return {
+            "duration_seconds": duration,
+            "timestamp": current_time,
+            "sys.modules_count": len(sys.modules),
+        }
     
     def _collect_file_info(self) -> Dict[str, Dict[str, Any]]:
         """Collect information about relevant files."""
@@ -337,6 +503,19 @@ class ErrorContextCollector:
                     "description": "Latest git commit"
                 }
             
+            # Get commit message
+            result = subprocess.run(
+                ["git", "log", "-1", "--pretty=%B"],
+                capture_output=True,
+                text=True,
+                cwd=self.repo_root
+            )
+            if result.returncode == 0:
+                files["git_commit_message"] = {
+                    "value": result.stdout.strip(),
+                    "description": "Latest commit message"
+                }
+            
             # Get modified files
             result = subprocess.run(
                 ["git", "diff", "--name-only"],
@@ -350,6 +529,36 @@ class ErrorContextCollector:
                     "value": modified_files,
                     "count": len(modified_files),
                     "description": "Modified files in working directory"
+                }
+            
+            # Get staged files
+            result = subprocess.run(
+                ["git", "diff", "--cached", "--name-only"],
+                capture_output=True,
+                text=True,
+                cwd=self.repo_root
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                staged_files = result.stdout.strip().split("\n")
+                files["git_staged"] = {
+                    "value": staged_files,
+                    "count": len(staged_files),
+                    "description": "Staged files"
+                }
+            
+            # Get untracked files
+            result = subprocess.run(
+                ["git", "ls-files", "--others", "--exclude-standard"],
+                capture_output=True,
+                text=True,
+                cwd=self.repo_root
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                untracked_files = result.stdout.strip().split("\n")
+                files["git_untracked"] = {
+                    "value": untracked_files,
+                    "count": len(untracked_files),
+                    "description": "Untracked files"
                 }
         except (FileNotFoundError, subprocess.SubprocessError):
             pass
@@ -367,7 +576,8 @@ class ErrorContextCollector:
 def collect_error_context(
     error: Exception,
     repo_root: Optional[Path] = None,
-    custom_context: Optional[Dict[str, Any]] = None
+    custom_context: Optional[Dict[str, Any]] = None,
+    **kwargs
 ) -> ErrorContext:
     """
     Collect error context.
@@ -376,18 +586,20 @@ def collect_error_context(
         error: The error that occurred
         repo_root: Repository root directory
         custom_context: Additional custom context
+        **kwargs: Additional arguments for ErrorContextCollector
         
     Returns:
         Collected error context
     """
-    collector = ErrorContextCollector(repo_root)
+    collector = ErrorContextCollector(repo_root, **kwargs)
     return collector.collect(error, custom_context)
 
 
 def with_error_context(
     collect_system_info: bool = True,
     collect_environment: bool = True,
-    collect_variables: bool = True
+    collect_variables: bool = True,
+    collect_performance_metrics: bool = True
 ) -> Callable:
     """
     Decorator to automatically collect error context.
@@ -396,6 +608,7 @@ def with_error_context(
         collect_system_info: Whether to collect system information
         collect_environment: Whether to collect environment variables
         collect_variables: Whether to collect local variables
+        collect_performance_metrics: Whether to collect performance metrics
         
     Returns:
         Decorated function
@@ -407,11 +620,19 @@ def with_error_context(
                 return func(*args, **kwargs)
             except Exception as e:
                 # Collect context
-                context = collect_error_context(e, custom_context={
-                    "function": func.__name__,
-                    "args_count": len(args),
-                    "kwargs_keys": list(kwargs.keys())
-                })
+                context = collect_error_context(
+                    e,
+                    custom_context={
+                        "function": func.__name__,
+                        "module": func.__module__,
+                        "args_count": len(args),
+                        "kwargs_keys": list(kwargs.keys())
+                    },
+                    collect_system_info=collect_system_info,
+                    collect_environment=collect_environment,
+                    collect_variables=collect_variables,
+                    collect_performance_metrics=collect_performance_metrics
+                )
                 
                 # Add context to exception if it's an IFlowError
                 if isinstance(e, IFlowError):

@@ -67,7 +67,7 @@ class SkillInvoker:
         skills_dir: Path,
         repo_root: Path,
         dry_run: bool = False,
-        default_timeout: int = Timeouts.DEFAULT_TIMEOUT
+        default_timeout: int = Timeouts.SKILL_INVOCATION.value
     ):
         self.skills_dir = skills_dir
         self.repo_root = repo_root
@@ -431,7 +431,7 @@ def create_skill_invoker(
     skills_dir: Path,
     repo_root: Path,
     dry_run: bool = False,
-    default_timeout: int = Timeouts.DEFAULT_TIMEOUT
+    default_timeout: int = Timeouts.SKILL_INVOCATION.value
 ) -> SkillInvoker:
     """Create a skill invoker instance."""
     return SkillInvoker(

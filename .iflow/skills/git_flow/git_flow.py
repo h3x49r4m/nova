@@ -16,6 +16,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 from enum import Enum
 from .pipeline_manager import PipelineUpdateManager
+# Import data models from separate module
+from .models import ReviewEvent, BranchState, Phase, WorkflowState, DependencyGraph
 
 # Import shared git command utility
 sys.path.insert(0, str(Path(__file__).parent.parent / 'utils'))

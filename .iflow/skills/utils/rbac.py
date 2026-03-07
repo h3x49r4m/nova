@@ -138,8 +138,8 @@ class User:
 class AccessPolicy:
     """Access policy for resources."""
     name: str
-    description: str = ""
     resource_type: ResourceType
+    description: str = ""
     resource_pattern: str = "*"
     required_permissions: Set[Permission] = field(default_factory=set)
     allowed_roles: Set[str] = field(default_factory=set)
@@ -420,13 +420,18 @@ class RBACManager:
             policy_name: Policy name
             
         Returns:
-            True if successful
+            True if policy was found and removed, False otherwise
         """
+        initial_count = len(self.policies)
         self.policies = [p for p in self.policies if p.name != policy_name]
-        if self.enable_persistence:
-            self._save_config()
         
-        return True
+        # Check if a policy was actually removed
+        if len(self.policies) < initial_count:
+            if self.enable_persistence:
+                self._save_config()
+            return True
+        
+        return False
     
     def check_permission(
         self,

@@ -1,596 +1,633 @@
-"""Error Recovery Strategies - Provides strategies for recovering from errors.
+"""Error Recovery Strategies - Advanced recovery mechanisms for errors.
 
-This module provides automated and manual recovery strategies for common
-error scenarios in the iFlow CLI Skills system.
+This module provides various error recovery strategies including fallbacks,
+rollback, compensation, and custom recovery handlers.
 """
 
-import json
-import shutil
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 
 from .exceptions import IFlowError, ErrorCode, ErrorCategory
-from .backup_manager import BackupManager
-from .state_validator import StateValidator
+
+T = TypeVar('T')
 
 
-class RecoveryAction(Enum):
-    """Types of recovery actions."""
+class RecoveryStrategyType(Enum):
+    """Types of recovery strategies."""
     RETRY = "retry"
+    FALLBACK = "fallback"
     ROLLBACK = "rollback"
-    RESTORE_BACKUP = "restore_backup"
-    RESET_STATE = "reset_state"
-    SKIP = "skip"
-    ABORT = "abort"
-    MANUAL_INTERVENTION = "manual_intervention"
-    CONTINUE = "continue"
-    RESTART = "restart"
+    COMPENSATION = "compensation"
+    CIRCUIT_BREAKER = "circuit_breaker"
+    CUSTOM = "custom"
 
 
-class RecoveryStrategy:
-    """Represents a recovery strategy for a specific error."""
-    
-    def __init__(
-        self,
-        error_code: ErrorCode,
-        actions: List[RecoveryAction],
-        description: str,
-        automatic: bool = False,
-        max_attempts: int = 3
-    ):
-        """
-        Initialize a recovery strategy.
-        
-        Args:
-            error_code: Error code this strategy applies to
-            actions: List of recovery actions to try
-            description: Description of the strategy
-            automatic: Whether this can be automatically applied
-            max_attempts: Maximum number of retry attempts
-        """
-        self.error_code = error_code
-        self.actions = actions
-        self.description = description
-        self.automatic = automatic
-        self.max_attempts = max_attempts
+class RecoveryStatus(Enum):
+    """Status of recovery attempt."""
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    SUCCESS = "success"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+@dataclass
+class RecoveryAttempt:
+    """Record of a recovery attempt."""
+    attempt_id: str
+    strategy_type: RecoveryStrategyType
+    timestamp: str
+    status: RecoveryStatus = RecoveryStatus.PENDING
+    error: Optional[Exception] = None
+    recovery_time: float = 0.0
+    details: Dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert strategy to dictionary."""
+        """Convert attempt to dictionary."""
         return {
-            "error_code": self.error_code.name,
-            "actions": [action.value for action in self.actions],
-            "description": self.description,
-            "automatic": self.automatic,
-            "max_attempts": self.max_attempts
+            "attempt_id": self.attempt_id,
+            "strategy_type": self.strategy_type.value,
+            "timestamp": self.timestamp,
+            "status": self.status.value,
+            "error": str(self.error) if self.error else None,
+            "recovery_time": self.recovery_time,
+            "details": self.details
         }
 
 
-class ErrorRecoveryManager:
-    """Manages error recovery strategies and execution."""
+@dataclass
+class RecoveryResult:
+    """Result of a recovery operation."""
+    success: bool
+    strategy_used: Optional[RecoveryStrategyType] = None
+    attempts: List[RecoveryAttempt] = field(default_factory=list)
+    final_value: Optional[Any] = None
+    final_error: Optional[Exception] = None
+    recovery_strategy_applied: Optional[str] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert result to dictionary."""
+        return {
+            "success": self.success,
+            "strategy_used": self.strategy_used.value if self.strategy_used else None,
+            "attempts": [attempt.to_dict() for attempt in self.attempts],
+            "final_value": self.final_value,
+            "final_error": str(self.final_error) if self.final_error else None,
+            "recovery_strategy_applied": self.recovery_strategy_applied
+        }
+
+
+class RecoveryStrategy(ABC):
+    """Base class for recovery strategies."""
+    
+    def __init__(self, strategy_type: RecoveryStrategyType):
+        """
+        Initialize recovery strategy.
+        
+        Args:
+            strategy_type: Type of this recovery strategy
+        """
+        self.strategy_type = strategy_type
+    
+    @abstractmethod
+    def can_recover(self, error: Exception) -> bool:
+        """
+        Determine if this strategy can recover from the error.
+        
+        Args:
+            error: The error that occurred
+            
+        Returns:
+            True if this strategy can recover
+        """
+        pass
+    
+    @abstractmethod
+    def recover(
+        self,
+        error: Exception,
+        context: Dict[str, Any]
+    ) -> RecoveryAttempt:
+        """
+        Attempt to recover from the error.
+        
+        Args:
+            error: The error that occurred
+            context: Context information for recovery
+            
+        Returns:
+            RecoveryAttempt with recovery details
+        """
+        pass
+
+
+class FallbackRecoveryStrategy(RecoveryStrategy):
+    """Recovery strategy that uses fallback values or functions."""
     
     def __init__(
         self,
-        repo_root: Path,
-        backup_manager: Optional[BackupManager] = None,
-        state_validator: Optional[StateValidator] = None
+        fallback_value: Optional[Any] = None,
+        fallback_fn: Optional[Callable[..., Any]] = None,
+        retryable_errors: Optional[List[Type[Exception]]] = None
     ):
         """
-        Initialize the error recovery manager.
+        Initialize fallback recovery strategy.
         
         Args:
-            repo_root: Repository root directory
-            backup_manager: Optional backup manager instance
-            state_validator: Optional state validator instance
+            fallback_value: Value to use as fallback
+            fallback_fn: Function to call for fallback value
+            retryable_errors: List of error types to apply fallback to
         """
-        self.repo_root = repo_root
-        self.backup_manager = backup_manager or BackupManager(repo_root)
-        self.state_validator = state_validator or StateValidator(repo_root)
-        self.strategies: Dict[ErrorCode, RecoveryStrategy] = {}
-        self.recovery_history: List[Dict[str, Any]] = []
-        
-        self._initialize_default_strategies()
+        super().__init__(RecoveryStrategyType.FALLBACK)
+        self.fallback_value = fallback_value
+        self.fallback_fn = fallback_fn
+        self.retryable_errors = retryable_errors or []
     
-    def _initialize_default_strategies(self):
-        """Initialize default recovery strategies for common errors."""
+    def can_recover(self, error: Exception) -> bool:
+        """Check if fallback can be applied."""
+        if not self.retryable_errors:
+            return True  # Apply to all errors if no specific list
         
-        # Git operation errors
-        self.register_strategy(RecoveryStrategy(
-            error_code=ErrorCode.GIT_ERROR,
-            actions=[RecoveryAction.RETRY, RecoveryAction.MANUAL_INTERVENTION],
-            description="Retry git operations with exponential backoff",
-            automatic=True,
-            max_attempts=3
-        ))
-        
-        # File not found errors
-        self.register_strategy(RecoveryStrategy(
-            error_code=ErrorCode.FILE_NOT_FOUND,
-            actions=[RecoveryAction.RESTORE_BACKUP, RecoveryAction.MANUAL_INTERVENTION],
-            description="Restore from backup or manually locate the file",
-            automatic=False,
-            max_attempts=1
-        ))
-        
-        # File read errors
-        self.register_strategy(RecoveryStrategy(
-            error_code=ErrorCode.FILE_READ_ERROR,
-            actions=[RecoveryAction.RETRY, RecoveryAction.RESTORE_BACKUP],
-            description="Retry read operation or restore from backup",
-            automatic=True,
-            max_attempts=2
-        ))
-        
-        # File write errors
-        self.register_strategy(RecoveryStrategy(
-            error_code=ErrorCode.FILE_WRITE_ERROR,
-            actions=[RecoveryAction.RETRY, RecoveryAction.MANUAL_INTERVENTION],
-            description="Retry write operation or check permissions",
-            automatic=True,
-            max_attempts=2
-        ))
-        
-        # Validation errors
-        self.register_strategy(RecoveryStrategy(
-            error_code=ErrorCode.VALIDATION_ERROR,
-            actions=[RecoveryAction.MANUAL_INTERVENTION],
-            description="Review and fix validation issues manually",
-            automatic=False,
-            max_attempts=1
-        ))
-        
-        # Not found errors
-        self.register_strategy(RecoveryStrategy(
-            error_code=ErrorCode.NOT_FOUND,
-            actions=[RecoveryAction.SKIP, RecoveryAction.MANUAL_INTERVENTION],
-            description="Skip the resource or create it manually",
-            automatic=False,
-            max_attempts=1
-        ))
-        
-        # Already exists errors
-        self.register_strategy(RecoveryStrategy(
-            error_code=ErrorCode.ALREADY_EXISTS,
-            actions=[RecoveryAction.CONTINUE, RecoveryAction.MANUAL_INTERVENTION],
-            description="Use existing resource or delete and recreate",
-            automatic=False,
-            max_attempts=1
-        ))
-        
-        # Permission denied errors
-        self.register_strategy(RecoveryStrategy(
-            error_code=ErrorCode.PERMISSION_DENIED,
-            actions=[RecoveryAction.MANUAL_INTERVENTION],
-            description="Check permissions and retry",
-            automatic=False,
-            max_attempts=1
-        ))
-        
-        # Timeout errors
-        self.register_strategy(RecoveryStrategy(
-            error_code=ErrorCode.TIMEOUT,
-            actions=[RecoveryAction.RETRY, RecoveryAction.ABORT],
-            description="Retry with longer timeout or abort",
-            automatic=True,
-            max_attempts=3
-        ))
-        
-        # Circular dependency errors
-        self.register_strategy(RecoveryStrategy(
-            error_code=ErrorCode.CIRCULAR_DEPENDENCY,
-            actions=[RecoveryAction.MANUAL_INTERVENTION],
-            description="Review and restructure dependencies",
-            automatic=False,
-            max_attempts=1
-        ))
-        
-        # Invalid state errors
-        self.register_strategy(RecoveryStrategy(
-            error_code=ErrorCode.INVALID_STATE,
-            actions=[RecoveryAction.RESET_STATE, RecoveryAction.RESTORE_BACKUP],
-            description="Reset state or restore from backup",
-            automatic=False,
-            max_attempts=1
-        ))
-        
-        # Dependency errors
-        self.register_strategy(RecoveryStrategy(
-            error_code=ErrorCode.DEPENDENCY_ERROR,
-            actions=[RecoveryAction.MANUAL_INTERVENTION],
-            description="Install or update dependencies",
-            automatic=False,
-            max_attempts=1
-        ))
-        
-        # Configuration errors
-        self.register_strategy(RecoveryStrategy(
-            error_code=ErrorCode.CONFIGURATION_ERROR,
-            actions=[RecoveryAction.RESET_STATE, RecoveryAction.MANUAL_INTERVENTION],
-            description="Reset to default configuration",
-            automatic=False,
-            max_attempts=1
-        ))
-        
-        # Security errors
-        self.register_strategy(RecoveryStrategy(
-            error_code=ErrorCode.SECURITY_ERROR,
-            actions=[RecoveryAction.ABORT, RecoveryAction.MANUAL_INTERVENTION],
-            description="Abort operation and review security",
-            automatic=False,
-            max_attempts=1
-        ))
-        
-        # Backup errors
-        self.register_strategy(RecoveryStrategy(
-            error_code=ErrorCode.BACKUP_ERROR,
-            actions=[RecoveryAction.RETRY, RecoveryAction.MANUAL_INTERVENTION],
-            description="Retry backup operation",
-            automatic=True,
-            max_attempts=2
-        ))
-        
-        # Version errors
-        self.register_strategy(RecoveryStrategy(
-            error_code=ErrorCode.VERSION_ERROR,
-            actions=[RecoveryAction.MANUAL_INTERVENTION],
-            description="Update to compatible version",
-            automatic=False,
-            max_attempts=1
-        ))
-    
-    def register_strategy(self, strategy: RecoveryStrategy):
-        """
-        Register a recovery strategy.
-        
-        Args:
-            strategy: Recovery strategy to register
-        """
-        self.strategies[strategy.error_code] = strategy
-    
-    def get_strategy(self, error_code: ErrorCode) -> Optional[RecoveryStrategy]:
-        """
-        Get recovery strategy for an error code.
-        
-        Args:
-            error_code: Error code
-            
-        Returns:
-            Recovery strategy or None
-        """
-        return self.strategies.get(error_code)
-    
-    def can_recover_automatically(self, error: IFlowError) -> bool:
-        """
-        Check if an error can be recovered automatically.
-        
-        Args:
-            error: The error to check
-            
-        Returns:
-            True if automatic recovery is possible
-        """
-        strategy = self.get_strategy(error.code)
-        return strategy is not None and strategy.automatic
+        for error_type in self.retryable_errors:
+            if isinstance(error, error_type):
+                return True
+        return False
     
     def recover(
         self,
-        error: IFlowError,
-        context: Optional[Dict[str, Any]] = None,
-        attempt: int = 1
-    ) -> Tuple[bool, Optional[RecoveryAction], str]:
-        """
-        Attempt to recover from an error.
-        
-        Args:
-            error: The error to recover from
-            context: Additional context information
-            attempt: Current attempt number
-            
-        Returns:
-            Tuple of (success, action_used, message)
-        """
-        strategy = self.get_strategy(error.code)
-        
-        if not strategy:
-            return False, None, f"No recovery strategy for error: {error.code.name}"
-        
-        if attempt > strategy.max_attempts:
-            return False, None, f"Max recovery attempts ({strategy.max_attempts}) exceeded"
-        
-        # Try each recovery action
-        for action in strategy.actions:
-            success, message = self._execute_recovery_action(
-                action,
-                error,
-                context or {}
-            )
-            
-            if success:
-                self._record_recovery(error, action, success, attempt, message)
-                return True, action, message
-        
-        # All actions failed
-        self._record_recovery(error, None, False, attempt, "All recovery actions failed")
-        return False, None, "All recovery actions failed"
-    
-    def _execute_recovery_action(
-        self,
-        action: RecoveryAction,
-        error: IFlowError,
+        error: Exception,
         context: Dict[str, Any]
-    ) -> Tuple[bool, str]:
-        """
-        Execute a specific recovery action.
+    ) -> RecoveryAttempt:
+        """Attempt to recover using fallback."""
+        import uuid
         
-        Args:
-            action: Recovery action to execute
-            error: The error being recovered from
-            context: Context information
-            
-        Returns:
-            Tuple of (success, message)
-        """
+        attempt_id = str(uuid.uuid4())
+        timestamp = datetime.now().isoformat()
+        start_time = datetime.now().timestamp()
+        
         try:
-            if action == RecoveryAction.RETRY:
-                return self._retry_operation(error, context)
-            
-            elif action == RecoveryAction.ROLLBACK:
-                return self._rollback_operation(error, context)
-            
-            elif action == RecoveryAction.RESTORE_BACKUP:
-                return self._restore_from_backup(error, context)
-            
-            elif action == RecoveryAction.RESET_STATE:
-                return self._reset_state(error, context)
-            
-            elif action == RecoveryAction.SKIP:
-                return self._skip_operation(error, context)
-            
-            elif action == RecoveryAction.ABORT:
-                return self._abort_operation(error, context)
-            
-            elif action == RecoveryAction.MANUAL_INTERVENTION:
-                return self._request_manual_intervention(error, context)
-            
-            elif action == RecoveryAction.CONTINUE:
-                return self._continue_operation(error, context)
-            
-            elif action == RecoveryAction.RESTART:
-                return self._restart_operation(error, context)
-            
+            if self.fallback_fn:
+                value = self.fallback_fn(**context.get("kwargs", {}))
             else:
-                return False, f"Unknown recovery action: {action.value}"
-        
-        except Exception as e:
-            return False, f"Recovery action failed: {str(e)}"
-    
-    def _retry_operation(
-        self,
-        error: IFlowError,
-        context: Dict[str, Any]
-    ) -> Tuple[bool, str]:
-        """Retry the failed operation."""
-        # This is a placeholder - actual retry would be context-specific
-        operation = context.get("operation", "operation")
-        return True, f"Ready to retry {operation}"
-    
-    def _rollback_operation(
-        self,
-        error: IFlowError,
-        context: Dict[str, Any]
-    ) -> Tuple[bool, str]:
-        """Rollback the failed operation."""
-        # This is a placeholder - actual rollback would be context-specific
-        operation = context.get("operation", "operation")
-        return True, f"Rolled back {operation}"
-    
-    def _restore_from_backup(
-        self,
-        error: IFlowError,
-        context: Dict[str, Any]
-    ) -> Tuple[bool, str]:
-        """Restore from backup."""
-        backup_id = context.get("backup_id")
-        
-        if not backup_id:
-            # Try to find the most recent backup
-            backups = self.backup_manager.list_backups()
-            if not backups:
-                return False, "No backups available"
+                value = self.fallback_value
             
-            backup_id = backups[0]["backup_id"]
+            recovery_time = datetime.now().timestamp() - start_time
+            
+            return RecoveryAttempt(
+                attempt_id=attempt_id,
+                strategy_type=self.strategy_type,
+                timestamp=timestamp,
+                status=RecoveryStatus.SUCCESS,
+                recovery_time=recovery_time,
+                details={"fallback_value": value}
+            )
+        except Exception as e:
+            recovery_time = datetime.now().timestamp() - start_time
+            
+            return RecoveryAttempt(
+                attempt_id=attempt_id,
+                strategy_type=self.strategy_type,
+                timestamp=timestamp,
+                status=RecoveryStatus.FAILED,
+                error=e,
+                recovery_time=recovery_time
+            )
+
+
+class RollbackRecoveryStrategy(RecoveryStrategy):
+    """Recovery strategy that rolls back to a previous state."""
+    
+    def __init__(
+        self,
+        rollback_fn: Callable[..., None],
+        retryable_errors: Optional[List[Type[Exception]]] = None
+    ):
+        """
+        Initialize rollback recovery strategy.
+        
+        Args:
+            rollback_fn: Function to call for rollback
+            retryable_errors: List of error types to trigger rollback
+        """
+        super().__init__(RecoveryStrategyType.ROLLBACK)
+        self.rollback_fn = rollback_fn
+        self.retryable_errors = retryable_errors or []
+    
+    def can_recover(self, error: Exception) -> bool:
+        """Check if rollback can be applied."""
+        if not self.retryable_errors:
+            return True
+        
+        for error_type in self.retryable_errors:
+            if isinstance(error, error_type):
+                return True
+        return False
+    
+    def recover(
+        self,
+        error: Exception,
+        context: Dict[str, Any]
+    ) -> RecoveryAttempt:
+        """Attempt to recover using rollback."""
+        import uuid
+        
+        attempt_id = str(uuid.uuid4())
+        timestamp = datetime.now().isoformat()
+        start_time = datetime.now().timestamp()
         
         try:
-            self.backup_manager.restore_backup(backup_id)
-            return True, f"Restored from backup: {backup_id}"
+            self.rollback_fn(**context.get("kwargs", {}))
+            
+            recovery_time = datetime.now().timestamp() - start_time
+            
+            return RecoveryAttempt(
+                attempt_id=attempt_id,
+                strategy_type=self.strategy_type,
+                timestamp=timestamp,
+                status=RecoveryStatus.SUCCESS,
+                recovery_time=recovery_time,
+                details={"rolled_back": True}
+            )
         except Exception as e:
-            return False, f"Failed to restore backup: {str(e)}"
+            recovery_time = datetime.now().timestamp() - start_time
+            
+            return RecoveryAttempt(
+                attempt_id=attempt_id,
+                strategy_type=self.strategy_type,
+                timestamp=timestamp,
+                status=RecoveryStatus.FAILED,
+                error=e,
+                recovery_time=recovery_time
+            )
+
+
+class CompensationRecoveryStrategy(RecoveryStrategy):
+    """Recovery strategy that applies compensation actions."""
     
-    def _reset_state(
+    def __init__(
         self,
-        error: IFlowError,
-        context: Dict[str, Any]
-    ) -> Tuple[bool, str]:
-        """Reset state to initial values."""
-        state_file = context.get("state_file")
-        
-        if state_file:
-            try:
-                if Path(state_file).exists():
-                    Path(state_file).unlink()
-                return True, f"Reset state file: {state_file}"
-            except Exception as e:
-                return False, f"Failed to reset state: {str(e)}"
-        
-        return True, "State reset"
-    
-    def _skip_operation(
-        self,
-        error: IFlowError,
-        context: Dict[str, Any]
-    ) -> Tuple[bool, str]:
-        """Skip the failed operation."""
-        operation = context.get("operation", "operation")
-        return True, f"Skipping {operation}"
-    
-    def _abort_operation(
-        self,
-        error: IFlowError,
-        context: Dict[str, Any]
-    ) -> Tuple[bool, str]:
-        """Abort the operation."""
-        operation = context.get("operation", "operation")
-        return True, f"Aborting {operation}"
-    
-    def _request_manual_intervention(
-        self,
-        error: IFlowError,
-        context: Dict[str, Any]
-    ) -> Tuple[bool, str]:
-        """Request manual intervention."""
-        return False, "Manual intervention required"
-    
-    def _continue_operation(
-        self,
-        error: IFlowError,
-        context: Dict[str, Any]
-    ) -> Tuple[bool, str]:
-        """Continue with the operation."""
-        operation = context.get("operation", "operation")
-        return True, f"Continuing {operation}"
-    
-    def _restart_operation(
-        self,
-        error: IFlowError,
-        context: Dict[str, Any]
-    ) -> Tuple[bool, str]:
-        """Restart the operation."""
-        operation = context.get("operation", "operation")
-        return True, f"Restarting {operation}"
-    
-    def _record_recovery(
-        self,
-        error: IFlowError,
-        action: Optional[RecoveryAction],
-        success: bool,
-        attempt: int,
-        message: str
+        compensation_actions: List[Callable[..., None]],
+        retryable_errors: Optional[List[Type[Exception]]] = None
     ):
-        """Record a recovery attempt in history."""
-        record = {
-            "timestamp": self._get_timestamp(),
-            "error_code": error.code.name,
-            "error_message": str(error),
-            "action": action.value if action else None,
-            "success": success,
-            "attempt": attempt,
-            "message": message
-        }
+        """
+        Initialize compensation recovery strategy.
         
-        self.recovery_history.append(record)
+        Args:
+            compensation_actions: List of compensation actions to execute
+            retryable_errors: List of error types to trigger compensation
+        """
+        super().__init__(RecoveryStrategyType.COMPENSATION)
+        self.compensation_actions = compensation_actions
+        self.retryable_errors = retryable_errors or []
     
-    def _get_timestamp(self) -> str:
-        """Get current timestamp."""
-        from datetime import datetime
-        return datetime.now().isoformat()
+    def can_recover(self, error: Exception) -> bool:
+        """Check if compensation can be applied."""
+        if not self.retryable_errors:
+            return True
+        
+        for error_type in self.retryable_errors:
+            if isinstance(error, error_type):
+                return True
+        return False
     
-    def get_recovery_history(
+    def recover(
         self,
-        error_code: Optional[ErrorCode] = None,
-        limit: int = 100
-    ) -> List[Dict[str, Any]]:
+        error: Exception,
+        context: Dict[str, Any]
+    ) -> RecoveryAttempt:
+        """Attempt to recover using compensation."""
+        import uuid
+        
+        attempt_id = str(uuid.uuid4())
+        timestamp = datetime.now().isoformat()
+        start_time = datetime.now().timestamp()
+        
+        executed_actions = []
+        failed_actions = []
+        
+        try:
+            for action in self.compensation_actions:
+                try:
+                    action(**context.get("kwargs", {}))
+                    executed_actions.append(action.__name__)
+                except Exception as e:
+                    failed_actions.append({
+                        "action": action.__name__,
+                        "error": str(e)
+                    })
+            
+            recovery_time = datetime.now().timestamp() - start_time
+            
+            if failed_actions:
+                return RecoveryAttempt(
+                    attempt_id=attempt_id,
+                    strategy_type=self.strategy_type,
+                    timestamp=timestamp,
+                    status=RecoveryStatus.FAILED,
+                    error=Exception(f"Some compensation actions failed: {failed_actions}"),
+                    recovery_time=recovery_time,
+                    details={
+                        "executed_actions": executed_actions,
+                        "failed_actions": failed_actions
+                    }
+                )
+            
+            return RecoveryAttempt(
+                attempt_id=attempt_id,
+                strategy_type=self.strategy_type,
+                timestamp=timestamp,
+                status=RecoveryStatus.SUCCESS,
+                recovery_time=recovery_time,
+                details={
+                    "executed_actions": executed_actions,
+                    "total_actions": len(self.compensation_actions)
+                }
+            )
+        except Exception as e:
+            recovery_time = datetime.now().timestamp() - start_time
+            
+            return RecoveryAttempt(
+                attempt_id=attempt_id,
+                strategy_type=self.strategy_type,
+                timestamp=timestamp,
+                status=RecoveryStatus.FAILED,
+                error=e,
+                recovery_time=recovery_time
+            )
+
+
+class CustomRecoveryStrategy(RecoveryStrategy):
+    """Recovery strategy that uses custom recovery logic."""
+    
+    def __init__(
+        self,
+        recovery_fn: Callable[[Exception, Dict[str, Any]], Any],
+        can_recover_fn: Optional[Callable[[Exception], bool]] = None
+    ):
+        """
+        Initialize custom recovery strategy.
+        
+        Args:
+            recovery_fn: Custom recovery function
+            can_recover_fn: Optional function to determine if recovery is possible
+        """
+        super().__init__(RecoveryStrategyType.CUSTOM)
+        self.recovery_fn = recovery_fn
+        self.can_recover_fn = can_recover_fn
+    
+    def can_recover(self, error: Exception) -> bool:
+        """Check if custom recovery can be applied."""
+        if self.can_recover_fn:
+            return self.can_recover_fn(error)
+        return True
+    
+    def recover(
+        self,
+        error: Exception,
+        context: Dict[str, Any]
+    ) -> RecoveryAttempt:
+        """Attempt to recover using custom logic."""
+        import uuid
+        
+        attempt_id = str(uuid.uuid4())
+        timestamp = datetime.now().isoformat()
+        start_time = datetime.now().timestamp()
+        
+        try:
+            result = self.recovery_fn(error, context)
+            
+            recovery_time = datetime.now().timestamp() - start_time
+            
+            return RecoveryAttempt(
+                attempt_id=attempt_id,
+                strategy_type=self.strategy_type,
+                timestamp=timestamp,
+                status=RecoveryStatus.SUCCESS,
+                recovery_time=recovery_time,
+                details={"result": result}
+            )
+        except Exception as e:
+            recovery_time = datetime.now().timestamp() - start_time
+            
+            return RecoveryAttempt(
+                attempt_id=attempt_id,
+                strategy_type=self.strategy_type,
+                timestamp=timestamp,
+                status=RecoveryStatus.FAILED,
+                error=e,
+                recovery_time=recovery_time
+            )
+
+
+class ErrorRecoveryManager:
+    """Manages error recovery strategies."""
+    
+    def __init__(self):
+        """Initialize error recovery manager."""
+        self.strategies: List[RecoveryStrategy] = []
+        self.recovery_history: List[RecoveryResult] = []
+    
+    def add_strategy(self, strategy: RecoveryStrategy) -> None:
+        """
+        Add a recovery strategy.
+        
+        Args:
+            strategy: Recovery strategy to add
+        """
+        self.strategies.append(strategy)
+    
+    def remove_strategy(self, strategy: RecoveryStrategy) -> None:
+        """
+        Remove a recovery strategy.
+        
+        Args:
+            strategy: Recovery strategy to remove
+        """
+        if strategy in self.strategies:
+            self.strategies.remove(strategy)
+    
+    def attempt_recovery(
+        self,
+        error: Exception,
+        context: Dict[str, Any]
+    ) -> RecoveryResult:
+        """
+        Attempt to recover from an error using available strategies.
+        
+        Args:
+            error: The error that occurred
+            context: Context information for recovery
+            
+        Returns:
+            RecoveryResult with recovery details
+        """
+        attempts = []
+        
+        for strategy in self.strategies:
+            if not strategy.can_recover(error):
+                continue
+            
+            attempt = strategy.recover(error, context)
+            attempts.append(attempt)
+            
+            if attempt.status == RecoveryStatus.SUCCESS:
+                # Recovery succeeded
+                result = RecoveryResult(
+                    success=True,
+                    strategy_used=strategy.strategy_type,
+                    attempts=attempts,
+                    final_value=attempt.details.get("fallback_value"),
+                    recovery_strategy_applied=strategy.__class__.__name__
+                )
+                self.recovery_history.append(result)
+                return result
+        
+        # All recovery attempts failed
+        result = RecoveryResult(
+            success=False,
+            attempts=attempts,
+            final_error=error,
+            recovery_strategy_applied="None"
+        )
+        self.recovery_history.append(result)
+        return result
+    
+    def get_recovery_history(self, limit: int = 100) -> List[RecoveryResult]:
         """
         Get recovery history.
         
         Args:
-            error_code: Optional filter by error code
-            limit: Maximum number of records to return
+            limit: Maximum number of results to return
             
         Returns:
-            List of recovery records
+            List of recovery results
         """
-        history = self.recovery_history
-        
-        if error_code:
-            history = [r for r in history if r["error_code"] == error_code.name]
-        
-        return history[-limit:]
+        return self.recovery_history[-limit:]
     
-    def get_recovery_statistics(self) -> Dict[str, Any]:
-        """Get recovery statistics."""
-        total = len(self.recovery_history)
-        successful = sum(1 for r in self.recovery_history if r["success"])
-        failed = total - successful
-        
-        success_rate = (successful / total * 100) if total > 0 else 0
-        
-        # Count by error code
-        error_counts = {}
-        for record in self.recovery_history:
-            error_code = record["error_code"]
-            error_counts[error_code] = error_counts.get(error_code, 0) + 1
-        
-        return {
-            "total_recoveries": total,
-            "successful": successful,
-            "failed": failed,
-            "success_rate": success_rate,
-            "error_counts": error_counts,
-            "strategies_available": len(self.strategies)
-        }
+    def clear_history(self) -> None:
+        """Clear recovery history."""
+        self.recovery_history = []
+
+
+def fallback(
+    value: Optional[Any] = None,
+    fn: Optional[Callable[..., Any]] = None,
+    retryable_errors: Optional[List[Type[Exception]]] = None
+):
+    """
+    Decorator to apply fallback recovery.
     
-    def export_recovery_report(
-        self,
-        output_file: Optional[Path] = None
-    ) -> str:
-        """
-        Export a recovery report.
+    Args:
+        value: Fallback value
+        fn: Fallback function
+        retryable_errors: List of error types to apply fallback to
         
-        Args:
-            output_file: Optional file to save report
-            
-        Returns:
-            Report content
-        """
-        stats = self.get_recovery_statistics()
-        history = self.get_recovery_history()
-        
-        lines = [
-            "Error Recovery Report",
-            "=" * 50,
-            "",
-            f"Generated: {self._get_timestamp()}",
-            "",
-            "Statistics:",
-            "-" * 30,
-            f"Total Recovery Attempts: {stats['total_recoveries']}",
-            f"Successful: {stats['successful']}",
-            f"Failed: {stats['failed']}",
-            f"Success Rate: {stats['success_rate']:.1f}%",
-            f"Strategies Available: {stats['strategies_available']}",
-            "",
-            "Recovery History:",
-            "-" * 30
-        ]
-        
-        for record in history:
-            lines.append(f"- {record['timestamp']}: {record['error_code']} - {record['action']} - {'Success' if record['success'] else 'Failed'}")
-        
-        content = "\n".join(lines)
-        
-        if output_file:
+    Returns:
+        Decorator function
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
             try:
-                with open(output_file, 'w') as f:
-                    f.write(content)
-            except IOError:
-                pass
+                return func(*args, **kwargs)
+            except Exception as e:
+                strategy = FallbackRecoveryStrategy(
+                    fallback_value=value,
+                    fallback_fn=fn,
+                    retryable_errors=retryable_errors
+                )
+                
+                # Only attempt recovery if the error is retryable
+                if strategy.can_recover(e):
+                    attempt = strategy.recover(e, {"kwargs": kwargs})
+                    
+                    if attempt.status == RecoveryStatus.SUCCESS:
+                        return attempt.details.get("fallback_value")
+                    else:
+                        # Recovery failed, raise the recovery error
+                        if attempt.error:
+                            raise attempt.error
+                        else:
+                            raise
+                else:
+                    # Error is not retryable, raise it as-is
+                    raise
         
-        return content
+        return wrapper
+    return decorator
 
 
-def create_recovery_manager(
-    repo_root: Path,
-    backup_manager: Optional[BackupManager] = None
-) -> ErrorRecoveryManager:
-    """Create an error recovery manager instance."""
-    return ErrorRecoveryManager(repo_root, backup_manager)
+def recover_with(
+    *strategies: RecoveryStrategy
+):
+    """
+    Decorator to apply multiple recovery strategies.
+    
+    Args:
+        *strategies: Recovery strategies to apply
+        
+    Returns:
+        Decorator function
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                manager = ErrorRecoveryManager()
+                for strategy in strategies:
+                    manager.add_strategy(strategy)
+                
+                result = manager.attempt_recovery(e, {"kwargs": kwargs})
+                
+                if result.success and result.final_value is not None:
+                    return result.final_value
+                else:
+                    raise
+        
+        return wrapper
+    return decorator
+
+
+# Common recovery scenarios
+
+def create_fallback_strategy(
+    fallback_value: Any,
+    error_types: Optional[List[Type[Exception]]] = None
+) -> FallbackRecoveryStrategy:
+    """
+    Create a fallback recovery strategy.
+    
+    Args:
+        fallback_value: Value to use as fallback
+        error_types: Error types to apply fallback to
+        
+    Returns:
+        FallbackRecoveryStrategy instance
+    """
+    return FallbackRecoveryStrategy(
+        fallback_value=fallback_value,
+        retryable_errors=error_types
+    )
+
+
+def create_rollback_strategy(
+    rollback_fn: Callable[..., None],
+    error_types: Optional[List[Type[Exception]]] = None
+) -> RollbackRecoveryStrategy:
+    """
+    Create a rollback recovery strategy.
+    
+    Args:
+        rollback_fn: Function to call for rollback
+        error_types: Error types to trigger rollback
+        
+    Returns:
+        RollbackRecoveryStrategy instance
+    """
+    return RollbackRecoveryStrategy(
+        rollback_fn=rollback_fn,
+        retryable_errors=error_types
+    )
