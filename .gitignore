@@ -49,3 +49,8 @@ _workspace
 
 # iFlow logs
 .iflow/logs/
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
