@@ -1,1 +1,21 @@
-{"version": "1.0.0", "name": "team-pipeline-new-project", "type": "pipeline", "description": "Full pipeline for new projects from scratch", "capabilities": {"capabilities": ["project-initialization", "requirements-gathering", "full-stack-development", "testing-and-validation", "deployment-setup", "documentation-creation", "feature-iteration"], "domains": {"project-setup": {"supported": true}, "full-lifecycle": {"supported": true}, "implementation": {"supported": false, "reason": "Pipeline orchestrates project creation, doesn't directly implement"}}, "compatible_pipelines": ["*"], "dependencies": {"git-manage": {"min_version": "2.0.0"}, "git-flow": {"min_version": "1.0.0"}}}
+{
+  "name": "team-pipeline-new-project",
+  "version": "1.0.0",
+  "type": "pipeline",
+  "description": "Full pipeline for new projects from scratch",
+  "capabilities": [
+    "project-initialization",
+    "requirements-gathering",
+    "full-stack-development",
+    "testing-and-validation",
+    "deployment-setup",
+    "documentation-creation",
+    "feature-iteration"
+  ],
+  "dependencies": [],
+  "settings": {
+    "type": "pipeline",
+    "domains": {},
+    "compatible_pipelines": []
+  }
+}

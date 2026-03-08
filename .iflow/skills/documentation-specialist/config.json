@@ -1,1 +1,40 @@
-{"name": "documentation-specialist", "version": "1.0.0", "description": "Documentation creation", "capabilities": ["documentation-writing", "api-documentation", "user-guides", "technical-documentation", "readme-creation", "changelog-maintenance", "knowledge-base"], "dependencies": [{"name": "software-engineer", "min_version": "1.0.0"}], "settings": {"type": "role", "domains": {"documentation": {"supported": true}, "technical-writing": {"supported": true}, "development": {"supported": false, "reason": "Documentation Specialist focuses on writing, not implementation"}}, "compatible_pipelines": ["team-pipeline-new-project", "team-pipeline-new-feature"]}}
+{
+  "name": "documentation-specialist",
+  "version": "1.0.0",
+  "description": "Documentation creation",
+  "type": "role",
+  "capabilities": [
+    "documentation-writing",
+    "api-documentation",
+    "user-guides",
+    "technical-documentation",
+    "readme-creation",
+    "changelog-maintenance",
+    "knowledge-base"
+  ],
+  "dependencies": [
+    {
+      "name": "software-engineer",
+      "min_version": "1.0.0"
+    }
+  ],
+  "settings": {
+    "type": "role",
+    "domains": {
+      "documentation": {
+        "supported": true
+      },
+      "technical-writing": {
+        "supported": true
+      },
+      "development": {
+        "supported": false,
+        "reason": "Documentation Specialist focuses on writing, not implementation"
+      }
+    },
+    "compatible_pipelines": [
+      "team-pipeline-new-project",
+      "team-pipeline-new-feature"
+    ]
+  }
+}

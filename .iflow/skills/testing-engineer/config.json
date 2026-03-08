@@ -1,1 +1,42 @@
-{"name": "testing-engineer", "version": "1.0.0", "description": "Test automation and frameworks", "capabilities": ["test-automation", "test-framework-setup", "unit-testing", "integration-testing", "e2e-testing", "performance-testing", "test-maintenance", "coverage-analysis"], "dependencies": [{"name": "software-engineer", "min_version": "1.0.0"}], "settings": {"type": "role", "domains": {"testing": {"supported": true}, "quality-assurance": {"supported": true}, "development": {"supported": true, "reason": "Testing Engineer writes test code as part of development"}}, "compatible_pipelines": ["team-pipeline-new-project", "team-pipeline-new-feature", "team-pipeline-fix-bug"]}}
+{
+  "name": "testing-engineer",
+  "version": "1.0.0",
+  "description": "Test automation and frameworks",
+  "type": "role",
+  "capabilities": [
+    "test-automation",
+    "test-framework-setup",
+    "unit-testing",
+    "integration-testing",
+    "e2e-testing",
+    "performance-testing",
+    "test-maintenance",
+    "coverage-analysis"
+  ],
+  "dependencies": [
+    {
+      "name": "software-engineer",
+      "min_version": "1.0.0"
+    }
+  ],
+  "settings": {
+    "type": "role",
+    "domains": {
+      "testing": {
+        "supported": true
+      },
+      "quality-assurance": {
+        "supported": true
+      },
+      "development": {
+        "supported": true,
+        "reason": "Testing Engineer writes test code as part of development"
+      }
+    },
+    "compatible_pipelines": [
+      "team-pipeline-new-project",
+      "team-pipeline-new-feature",
+      "team-pipeline-fix-bug"
+    ]
+  }
+}

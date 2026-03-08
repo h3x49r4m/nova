@@ -1,1 +1,64 @@
-{"pipeline": "git-flow", "version": "1.0.0", "auto_update": false, "update_channel": "stable", "phases": [{"name": "Requirements Gathering", "role": "Client", "order": 1, "required": true}, {"name": "Architecture Design", "role": "Tech Lead", "order": 2, "required": true}, {"name": "Implementation", "role": "Software Engineer", "order": 3, "required": true}, {"name": "Testing", "role": "QA Engineer", "order": 4, "required": true}, {"name": "Design", "role": "UI/UX Designer", "order": 5, "required": false}, {"name": "Documentation", "role": "Documentation Specialist", "order": 6, "required": false}, {"name": "Security Review", "role": "Security Engineer", "order": 7, "required": false}, {"name": "Deployment", "role": "DevOps Engineer", "order": 8, "required": true}]}
+{
+  "version": "1.0.0",
+  "type": "role",
+  "capabilities": [],
+  "dependencies": [],
+  "settings": {
+    "type": "role",
+    "domains": {},
+    "compatible_pipelines": []
+  },
+  "pipeline": "git-flow",
+  "auto_update": false,
+  "update_channel": "stable",
+  "phases": [
+    {
+      "name": "Requirements Gathering",
+      "role": "Client",
+      "order": 1,
+      "required": true
+    },
+    {
+      "name": "Architecture Design",
+      "role": "Tech Lead",
+      "order": 2,
+      "required": true
+    },
+    {
+      "name": "Implementation",
+      "role": "Software Engineer",
+      "order": 3,
+      "required": true
+    },
+    {
+      "name": "Testing",
+      "role": "QA Engineer",
+      "order": 4,
+      "required": true
+    },
+    {
+      "name": "Design",
+      "role": "UI/UX Designer",
+      "order": 5,
+      "required": false
+    },
+    {
+      "name": "Documentation",
+      "role": "Documentation Specialist",
+      "order": 6,
+      "required": false
+    },
+    {
+      "name": "Security Review",
+      "role": "Security Engineer",
+      "order": 7,
+      "required": false
+    },
+    {
+      "name": "Deployment",
+      "role": "DevOps Engineer",
+      "order": 8,
+      "required": true
+    }
+  ]
+}

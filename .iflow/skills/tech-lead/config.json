@@ -1,1 +1,41 @@
-{"name": "tech-lead", "version": "1.0.0", "description": "Architecture design and technical strategy", "capabilities": ["architecture-design", "technical-strategy", "code-review", "technology-selection", "design-patterns", "system-design", "performance-optimization", "scalability-planning"], "dependencies": [{"name": "project-manager", "min_version": "1.0.0"}], "settings": {"type": "role", "domains": {"architecture": {"supported": true}, "technical-leadership": {"supported": true}, "implementation": {"supported": true, "reason": "Tech Lead may provide code examples and architectural implementations"}}, "compatible_pipelines": ["team-pipeline-new-project", "team-pipeline-new-feature"]}}
+{
+  "name": "tech-lead",
+  "version": "1.0.0",
+  "description": "Architecture design and technical strategy",
+  "type": "role",
+  "capabilities": [
+    "architecture-design",
+    "technical-strategy",
+    "code-review",
+    "technology-selection",
+    "design-patterns",
+    "system-design",
+    "performance-optimization",
+    "scalability-planning"
+  ],
+  "dependencies": [
+    {
+      "name": "project-manager",
+      "min_version": "1.0.0"
+    }
+  ],
+  "settings": {
+    "type": "role",
+    "domains": {
+      "architecture": {
+        "supported": true
+      },
+      "technical-leadership": {
+        "supported": true
+      },
+      "implementation": {
+        "supported": true,
+        "reason": "Tech Lead may provide code examples and architectural implementations"
+      }
+    },
+    "compatible_pipelines": [
+      "team-pipeline-new-project",
+      "team-pipeline-new-feature"
+    ]
+  }
+}

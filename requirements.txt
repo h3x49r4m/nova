@@ -1,16 +1,7 @@
-# iFlow CLI Skills Requirements
+# iFlow CLI Skills - Runtime Requirements
 # Python 3.14+
-
-# Core dependencies
-# No external dependencies required for core functionality
-# The project uses only Python standard library
-
-# Development dependencies
-
-# Testing
-pytest>=9.0.0
-pytest-asyncio>=1.3.0
-pytest-cov>=7.0.0
-
-# Note: This project is designed to have minimal external dependencies.
+#
+# This project is designed to have minimal external dependencies.
 # All core functionality uses Python's standard library only.
+#
+# No runtime dependencies are required.

@@ -1,1 +1,40 @@
-{"name": "security-engineer", "version": "1.0.0", "description": "Security validation and scanning", "capabilities": ["security-validation", "vulnerability-scanning", "security-auditing", "penetration-testing", "compliance-checking", "threat-modeling", "secure-code-review"], "dependencies": [{"name": "software-engineer", "min_version": "1.0.0"}], "settings": {"type": "role", "domains": {"security": {"supported": true}, "compliance": {"supported": true}, "development": {"supported": false, "reason": "Security Engineer focuses on validation, not feature development"}}, "compatible_pipelines": ["team-pipeline-new-project", "team-pipeline-new-feature"]}}
+{
+  "name": "security-engineer",
+  "version": "1.0.0",
+  "description": "Security validation and scanning",
+  "type": "role",
+  "capabilities": [
+    "security-validation",
+    "vulnerability-scanning",
+    "security-auditing",
+    "penetration-testing",
+    "compliance-checking",
+    "threat-modeling",
+    "secure-code-review"
+  ],
+  "dependencies": [
+    {
+      "name": "software-engineer",
+      "min_version": "1.0.0"
+    }
+  ],
+  "settings": {
+    "type": "role",
+    "domains": {
+      "security": {
+        "supported": true
+      },
+      "compliance": {
+        "supported": true
+      },
+      "development": {
+        "supported": false,
+        "reason": "Security Engineer focuses on validation, not feature development"
+      }
+    },
+    "compatible_pipelines": [
+      "team-pipeline-new-project",
+      "team-pipeline-new-feature"
+    ]
+  }
+}

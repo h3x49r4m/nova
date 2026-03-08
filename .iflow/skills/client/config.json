@@ -1,1 +1,33 @@
-{"name": "client", "version": "1.0.0", "description": "Requirements provider and stakeholder", "capabilities": ["requirements-gathering", "acceptance-criteria-definition", "stakeholder-communication", "feature-extraction", "project-initialization"], "dependencies": [], "settings": {"type": "role", "domains": {"business-analysis": {"supported": true}, "product-management": {"supported": true}, "technical-implementation": {"supported": false, "reason": "Client role focuses on business requirements, not technical implementation"}}, "compatible_pipelines": ["team-pipeline-new-project", "team-pipeline-new-feature"]}}
+{
+  "name": "client",
+  "version": "1.0.0",
+  "description": "Requirements provider and stakeholder",
+  "type": "role",
+  "capabilities": [
+    "requirements-gathering",
+    "acceptance-criteria-definition",
+    "stakeholder-communication",
+    "feature-extraction",
+    "project-initialization"
+  ],
+  "dependencies": [],
+  "settings": {
+    "type": "role",
+    "domains": {
+      "business-analysis": {
+        "supported": true
+      },
+      "product-management": {
+        "supported": true
+      },
+      "technical-implementation": {
+        "supported": false,
+        "reason": "Client role focuses on business requirements, not technical implementation"
+      }
+    },
+    "compatible_pipelines": [
+      "team-pipeline-new-project",
+      "team-pipeline-new-feature"
+    ]
+  }
+}

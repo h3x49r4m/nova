@@ -1,1 +1,20 @@
-{"version": "1.0.0", "name": "team-pipeline-fix-bug", "type": "pipeline", "description": "Focused pipeline for rapid bug fixing", "capabilities": {"capabilities": ["bug-reproduction", "root-cause-analysis", "bug-fixing", "regression-testing", "bug-validation", "quick-deployment"], "domains": {"bug-fixing": {"supported": true}, "quality-assurance": {"supported": true}, "development": {"supported": false, "reason": "Pipeline orchestrates bug fixing, doesn't directly implement"}}, "compatible_pipelines": ["*"], "dependencies": {"git-manage": {"min_version": "2.0.0"}, "software-engineer": {"min_version": "1.0.0"}, "testing-engineer": {"min_version": "1.0.0"}, "qa-engineer": {"min_version": "1.0.0"}}}}
+{
+  "name": "team-pipeline-fix-bug",
+  "version": "1.0.0",
+  "type": "pipeline",
+  "description": "Focused pipeline for rapid bug fixing",
+  "capabilities": [
+    "bug-reproduction",
+    "root-cause-analysis",
+    "bug-fixing",
+    "regression-testing",
+    "bug-validation",
+    "quick-deployment"
+  ],
+  "dependencies": [],
+  "settings": {
+    "type": "pipeline",
+    "domains": {},
+    "compatible_pipelines": []
+  }
+}

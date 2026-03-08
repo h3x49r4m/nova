@@ -1,1 +1,41 @@
-{"name": "devops-engineer", "version": "1.0.0", "description": "CI/CD and infrastructure", "capabilities": ["ci-cd-pipelines", "containerization", "orchestration", "infrastructure-as-code", "cloud-platforms", "monitoring-logging", "configuration-management", "deployment-automation"], "dependencies": [{"name": "software-engineer", "min_version": "1.0.0"}], "settings": {"type": "role", "domains": {"devops": {"supported": true}, "infrastructure": {"supported": true}, "development": {"supported": false, "reason": "DevOps role focuses on operations and infrastructure, not feature development"}}, "compatible_pipelines": ["team-pipeline-new-project", "team-pipeline-new-feature"]}}
+{
+  "name": "devops-engineer",
+  "version": "1.0.0",
+  "description": "CI/CD and infrastructure",
+  "type": "role",
+  "capabilities": [
+    "ci-cd-pipelines",
+    "containerization",
+    "orchestration",
+    "infrastructure-as-code",
+    "cloud-platforms",
+    "monitoring-logging",
+    "configuration-management",
+    "deployment-automation"
+  ],
+  "dependencies": [
+    {
+      "name": "software-engineer",
+      "min_version": "1.0.0"
+    }
+  ],
+  "settings": {
+    "type": "role",
+    "domains": {
+      "devops": {
+        "supported": true
+      },
+      "infrastructure": {
+        "supported": true
+      },
+      "development": {
+        "supported": false,
+        "reason": "DevOps role focuses on operations and infrastructure, not feature development"
+      }
+    },
+    "compatible_pipelines": [
+      "team-pipeline-new-project",
+      "team-pipeline-new-feature"
+    ]
+  }
+}

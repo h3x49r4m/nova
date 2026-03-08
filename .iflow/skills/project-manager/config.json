@@ -1,1 +1,39 @@
-{"name": "project-manager", "version": "1.0.0", "description": "Sprint planning and resource allocation", "capabilities": ["sprint-planning", "timeline-tracking", "risk-management", "resource-allocation", "task-breakdown", "progress-reporting"], "dependencies": [{"name": "product-manager", "min_version": "1.0.0"}], "settings": {"type": "role", "domains": {"project-management": {"supported": true}, "resource-management": {"supported": true}, "technical-implementation": {"supported": false, "reason": "Project Manager focuses on planning and coordination, not implementation"}}, "compatible_pipelines": ["team-pipeline-new-project", "team-pipeline-new-feature"]}}
+{
+  "name": "project-manager",
+  "version": "1.0.0",
+  "description": "Sprint planning and resource allocation",
+  "type": "role",
+  "capabilities": [
+    "sprint-planning",
+    "timeline-tracking",
+    "risk-management",
+    "resource-allocation",
+    "task-breakdown",
+    "progress-reporting"
+  ],
+  "dependencies": [
+    {
+      "name": "product-manager",
+      "min_version": "1.0.0"
+    }
+  ],
+  "settings": {
+    "type": "role",
+    "domains": {
+      "project-management": {
+        "supported": true
+      },
+      "resource-management": {
+        "supported": true
+      },
+      "technical-implementation": {
+        "supported": false,
+        "reason": "Project Manager focuses on planning and coordination, not implementation"
+      }
+    },
+    "compatible_pipelines": [
+      "team-pipeline-new-project",
+      "team-pipeline-new-feature"
+    ]
+  }
+}

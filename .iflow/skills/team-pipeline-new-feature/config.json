@@ -1,1 +1,20 @@
-{"version": "1.0.0", "name": "team-pipeline-new-feature", "type": "pipeline", "description": "Pipeline for adding features to existing projects", "capabilities": {"capabilities": ["feature-planning", "feature-implementation", "feature-testing", "feature-deployment", "iterative-development", "feature-validation"], "domains": ["feature-development", "project-management"], "compatible_pipelines": ["*"], "dependencies": {"git-manage": {"min_version": "2.0.0"}, "git-flow": {"min_version": "1.0.0"}}}
+{
+  "name": "team-pipeline-new-feature",
+  "version": "1.0.0",
+  "type": "pipeline",
+  "description": "Pipeline for adding features to existing projects",
+  "capabilities": [
+    "feature-planning",
+    "feature-implementation",
+    "feature-testing",
+    "feature-deployment",
+    "iterative-development",
+    "feature-validation"
+  ],
+  "dependencies": [],
+  "settings": {
+    "type": "pipeline",
+    "domains": {},
+    "compatible_pipelines": []
+  }
+}

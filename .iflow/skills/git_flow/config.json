@@ -1,1 +1,64 @@
-{"name": "git_flow", "version": "1.0.0", "description": "Git-flow orchestration with role-based branching and review gates", "capabilities": ["workflow-orchestration", "role-based-branching", "phase-management", "review-approval-gates", "merge-automation", "reversible-approvals", "dependency-tracking", "cascade-revert", "branch-protection"], "dependencies": [{"name": "git_manage", "min_version": "1.0.0"}], "settings": {"workflow": {"auto_detect_role": true, "auto_create_branch": true, "auto_phase_transition": true, "require_all_phases": false, "allow_parallel_phases": false, "phases_file": null}, "merge": {"strategy": "rebase-merge", "delete_branch_after_merge": true, "require_dependencies_merged": true}, "unapproval": {"allow_unapprove_after_merge": true, "default_action": "cascade-revert", "require_cascade_confirmation": true, "preserve_branch_after_revert": true, "auto_create_fix_branch": false}, "notifications": {"enabled": true, "on_approve": true, "on_reject": true, "on_phase_change": true}, "git_manage": {"command_path": ".iflow/skills/git-manage/git-manage.py"}, "branch_protection": {"protected_branches": ["main", "master", "production"]}}}
+{
+  "name": "git_flow",
+  "version": "1.0.0",
+  "description": "Git-flow orchestration with role-based branching and review gates",
+  "type": "role",
+  "capabilities": [
+    "workflow-orchestration",
+    "role-based-branching",
+    "phase-management",
+    "review-approval-gates",
+    "merge-automation",
+    "reversible-approvals",
+    "dependency-tracking",
+    "cascade-revert",
+    "branch-protection"
+  ],
+  "dependencies": [
+    {
+      "name": "git_manage",
+      "min_version": "1.0.0"
+    }
+  ],
+  "settings": {
+    "workflow": {
+      "auto_detect_role": true,
+      "auto_create_branch": true,
+      "auto_phase_transition": true,
+      "require_all_phases": false,
+      "allow_parallel_phases": false,
+      "phases_file": null
+    },
+    "merge": {
+      "strategy": "rebase-merge",
+      "delete_branch_after_merge": true,
+      "require_dependencies_merged": true
+    },
+    "unapproval": {
+      "allow_unapprove_after_merge": true,
+      "default_action": "cascade-revert",
+      "require_cascade_confirmation": true,
+      "preserve_branch_after_revert": true,
+      "auto_create_fix_branch": false
+    },
+    "notifications": {
+      "enabled": true,
+      "on_approve": true,
+      "on_reject": true,
+      "on_phase_change": true
+    },
+    "git_manage": {
+      "command_path": ".iflow/skills/git-manage/git-manage.py"
+    },
+    "branch_protection": {
+      "protected_branches": [
+        "main",
+        "master",
+        "production"
+      ]
+    },
+    "type": "role",
+    "domains": {},
+    "compatible_pipelines": []
+  }
+}

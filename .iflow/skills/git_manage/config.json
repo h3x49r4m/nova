@@ -1,1 +1,37 @@
-{"name": "git_manage", "version": "1.0.0", "description": "Standardized git operations with safety checks and best practices", "capabilities": ["git-commands", "safety-checks", "conventional-commits", "secret-detection", "test-coverage-checks", "backup-restore"], "dependencies": [], "settings": {"pre_commit_checks": true, "run_tests": false, "run_architecture_check": false, "run_tdd_check": false, "check_coverage": false, "detect_secrets": true, "branch_protection": false, "protected_branches": ["main", "master", "production"], "coverage_threshold": 80, "branch_coverage_threshold": 70, "require_conventional_commits": true, "auto_add_verification_section": true, "backup_before_destructive": true}}
+{
+  "name": "git_manage",
+  "version": "1.0.0",
+  "description": "Standardized git operations with safety checks and best practices",
+  "type": "role",
+  "capabilities": [
+    "git-commands",
+    "safety-checks",
+    "conventional-commits",
+    "secret-detection",
+    "test-coverage-checks",
+    "backup-restore"
+  ],
+  "dependencies": [],
+  "settings": {
+    "pre_commit_checks": true,
+    "run_tests": false,
+    "run_architecture_check": false,
+    "run_tdd_check": false,
+    "check_coverage": false,
+    "detect_secrets": true,
+    "branch_protection": false,
+    "protected_branches": [
+      "main",
+      "master",
+      "production"
+    ],
+    "coverage_threshold": 80,
+    "branch_coverage_threshold": 70,
+    "require_conventional_commits": true,
+    "auto_add_verification_section": true,
+    "backup_before_destructive": true,
+    "type": "role",
+    "domains": {},
+    "compatible_pipelines": []
+  }
+}
