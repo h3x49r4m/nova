@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from .exceptions import IFlowError, ErrorCode
+from .structured_logger import StructuredLogger
 
 
 class CacheStrategy(Enum):
@@ -188,6 +189,7 @@ class FileCacheBackend(CacheBackendProvider):
         self.cache_dir = cache_dir
         self.max_size_bytes = max_size_mb * 1024 * 1024
         self._lock = threading.RLock()
+        self.logger = StructuredLogger.get_logger("cache.file_backend")
         
         # Create cache directory
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -217,8 +219,16 @@ class FileCacheBackend(CacheBackendProvider):
                 
                 return entry
             
-            except Exception:
-                # Corrupted file, delete it
+            except Exception as e:
+                # Corrupted file, delete it and log the error
+                self.logger.warning(
+                    f"Corrupted cache file {file_path}: {e}",
+                    extra={
+                        "file": str(file_path),
+                        "key": key,
+                        "error_type": type(e).__name__
+                    }
+                )
                 file_path.unlink(missing_ok=True)
                 return None
     
@@ -234,8 +244,15 @@ class FileCacheBackend(CacheBackendProvider):
         try:
             with open(file_path, 'wb') as f:
                 pickle.dump(entry, f)
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.warning(
+                f"Failed to save cache entry to {file_path}: {e}",
+                extra={
+                    "file": str(file_path),
+                    "key": entry.key,
+                    "error_type": type(e).__name__
+                }
+            )
     
     def delete(self, key: str) -> bool:
         """Delete entry from cache."""
@@ -263,7 +280,14 @@ class FileCacheBackend(CacheBackendProvider):
                     with open(file_path, 'rb') as f:
                         entry = pickle.load(f)
                     keys.append(entry.key)
-                except Exception:
+                except Exception as e:
+                    self.logger.warning(
+                        f"Corrupted cache file during keys enumeration: {file_path}",
+                        extra={
+                            "file": str(file_path),
+                            "error_type": type(e).__name__
+                        }
+                    )
                     file_path.unlink(missing_ok=True)
             return keys
     
@@ -289,6 +313,8 @@ class PersistentCacheBackend(FileCacheBackend):
         """
         super().__init__(cache_dir, max_size_mb)
         self.metadata_file = cache_dir / "metadata.json"
+        self.metadata = {}
+        self.logger = StructuredLogger.get_logger("cache.persistent_backend")
         self._load_metadata()
     
     def _load_metadata(self):
@@ -297,7 +323,14 @@ class PersistentCacheBackend(FileCacheBackend):
             try:
                 with open(self.metadata_file, 'r') as f:
                     self.metadata = json.load(f)
-            except Exception:
+            except Exception as e:
+                self.logger.warning(
+                    f"Failed to load cache metadata: {e}",
+                    extra={
+                        "file": str(self.metadata_file),
+                        "error_type": type(e).__name__
+                    }
+                )
                 self.metadata = {}
         else:
             self.metadata = {}
@@ -307,8 +340,14 @@ class PersistentCacheBackend(FileCacheBackend):
         try:
             with open(self.metadata_file, 'w') as f:
                 json.dump(self.metadata, f, indent=2)
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.warning(
+                f"Failed to save cache metadata: {e}",
+                extra={
+                    "file": str(self.metadata_file),
+                    "error_type": type(e).__name__
+                }
+            )
 
 
 class CacheManager:

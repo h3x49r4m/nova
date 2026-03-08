@@ -599,6 +599,18 @@ class GitFlow:
             return code, f'Failed to create branch: {stderr}'
     
     def start_workflow(self, feature: str, resume: bool = False) -> Tuple[int, str]:
+        """Start a new git-flow workflow with input validation."""
+        # Validate feature parameter
+        if not feature or not isinstance(feature, str):
+            return 1, 'Invalid feature name: must be a non-empty string'
+        
+        # Validate feature name format (no special characters, reasonable length)
+        if len(feature) > 100:
+            return 1, 'Invalid feature name: must be less than 100 characters'
+        
+        if not re.match(r'^[a-zA-Z0-9_-]+$', feature):
+            return 1, 'Invalid feature name: must contain only alphanumeric characters, hyphens, and underscores'
+        
         if self.workflow_state:
             if resume:
                 # Resume workflow

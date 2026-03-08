@@ -64,7 +64,13 @@ class Client:
                     user_config = json.load(f)
                 self.config.update(user_config)
             except (json.JSONDecodeError, IOError) as e:
-                self.logger.warning(f"Failed to load config: {e}. Using defaults.")
+                self.logger.warning(
+                    f"Failed to load config from {self.config_file}: {e}. Using defaults.",
+                    extra={
+                        "config_file": str(self.config_file),
+                        "error_type": type(e).__name__
+                    }
+                )
     
     def initialize_project_state(self, project_path: Path) -> Tuple[int, str]:
         """

@@ -7,15 +7,23 @@ to provide secure user authentication and authorization.
 import json
 import secrets
 import hashlib
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
+from collections import defaultdict
 
 try:
     import jwt
     JWT_AVAILABLE = True
 except ImportError:
     JWT_AVAILABLE = False
+
+try:
+    import bcrypt
+    BCRYPT_AVAILABLE = True
+except ImportError:
+    BCRYPT_AVAILABLE = False
 
 from .exceptions import IFlowError, ErrorCode, ErrorCategory
 from .rbac import RBACManager, User
@@ -25,6 +33,94 @@ class AuthenticationError(IFlowError):
     """Authentication-related errors."""
     def __init__(self, message: str):
         super().__init__(message, ErrorCode.AUTHENTICATION_FAILED, ErrorCategory.PERMANENT)
+
+
+class RateLimiter:
+    """Rate limiter for authentication operations to prevent brute force attacks."""
+    
+    def __init__(self, max_attempts: int = 5, window_seconds: int = 300):
+        """
+        Initialize rate limiter.
+
+        Args:
+            max_attempts: Maximum number of attempts allowed in the time window
+            window_seconds: Time window in seconds (default: 5 minutes)
+        """
+        self.max_attempts = max_attempts
+        self.window_seconds = window_seconds
+        self.attempts: Dict[str, List[datetime]] = defaultdict(list)
+        self.blocked_until: Dict[str, datetime] = {}
+    
+    def check_rate_limit(self, identifier: str) -> Tuple[bool, Optional[int]]:
+        """
+        Check if the identifier has exceeded the rate limit.
+
+        Args:
+            identifier: Unique identifier (e.g., username, IP address)
+
+        Returns:
+            Tuple of (is_allowed, remaining_attempts)
+        """
+        now = datetime.utcnow()
+        
+        # Check if currently blocked
+        if identifier in self.blocked_until:
+            if now < self.blocked_until[identifier]:
+                return False, 0
+            else:
+                # Block expired, remove it
+                del self.blocked_until[identifier]
+        
+        # Clean up old attempts outside the time window
+        self.attempts[identifier] = [
+            attempt_time for attempt_time in self.attempts[identifier]
+            if (now - attempt_time).total_seconds() < self.window_seconds
+        ]
+        
+        # Check if limit exceeded
+        current_attempts = len(self.attempts[identifier])
+        if current_attempts >= self.max_attempts:
+            # Block for the window duration
+            self.blocked_until[identifier] = now + timedelta(seconds=self.window_seconds)
+            return False, 0
+        
+        return True, self.max_attempts - current_attempts
+    
+    def record_attempt(self, identifier: str) -> None:
+        """
+        Record an authentication attempt.
+
+        Args:
+            identifier: Unique identifier (e.g., username, IP address)
+        """
+        self.attempts[identifier].append(datetime.utcnow())
+    
+    def reset_attempts(self, identifier: str) -> None:
+        """
+        Reset attempts for a successful authentication.
+
+        Args:
+            identifier: Unique identifier (e.g., username, IP address)
+        """
+        if identifier in self.attempts:
+            del self.attempts[identifier]
+        if identifier in self.blocked_until:
+            del self.blocked_until[identifier]
+    
+    def get_block_time_remaining(self, identifier: str) -> Optional[int]:
+        """
+        Get the remaining block time in seconds.
+
+        Args:
+            identifier: Unique identifier
+
+        Returns:
+            Remaining seconds until block expires, or None if not blocked
+        """
+        if identifier in self.blocked_until:
+            remaining = (self.blocked_until[identifier] - datetime.utcnow()).total_seconds()
+            return max(0, int(remaining))
+        return None
 
 
 class TokenManager:
@@ -319,7 +415,7 @@ class Authenticator:
     
     def _hash_password(self, password: str, salt: Optional[str] = None) -> Tuple[str, str]:
         """
-        Hash a password with salt.
+        Hash a password with salt using bcrypt.
         
         Args:
             password: Plain text password
@@ -328,14 +424,19 @@ class Authenticator:
         Returns:
             Tuple of (hashed_password, salt)
         """
-        if salt is None:
-            salt = secrets.token_hex(16)
-        
-        # Use SHA-256 for hashing (in production, use bcrypt or argon2)
-        salted_password = f"{salt}{password}".encode()
-        hashed = hashlib.sha256(salted_password).hexdigest()
-        
-        return hashed, salt
+        if BCRYPT_AVAILABLE:
+            # Use bcrypt for secure password hashing
+            if salt is None:
+                salt = bcrypt.gensalt()
+            hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+            return hashed.decode('utf-8'), salt.decode('utf-8')
+        else:
+            # Fallback to SHA-256 if bcrypt not available
+            if salt is None:
+                salt = secrets.token_hex(16)
+            salted_password = f"{salt}{password}".encode()
+            hashed = hashlib.sha256(salted_password).hexdigest()
+            return hashed, salt
     
     def _verify_password(self, password: str, hashed: str, salt: str) -> bool:
         """
@@ -349,8 +450,16 @@ class Authenticator:
         Returns:
             True if password matches
         """
-        computed_hash, _ = self._hash_password(password, salt)
-        return secrets.compare_digest(computed_hash, hashed)
+        if BCRYPT_AVAILABLE:
+            # Use bcrypt's built-in verification
+            try:
+                return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+            except (ValueError, TypeError):
+                return False
+        else:
+            # Fallback to SHA-256 verification
+            computed_hash, _ = self._hash_password(password, salt)
+            return secrets.compare_digest(computed_hash, hashed)
     
     def create_user(
         self,
@@ -372,10 +481,37 @@ class Authenticator:
             Created User object
             
         Raises:
-            AuthenticationError if user already exists
+            AuthenticationError if user already exists or validation fails
         """
+        # Validate username
+        if not username or not isinstance(username, str):
+            raise AuthenticationError("Username must be a non-empty string")
+        
+        if len(username) < 3 or len(username) > 50:
+            raise AuthenticationError("Username must be between 3 and 50 characters")
+        
+        if not re.match(r'^[a-zA-Z0-9_-]+$', username):
+            raise AuthenticationError("Username must contain only alphanumeric characters, hyphens, and underscores")
+        
         if username in self.credentials:
             raise AuthenticationError(f"User '{username}' already exists")
+        
+        # Validate password
+        if not password or not isinstance(password, str):
+            raise AuthenticationError("Password must be a non-empty string")
+        
+        if len(password) < 8:
+            raise AuthenticationError("Password must be at least 8 characters long")
+        
+        # Validate email if provided
+        if email:
+            if not isinstance(email, str):
+                raise AuthenticationError("Email must be a string")
+            
+            # Basic email validation
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_pattern, email):
+                raise AuthenticationError("Invalid email format")
         
         # Hash password
         hashed_password, salt = self._hash_password(password)
@@ -524,7 +660,9 @@ class AuthenticationSystem:
         rbac_manager: RBACManager,
         secret_key: Optional[str] = None,
         credentials_file: Optional[Path] = None,
-        token_expiry_hours: int = 24
+        token_expiry_hours: int = 24,
+        max_login_attempts: int = 5,
+        login_window_seconds: int = 300
     ):
         """
         Initialize authentication system.
@@ -534,10 +672,13 @@ class AuthenticationSystem:
             secret_key: Optional secret key for tokens
             credentials_file: Optional credentials file path
             token_expiry_hours: Token expiry time in hours
+            max_login_attempts: Maximum login attempts before blocking
+            login_window_seconds: Time window for login attempts
         """
         self.rbac_manager = rbac_manager
         self.token_manager = TokenManager(secret_key, token_expiry_hours)
         self.authenticator = Authenticator(rbac_manager, credentials_file)
+        self.rate_limiter = RateLimiter(max_login_attempts, login_window_seconds)
     
     def login(
         self,
@@ -545,31 +686,57 @@ class AuthenticationSystem:
         password: str
     ) -> Tuple[str, str, Dict[str, Any]]:
         """
-        Login a user and return tokens.
-        
+        Login a user and return tokens with rate limiting.
+
         Args:
             username: Username
             password: Plain text password
-            
+
         Returns:
             Tuple of (access_token, refresh_token, user_info)
+
+        Raises:
+            AuthenticationError if rate limit exceeded or authentication fails
         """
-        # Authenticate user
-        user, user_info = self.authenticator.authenticate_user(username, password)
+        # Check rate limit
+        is_allowed, remaining_attempts = self.rate_limiter.check_rate_limit(username)
         
-        # Generate tokens
-        access_token = self.token_manager.generate_token(
-            user_id=username,
-            username=username,
-            roles=list(user.roles)
-        )
+        if not is_allowed:
+            block_time_remaining = self.rate_limiter.get_block_time_remaining(username)
+            raise AuthenticationError(
+                f"Too many failed login attempts. Please try again in {block_time_remaining} seconds."
+            )
         
-        refresh_token = self.token_manager.generate_refresh_token(
-            user_id=username,
-            username=username
-        )
+        # Record attempt before authentication
+        self.rate_limiter.record_attempt(username)
         
-        return access_token, refresh_token, user_info
+        try:
+            # Authenticate user
+            user, user_info = self.authenticator.authenticate_user(username, password)
+            
+            # Reset attempts on successful authentication
+            self.rate_limiter.reset_attempts(username)
+            
+            # Generate tokens
+            access_token = self.token_manager.generate_token(
+                user_id=username,
+                username=username,
+                roles=list(user.roles)
+            )
+            
+            refresh_token = self.token_manager.generate_refresh_token(
+                user_id=username,
+                username=username
+            )
+            
+            return access_token, refresh_token, user_info
+            
+        except AuthenticationError:
+            # Keep the attempt recorded on failed authentication
+            remaining = self.rate_limiter.max_attempts - len(self.rate_limiter.attempts[username])
+            raise AuthenticationError(
+                f"Invalid username or password. {remaining} attempt(s) remaining."
+            )
     
     def logout(self, refresh_token: str) -> None:
         """

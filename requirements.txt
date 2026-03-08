@@ -3,5 +3,6 @@
 #
 # This project is designed to have minimal external dependencies.
 # All core functionality uses Python's standard library only.
-#
-# No runtime dependencies are required.
+
+# Password hashing library for secure authentication
+bcrypt>=4.0.0

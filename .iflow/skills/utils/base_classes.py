@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 from enum import Enum
+import json
 
 
 class SkillStatus(Enum):
@@ -76,6 +77,7 @@ class BaseSkill(ABC):
         self.config_path = config_path
         self.config: Dict[str, Any] = {}
         self.status = SkillStatus.PENDING
+        self.logger = None  # Initialize logger when needed
 
     @abstractmethod
     def get_name(self) -> str:
@@ -117,12 +119,31 @@ class BaseSkill(ABC):
         """
         pass
 
-    def load_config(self) -> None:
-        """Load skill configuration from config_path."""
+    def load_config(self, default_config: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Load skill configuration from config_path with defaults and error handling.
+
+        Args:
+            default_config: Default configuration values (optional)
+        """
+        # Start with default config or empty dict
+        self.config = default_config or {}
+        
+        # Load and merge user config if file exists
         if self.config_path and self.config_path.exists():
-            import json
-            with open(self.config_path, 'r') as f:
-                self.config = json.load(f)
+            try:
+                with open(self.config_path, 'r') as f:
+                    user_config = json.load(f)
+                self.config.update(user_config)
+            except (json.JSONDecodeError, IOError) as e:
+                if self.logger:
+                    self.logger.warning(
+                        f"Failed to load config from {self.config_path}: {e}. Using defaults.",
+                        extra={
+                            "config_file": str(self.config_path),
+                            "error_type": type(e).__name__
+                        }
+                    )
 
     def get_config(self, key: str, default: Any = None) -> Any:
         """

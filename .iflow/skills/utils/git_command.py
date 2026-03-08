@@ -293,3 +293,89 @@ def reset_git_metrics() -> None:
     """Reset all git operation metrics."""
     if _metrics:
         _metrics.reset()
+
+
+def commit_changes(
+    project_path: Path,
+    changes_description: str,
+    files: Optional[List[str]] = None,
+    commit_type: str = "docs",
+    commit_scope: str = "general",
+    verification: Optional[Dict[str, str]] = None
+) -> Tuple[int, str]:
+    """
+    Standardized commit function with proper metadata and error handling.
+
+    This function provides a consistent way to commit changes across all skills,
+    with structured commit messages, file staging, and proper error handling.
+
+    Args:
+        project_path: Path to the project directory
+        changes_description: Description of changes
+        files: List of files to commit (relative to .state directory)
+        commit_type: Type of commit (feat, fix, docs, refactor, test, etc.)
+        commit_scope: Scope of commit (client, software-engineer, etc.)
+        verification: Optional verification info (e.g., {"tests": "passed", "coverage": "85%"})
+
+    Returns:
+        Tuple of (exit_code, message)
+    """
+    try:
+        # Get current branch
+        code, branch, stderr = run_git_command(['rev-parse', '--abbrev-ref', 'HEAD'], cwd=project_path)
+        if code != 0:
+            return code, f"Failed to get current branch: {stderr}"
+        
+        # Default files to commit
+        if files is None:
+            files = []
+        
+        # Stage files
+        staged_files = []
+        for file in files:
+            file_path = project_path / '.state' / file
+            if file_path.exists():
+                code, _, stderr = run_git_command(['add', str(file_path)], cwd=project_path)
+                if code != 0:
+                    return code, f"Failed to stage {file}: {stderr}"
+                staged_files.append(file)
+        
+        if not staged_files:
+            return 1, "No files to commit"
+        
+        # Create structured commit message
+        commit_message = f"""{commit_type}[{commit_scope}]: {changes_description}
+
+Changes:
+"""
+        for file in staged_files:
+            commit_message += f"- Updated {file}\n"
+        
+        commit_message += f"""
+---
+Branch: {branch}
+
+Files changed:
+"""
+        for file in staged_files:
+            commit_message += f"- {project_path}/.state/{file}\n"
+        
+        # Add verification section if provided
+        if verification:
+            commit_message += "\nVerification:\n"
+            for key, value in verification.items():
+                commit_message += f"- {key}: {value}\n"
+        
+        # Commit changes
+        code, stdout, stderr = run_git_command(['commit', '-m', commit_message], cwd=project_path)
+        
+        if code != 0:
+            # Check if it's a "nothing to commit" error (not actually an error)
+            if "nothing to commit" in stderr.lower() or "no changes added to commit" in stderr.lower():
+                return 0, "No changes to commit"
+            return code, f"Failed to commit changes: {stderr}"
+        
+        return 0, f"Committed {len(staged_files)} file(s) successfully"
+        
+    except Exception as e:
+        return 1, f"Error during commit: {str(e)}"

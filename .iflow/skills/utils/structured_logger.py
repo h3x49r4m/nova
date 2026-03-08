@@ -7,6 +7,7 @@ log levels, filtering capabilities, and rotation support.
 import json
 import logging
 import sys
+import re
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -90,6 +91,23 @@ class StructuredLogger:
             "include": set(),
             "exclude": set()
         }
+        
+        # Secret filtering patterns
+        self.secret_patterns = [
+            # API keys (common patterns)
+            r'(?i)(api[_-]?key|apikey)\s*[:=]\s*[\'"]?([a-zA-Z0-9_\-]{20,})[\'"]?',
+            # JWT tokens
+            r'eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+',
+            # Passwords in key=value format
+            r'(?i)(password|passwd|pwd)\s*[:=]\s*[\'"]?([^\s\'"]+)[\'"]?',
+            # Tokens (generic)
+            r'(?i)(token|bearer)\s*[:=]\s*[\'"]?([a-zA-Z0-9_\-]{15,})[\'"]?',
+            # AWS access keys
+            r'AKIA[0-9A-Z]{16}',
+            # Generic hex strings that might be secrets
+            r'\b[0-9a-fA-F]{32,}\b',
+        ]
+        self._compiled_patterns = [re.compile(pattern) for pattern in self.secret_patterns]
         
         # Create log directory if it doesn't exist
         if enable_file:
@@ -179,6 +197,50 @@ class StructuredLogger:
         import fnmatch
         return fnmatch.fnmatch(text, pattern)
     
+    def _filter_secrets(self, message: str, extra: Optional[Dict[str, Any]] = None) -> tuple[str, Optional[Dict[str, Any]]]:
+        """
+        Filter secrets from message and extra fields.
+        
+        Args:
+            message: Log message
+            extra: Extra context fields
+            
+        Returns:
+            Tuple of (filtered_message, filtered_extra)
+        """
+        # Filter message
+        filtered_message = message
+        for pattern in self._compiled_patterns:
+            filtered_message = pattern.sub('[REDACTED]', filtered_message)
+        
+        # Filter extra fields
+        filtered_extra = None
+        if extra:
+            filtered_extra = {}
+            for key, value in extra.items():
+                if isinstance(value, str):
+                    # Filter string values
+                    filtered_value = value
+                    for pattern in self._compiled_patterns:
+                        filtered_value = pattern.sub('[REDACTED]', filtered_value)
+                    filtered_extra[key] = filtered_value
+                elif isinstance(value, dict):
+                    # Recursively filter dict values
+                    filtered_dict = {}
+                    for k, v in value.items():
+                        if isinstance(v, str):
+                            filtered_v = v
+                            for pattern in self._compiled_patterns:
+                                filtered_v = pattern.sub('[REDACTED]', filtered_v)
+                            filtered_dict[k] = filtered_v
+                        else:
+                            filtered_dict[k] = v
+                    filtered_extra[key] = filtered_dict
+                else:
+                    filtered_extra[key] = value
+        
+        return filtered_message, filtered_extra
+    
     def debug(self, message: str, **kwargs):
         """Log a debug message."""
         self._log(LogLevel.DEBUG, message, **kwargs)
@@ -201,7 +263,7 @@ class StructuredLogger:
     
     def _log(self, level: LogLevel, message: str, **kwargs):
         """
-        Log a message with additional context.
+        Log a message with additional context and secret filtering.
         
         Args:
             level: Log level
@@ -220,11 +282,14 @@ class StructuredLogger:
         if not self._should_log(module):
             return
         
+        # Filter secrets from message and extra data
+        filtered_message, filtered_extra = self._filter_secrets(message, kwargs)
+        
         # Create log record with extra data
         extra = {
             'log_module': module,
             'timestamp': datetime.now().isoformat(),
-            **kwargs
+            **(filtered_extra or {})
         }
         
         # Log at appropriate level
@@ -236,7 +301,7 @@ class StructuredLogger:
             LogLevel.CRITICAL: self.logger.critical
         }.get(level, self.logger.info)
         
-        log_func(message, extra=extra)
+        log_func(filtered_message, extra=extra)
     
     def set_level(self, level: LogLevel):
         """Set the minimum log level."""

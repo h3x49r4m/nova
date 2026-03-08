@@ -11,6 +11,11 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Set, Any, Callable, Union
 from copy import deepcopy
 
+try:
+    from .utils.structured_logger import StructuredLogger
+except ImportError:
+    from utils.structured_logger import StructuredLogger
+
 
 class SkillVersionManager:
     """Manages versioning for individual skills."""
@@ -20,6 +25,7 @@ class SkillVersionManager:
         self.skill_dir = skills_dir / skill_name
         self.versions_dir = self.skill_dir / 'versions'
         self.config_file = self.skill_dir / 'config.json'
+        self.logger = StructuredLogger.get_logger(f"skill.{skill_name}")
         
         self.current_version = self.load_current_version()
         self.available_versions = self.load_available_versions()
@@ -170,8 +176,16 @@ class SkillVersionManager:
                 return spec['migrate']
             elif 'migrate_state' in spec:
                 return spec['migrate_state']
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.warning(
+                f"Failed to load migration function from {migration_file}: {e}",
+                extra={
+                    "file": str(migration_file),
+                    "error_type": type(e).__name__,
+                    "from_version": from_version,
+                    "to_version": to_version
+                }
+            )
         
         return None
     

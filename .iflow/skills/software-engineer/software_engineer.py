@@ -50,7 +50,7 @@ class SoftwareEngineer:
     
     def load_config(self):
         """Load configuration from config file."""
-        self.config = {
+        default_config = {
             'version': '1.0.0',
             'backend_framework': 'FastAPI',
             'frontend_framework': 'React',
@@ -60,49 +60,80 @@ class SoftwareEngineer:
             'auto_commit': True
         }
         
+        # Use improved config loading pattern
+        self.config = default_config
+        
         if self.config_file.exists():
             try:
                 with open(self.config_file, 'r') as f:
                     user_config = json.load(f)
                 self.config.update(user_config)
             except (json.JSONDecodeError, IOError) as e:
-                self.logger.warning(f"Failed to load config: {e}. Using defaults.")
+                self.logger.warning(
+                    f"Failed to load config from {self.config_file}: {e}. Using defaults.",
+                    extra={
+                        "config_file": str(self.config_file),
+                        "error_type": type(e).__name__
+                    }
+                )
     
-    def read_architecture_spec(self, project_path: Path) -> Tuple[int, str]:
+    def read_architecture_spec(self, project_path: Path) -> str:
         """Read architecture specification."""
         spec_file = project_path / '.state' / 'architecture-spec.md'
         
+        if not spec_file.exists():
+            raise FileError(
+                f"Architecture spec not found: {spec_file}",
+                ErrorCode.FILE_NOT_FOUND
+            )
+        
         try:
-            if not spec_file.exists():
-                return ErrorCode.FILE_NOT_FOUND.value, f"Architecture spec not found: {spec_file}"
-            
             with open(spec_file, 'r') as f:
                 content = f.read()
-            
-            return 0, content
+            return content
             
         except (IOError, OSError) as e:
-            error_msg = f"Failed to read architecture spec: {e}"
-            self.logger.error(error_msg)
-            return ErrorCode.FILE_READ_ERROR.value, error_msg
+            self.logger.error(
+                f"Failed to read architecture spec: {e}",
+                extra={
+                    "file": str(spec_file),
+                    "error_type": type(e).__name__
+                }
+            )
+            raise FileError(
+                f"Failed to read architecture spec: {e}",
+                ErrorCode.FILE_READ_ERROR,
+                cause=e
+            )
     
-    def read_implementation_plan(self, project_path: Path) -> Tuple[int, str]:
+    def read_implementation_plan(self, project_path: Path) -> str:
         """Read implementation plan."""
         plan_file = project_path / '.state' / 'implementation-plan.md'
         
+        if not plan_file.exists():
+            raise FileError(
+                f"Implementation plan not found: {plan_file}",
+                ErrorCode.FILE_NOT_FOUND
+            )
+        
         try:
-            if not plan_file.exists():
-                return ErrorCode.FILE_NOT_FOUND.value, f"Implementation plan not found: {plan_file}"
-            
             with open(plan_file, 'r') as f:
                 content = f.read()
-            
-            return 0, content
+            return content
             
         except (IOError, OSError) as e:
-            error_msg = f"Failed to read implementation plan: {e}"
-            self.logger.error(error_msg)
-            return ErrorCode.FILE_READ_ERROR.value, error_msg
+            self.logger.error(
+                f"Failed to read implementation plan: {e}",
+                extra={
+                    "file": str(plan_file),
+                    "error_type": type(e).__name__
+                }
+            )
+            raise FileError(
+                f"Failed to read implementation plan: {e}",
+                ErrorCode.FILE_READ_ERROR,
+                cause=e
+            )
     
     def extract_tasks_from_plan(self, content: str) -> List[Dict[str, Any]]:
         """Extract tasks from implementation plan."""
@@ -123,7 +154,7 @@ class SoftwareEngineer:
         
         return tasks
     
-    def setup_project_structure(self, project_path: Path) -> Tuple[int, str]:
+    def setup_project_structure(self, project_path: Path) -> None:
         """Set up project structure for frontend and backend."""
         try:
             # Create backend directory structure
@@ -213,12 +244,20 @@ httpx==0.25.2
                 json.dump(package_json, f, indent=2)
             
             self.logger.info("Project structure created successfully")
-            return 0, "Project structure created successfully"
             
         except (IOError, OSError) as e:
-            error_msg = f"Failed to setup project structure: {e}"
-            self.logger.error(error_msg)
-            return ErrorCode.FILE_WRITE_ERROR.value, error_msg
+            self.logger.error(
+                f"Failed to setup project structure: {e}",
+                extra={
+                    "project_path": str(project_path),
+                    "error_type": type(e).__name__
+                }
+            )
+            raise FileError(
+                f"Failed to setup project structure: {e}",
+                ErrorCode.FILE_WRITE_ERROR,
+                cause=e
+            )
     
     def create_implementation_details(
         self,
