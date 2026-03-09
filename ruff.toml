@@ -71,11 +71,5 @@ quote-style = "double"
 # Use spaces for indentation
 indent-style = "space"
 
-# Line length limit
-line-length = 100
-
 # Enable auto-formatting of docstrings
 docstring-code-format = true
-
-# Target Python 3.14
-target-version = "py314"
