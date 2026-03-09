@@ -8,11 +8,36 @@ from datetime import datetime
 from typing import Dict, List, Optional, Set, Tuple, Any
 from enum import Enum
 
+# Import enums from utils
+try:
+    from utils.constants import BranchStatus, PhaseStatus, WorkflowStatus
+except ImportError:
+    # Fallback for standalone usage
+    class BranchStatus(Enum):
+        PENDING = "pending"
+        APPROVED = "approved"
+        REJECTED = "rejected"
+        UNAPPROVED = "unapproved"
+        NEEDS_CHANGES = "needs_changes"
+
+    class PhaseStatus(Enum):
+        PENDING = "pending"
+        ACTIVE = "active"
+        COMPLETE = "complete"
+        BLOCKED = "blocked"
+
+    class WorkflowStatus(Enum):
+        INITIALIZED = "initialized"
+        IN_PROGRESS = "in_progress"
+        COMPLETE = "complete"
+        PAUSED = "paused"
+        BLOCKED = "blocked"
+
 
 class ReviewEvent:
     """Represents a review event (approval, rejection, request changes)."""
-    
-    def __init__(self, action: str, actor: str, comment: Optional[str] = None, 
+
+    def __init__(self, action: str, actor: str, comment: Optional[str] = None,
                  reason: Optional[str] = None, merge_commit: Optional[str] = None):
         self.action = action
         self.actor = actor
@@ -20,7 +45,7 @@ class ReviewEvent:
         self.comment = comment
         self.reason = reason
         self.merge_commit = merge_commit
-    
+
     def to_dict(self) -> Dict:
         """Convert to dictionary for serialization."""
         return {
@@ -31,271 +56,253 @@ class ReviewEvent:
             "reason": self.reason,
             "merge_commit": self.merge_commit
         }
-    
-    @classmethod
-    def from_dict(cls, data: Dict) -> 'ReviewEvent':
-        """Create from dictionary."""
-        return cls(
-            action=data["action"],
-            actor=data["actor"],
-            timestamp=data.get("timestamp"),
-            comment=data.get("comment"),
-            reason=data.get("reason"),
-            merge_commit=data.get("merge_commit")
-        )
 
 
 class BranchState:
     """Represents the state of a branch in the workflow."""
-    
+
     def __init__(self, name: str, role: str, phase: int):
         self.name = name
         self.role = role
-        self.status = "pending"
-        self.base_branch = "main"
-        self.created_at = datetime.now().isoformat()
-        self.updated_at = datetime.now().isoformat()
-        self.commits: List[str] = []
-        self.reviews: List[ReviewEvent] = []
+        self.status = BranchStatus.PENDING
         self.phase = phase
-    
+        self.created_at = datetime.now().isoformat()
+        self.commits: List[Dict] = []
+        self.merge_commit: Optional[str] = None
+        self.approved_by: Optional[str] = None
+        self.approved_at: Optional[str] = None
+        self.unapproved_by: Optional[str] = None
+        self.unapproved_at: Optional[str] = None
+        self.dependencies: List[str] = []
+        self.dependents: List[str] = []
+        self.review_history: List[Dict] = []
+
     def to_dict(self) -> Dict:
         """Convert to dictionary for serialization."""
         return {
             "name": self.name,
             "role": self.role,
-            "status": self.status,
-            "base_branch": self.base_branch,
+            "status": self.status.value,
+            "phase": self.phase,
             "created_at": self.created_at,
-            "updated_at": self.updated_at,
             "commits": self.commits,
-            "reviews": [r.to_dict() for r in self.reviews],
-            "phase": self.phase
+            "merge_commit": self.merge_commit,
+            "approved_by": self.approved_by,
+            "approved_at": self.approved_at,
+            "unapproved_by": self.unapproved_by,
+            "unapproved_at": self.unapproved_at,
+            "dependencies": self.dependencies,
+            "dependents": self.dependents,
+            "review_history": self.review_history,
+            "_version": str(int(self._get_version_from_history())) if self.review_history else "0",
+            "_modified": self._get_last_modified()
         }
-    
+
+    def _get_version_from_history(self) -> int:
+        """Calculate version from review history."""
+        return len(self.review_history)
+
+    def _get_last_modified(self) -> str:
+        """Get the last modification timestamp."""
+        if self.review_history:
+            return self.review_history[-1].get('timestamp', self.created_at)
+        return self.created_at
+
     @classmethod
     def from_dict(cls, data: Dict) -> 'BranchState':
         """Create from dictionary."""
-        branch = cls(
-            name=data["name"],
-            role=data["role"],
-            phase=data["phase"]
-        )
-        branch.status = data.get("status", "pending")
-        branch.base_branch = data.get("base_branch", "main")
-        branch.created_at = data.get("created_at", branch.created_at)
-        branch.updated_at = data.get("updated_at", branch.updated_at)
+        branch = cls(data["name"], data["role"], data["phase"])
+        status_str = data.get("status", "pending")
+        # Handle both string and enum values
+        if isinstance(status_str, str):
+            branch.status = BranchStatus(status_str)
+        else:
+            branch.status = status_str
+        branch.created_at = data.get("created_at")
         branch.commits = data.get("commits", [])
-        branch.reviews = [ReviewEvent.from_dict(r) for r in data.get("reviews", [])]
+        branch.merge_commit = data.get("merge_commit")
+        branch.approved_by = data.get("approved_by")
+        branch.approved_at = data.get("approved_at")
+        branch.unapproved_by = data.get("unapproved_by")
+        branch.unapproved_at = data.get("unapproved_at")
+        branch.dependencies = data.get("dependencies", [])
+        branch.dependents = data.get("dependents", [])
+        branch.review_history = data.get("review_history", [])
         return branch
 
 
 class Phase:
     """Represents a phase in the workflow."""
-    
-    def __init__(self, name: str, order: int, assigned_skill: str):
+
+    def __init__(self, name: str, role: str, order: int, required: bool):
         self.name = name
+        self.role = role
         self.order = order
-        self.status = "pending"
-        self.assigned_skill = assigned_skill
-        self.start_time: Optional[str] = None
-        self.end_time: Optional[str] = None
-        self.dependencies: List[str] = []
-        self.metadata: Dict[str, Any] = {}
-    
+        self.required = required
+        self.status = PhaseStatus.PENDING
+        self.branch: Optional[str] = None
+        self.dependencies: List[int] = []
+        self.started_at: Optional[str] = None
+        self.completed_at: Optional[str] = None
+        self.timeout_seconds: int = 604800  # 7 days default
+        self.timeout_warning_sent: bool = False
+
     def to_dict(self) -> Dict:
         """Convert to dictionary for serialization."""
         return {
             "name": self.name,
+            "role": self.role,
             "order": self.order,
-            "status": self.status,
-            "assigned_skill": self.assigned_skill,
-            "start_time": self.start_time,
-            "end_time": self.end_time,
+            "required": self.required,
+            "status": self.status.value,
+            "branch": self.branch,
             "dependencies": self.dependencies,
-            "metadata": self.metadata
+            "started_at": self.started_at,
+            "completed_at": self.completed_at,
+            "timeout_seconds": self.timeout_seconds,
+            "timeout_warning_sent": self.timeout_warning_sent
         }
-    
+
     @classmethod
     def from_dict(cls, data: Dict) -> 'Phase':
         """Create from dictionary."""
-        phase = cls(
-            name=data["name"],
-            order=data["order"],
-            assigned_skill=data["assigned_skill"]
-        )
-        phase.status = data.get("status", "pending")
-        phase.start_time = data.get("start_time")
-        phase.end_time = data.get("end_time")
+        phase = cls(data["name"], data["role"], data["order"], data["required"])
+        status_str = data.get("status", "pending")
+        # Handle both string and enum values
+        if isinstance(status_str, str):
+            phase.status = PhaseStatus(status_str)
+        else:
+            phase.status = status_str
+        phase.branch = data.get("branch")
         phase.dependencies = data.get("dependencies", [])
-        phase.metadata = data.get("metadata", {})
+        phase.started_at = data.get("started_at")
+        phase.completed_at = data.get("completed_at")
+        phase.timeout_seconds = data.get("timeout_seconds", 604800)
+        phase.timeout_warning_sent = data.get("timeout_warning_sent", False)
         return phase
-    
-    def can_start(self, completed_phases: Set[str]) -> bool:
-        """Check if phase can start based on dependencies."""
-        return all(dep in completed_phases for dep in self.dependencies)
 
 
 class WorkflowState:
     """Represents the state of a workflow."""
-    
-    def __init__(self, name: str, feature: str):
-        self.name = name
+
+    def __init__(self, feature: str):
         self.feature = feature
-        self.status = "initialized"
-        self.current_phase = "planning"
+        self.status = WorkflowStatus.INITIALIZED
+        self.current_phase = 0
         self.phases: List[Phase] = []
         self.branches: Dict[str, BranchState] = {}
         self.created_at = datetime.now().isoformat()
         self.updated_at = datetime.now().isoformat()
-        self.metadata: Dict[str, Any] = {}
-        self.version = "1"
-    
+
     def to_dict(self) -> Dict:
         """Convert to dictionary for serialization."""
         return {
-            "name": self.name,
             "feature": self.feature,
-            "status": self.status,
+            "status": self.status.value,
             "current_phase": self.current_phase,
             "phases": [p.to_dict() for p in self.phases],
-            "branches": {name: b.to_dict() for name, b in self.branches.items()},
+            "branches": {k: v.to_dict() for k, v in self.branches.items()},
             "created_at": self.created_at,
             "updated_at": self.updated_at,
-            "metadata": self.metadata,
-            "version": self.version
+            "_version": str(self._calculate_version()),
+            "_modified": self.updated_at
         }
-    
+
+    def _calculate_version(self) -> int:
+        """Calculate workflow version based on changes."""
+        # Base version from phases
+        version = len(self.phases)
+
+        # Add for each branch
+        version += len(self.branches)
+
+        # Add for workflow status changes
+        if self.status != WorkflowStatus.INITIALIZED:
+            version += 1
+
+        # Add for phase transitions
+        version += self.current_phase
+
+        return version
+
     @classmethod
     def from_dict(cls, data: Dict) -> 'WorkflowState':
         """Create from dictionary."""
-        workflow = cls(
-            name=data["name"],
-            feature=data["feature"]
-        )
-        workflow.status = data.get("status", "initialized")
-        workflow.current_phase = data.get("current_phase", "planning")
+        workflow = cls(data["feature"])
+        status_str = data.get("status", "initialized")
+        # Handle both string and enum values
+        if isinstance(status_str, str):
+            workflow.status = WorkflowStatus(status_str)
+        else:
+            workflow.status = status_str
+        workflow.current_phase = data.get("current_phase", 0)
         workflow.phases = [Phase.from_dict(p) for p in data.get("phases", [])]
-        workflow.branches = {
-            name: BranchState.from_dict(b)
-            for name, b in data.get("branches", {}).items()
-        }
-        workflow.created_at = data.get("created_at", workflow.created_at)
-        workflow.updated_at = data.get("updated_at", workflow.updated_at)
-        workflow.metadata = data.get("metadata", {})
-        workflow.version = data.get("version", "1")
+        workflow.branches = {k: BranchState.from_dict(v) for k, v in data.get("branches", {}).items()}
+        workflow.created_at = data.get("created_at", datetime.now().isoformat())
+        workflow.updated_at = data.get("updated_at", datetime.now().isoformat())
         return workflow
-    
-    def get_phase(self, phase_name: str) -> Optional[Phase]:
-        """Get a phase by name."""
-        return next((p for p in self.phases if p.name == phase_name), None)
-    
-    def get_branch(self, branch_name: str) -> Optional[BranchState]:
-        """Get a branch by name."""
-        return self.branches.get(branch_name)
-    
-    def get_completed_phases(self) -> Set[str]:
-        """Get names of completed phases."""
-        return {p.name for p in self.phases if p.status == "complete"}
 
 
 class DependencyGraph:
-    """Manages dependencies between workflow components."""
-    
+    """Manages branch dependency relationships."""
+
     def __init__(self):
-        self.graph: Dict[str, Set[str]] = {}
-    
-    def add_dependency(self, component: str, depends_on: str) -> None:
-        """Add a dependency relationship."""
-        if component not in self.graph:
-            self.graph[component] = set()
-        if depends_on not in self.graph:
-            self.graph[depends_on] = set()
-        self.graph[component].add(depends_on)
-    
-    def add_dependencies(self, component: str, depends_on: List[str]) -> None:
-        """Add multiple dependencies for a component."""
+        """Initialize an empty dependency graph."""
+        self.graph: Dict[str, List[str]] = {}
+        self.reverse_graph: Dict[str, List[str]] = {}
+
+    def add_dependency(self, branch: str, depends_on: List[str]):
+        """
+        Add a dependency relationship between branches.
+
+        Args:
+            branch: Name of the branch that has dependencies
+            depends_on: List of branch names that this branch depends on
+        """
+        if branch not in self.graph:
+            self.graph[branch] = []
+        if branch not in self.reverse_graph:
+            self.reverse_graph[branch] = []
+
+        self.graph[branch].extend(depends_on)
         for dep in depends_on:
-            self.add_dependency(component, dep)
-    
-    def get_dependents(self, component: str) -> Set[str]:
-        """Get all components that depend on the given component."""
-        return {comp for comp, deps in self.graph.items() if component in deps}
-    
-    def get_all_dependents(self, component: str, visited: Optional[Set[str]] = None) -> Set[str]:
-        """Get all transitive dependents of a component."""
-        if visited is None:
-            visited = set()
-        if component in visited:
-            return visited
-        visited.add(component)
-        
-        for dependent in self.get_dependents(component):
-            self.get_all_dependents(dependent, visited)
-        
-        return visited
-    
-    def check_circular(self) -> bool:
-        """Check for circular dependencies."""
+            if dep not in self.reverse_graph:
+                self.reverse_graph[dep] = []
+            self.reverse_graph[dep].append(branch)
+
+    def get_dependents(self, branch: str) -> List[str]:
+        """
+        Get branches that depend on the given branch.
+
+        Args:
+            branch: Name of the branch
+
+        Returns:
+            List of branch names that depend on this branch
+        """
+        return self.reverse_graph.get(branch, [])
+
+    def get_all_dependents(self, branch: str) -> List[str]:
+        """
+        Get all branches that transitively depend on the given branch.
+
+        Args:
+            branch: Name of the branch
+
+        Returns:
+            List of all branch names that depend on this branch (direct and indirect)
+        """
+        dependents = []
         visited = set()
-        rec_stack = set()
-        
-        def has_cycle(node: str) -> bool:
-            visited.add(node)
-            rec_stack.add(node)
-            
-            for neighbor in self.graph.get(node, set()):
-                if neighbor not in visited:
-                    if has_cycle(neighbor):
-                        return True
-                elif neighbor in rec_stack:
-                    return True
-            
-            rec_stack.remove(node)
-            return False
-        
-        for node in self.graph:
-            if node not in visited:
-                if has_cycle(node):
-                    return True
-        
-        return False
-    
-    def topological_sort(self) -> List[str]:
-        """Get topological order of components."""
-        in_degree = {node: 0 for node in self.graph}
-        for node in self.graph:
-            for neighbor in self.graph[node]:
-                in_degree[neighbor] = in_degree.get(neighbor, 0) + 1
-        
-        queue = [node for node in in_degree if in_degree[node] == 0]
-        result = []
-        
-        while queue:
-            node = queue.pop(0)
-            result.append(node)
-            
-            for neighbor in self.graph.get(node, set()):
-                in_degree[neighbor] -= 1
-                if in_degree[neighbor] == 0:
-                    queue.append(neighbor)
-        
-        if len(result) != len(self.graph):
-            raise ValueError("Graph has a cycle")
-        
-        return result
-    
-    def to_dict(self) -> Dict:
-        """Convert to dictionary for serialization."""
-        return {
-            "graph": {node: list(deps) for node, deps in self.graph.items()}
-        }
-    
-    @classmethod
-    def from_dict(cls, data: Dict) -> 'DependencyGraph':
-        """Create from dictionary."""
-        graph = cls()
-        for node, deps in data.get("graph", {}).items():
-            for dep in deps:
-                graph.add_dependency(node, dep)
-        return graph
+
+        def traverse(b: str):
+            if b in visited:
+                return
+            visited.add(b)
+
+            for dep in self.get_dependents(b):
+                dependents.append(dep)
+                traverse(dep)
+
+        traverse(branch)
+        return dependents

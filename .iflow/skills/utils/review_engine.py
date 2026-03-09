@@ -294,8 +294,9 @@ class ReviewEngine:
                         condition=rule_data.get("condition")
                     )
                     self.rules[rule.rule_id] = rule
-            except Exception:
-                pass
+            except Exception as e:
+                    self.logger.warning(f"Failed to load rule {rule_id}: {e}")
+                    pass
         
         # Load default rules if no rules file or loading failed
         if not self.rules:

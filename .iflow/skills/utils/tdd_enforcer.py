@@ -181,7 +181,8 @@ class TDDEnforcer:
             
             return False
         
-        except Exception:
+        except Exception as e:
+            self.logger.warning(f"Test execution check failed: {e}")
             return False
     
     def _validate_test_coverage(
@@ -222,7 +223,8 @@ class TDDEnforcer:
                         "required": self.min_test_coverage
                     })
             
-            except Exception:
+            except Exception as e:
+                self.logger.warning(f"Coverage check error: {e}")
                 pass
         
         if violations:
@@ -291,7 +293,8 @@ class TDDEnforcer:
                 with open(output_file, 'w') as f:
                     json.dump(report_data, f, indent=2)
             
-            except Exception:
+            except Exception as e:
+                self.logger.warning(f"Failed to write TDD report to {output_file}: {e}")
                 pass
         
         return report
@@ -320,7 +323,8 @@ class TDDEnforcer:
             with open(self.tdd_violation_log, 'w') as f:
                 json.dump(existing_log, f, indent=2)
         
-        except Exception:
+        except Exception as e:
+            self.logger.warning(f"Failed to save TDD violation log: {e}")
             pass
     
     def get_violation_history(self, limit: int = 50) -> List[Dict[str, Any]]:
@@ -342,7 +346,8 @@ class TDDEnforcer:
             
             return log[-limit:]
         
-        except Exception:
+        except Exception as e:
+            self.logger.warning(f"Failed to load TDD violation history: {e}")
             return []
     
     def enforce_tdd_pre_commit(

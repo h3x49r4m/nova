@@ -690,7 +690,7 @@ def track_success_rate(
                 result = func(*args, **kwargs)
                 collector.increment_counter(f"{name}_success", labels=labels)
                 return result
-            except Exception:
+            except Exception as e:
                 collector.increment_counter(f"{name}_error", labels=labels)
                 raise
         return wrapper

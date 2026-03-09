@@ -440,7 +440,8 @@ class CacheManager:
         # Calculate size
         try:
             size = len(pickle.dumps(value))
-        except Exception:
+        except Exception as e:
+            # Fall back to string length if pickling fails
             size = len(str(value))
         
         entry = CacheEntry(

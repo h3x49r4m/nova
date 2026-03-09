@@ -190,7 +190,8 @@ class ColorFormatter:
                 import ctypes
                 kernel32 = ctypes.windll.kernel32
                 return kernel32.GetConsoleMode(kernel32.GetStdHandle(-11), 0) != 0
-            except Exception:
+            except Exception as e:
+                self.logger.debug(f"Failed to check Windows console mode: {e}")
                 return False
         
         # Check if stdout is a TTY

@@ -72,7 +72,7 @@ class TestPipelineOrchestration(unittest.TestCase):
             readme.write_text("# Test Repository")
             run_git_command(["add", "README.md"], cwd=self.test_repo)
             run_git_command(["commit", "-m", "Initial commit"], cwd=self.test_repo)
-        except Exception:
+        except Exception as e:
             pass  # Git may not be available in all test environments
     
     def _create_workflow_state(self, workflow_type: str = "new_project") -> dict:
@@ -501,7 +501,7 @@ class TestPipelineOrchestrator(unittest.TestCase):
             readme.write_text("# Test Repository")
             run_git_command(["add", "README.md"], cwd=self.test_repo)
             run_git_command(["commit", "-m", "Initial commit"], cwd=self.test_repo)
-        except Exception:
+        except Exception as e:
             pass  # Git may not be available in all test environments
     
     def test_pipeline_orchestrator_initialization(self):

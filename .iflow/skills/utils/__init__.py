@@ -60,6 +60,7 @@ from .structured_logger import (
 from .checkpoint_manager import CheckpointManager
 from .prerequisite_checker import PrerequisiteChecker, validate_workflow_prerequisites
 from .input_sanitizer import InputSanitizer
+from .config_manager import ConfigManager, SkillType
 
 __all__ = [
     'GitError',
@@ -101,5 +102,7 @@ __all__ = [
     'CheckpointManager',
     'PrerequisiteChecker',
     'validate_workflow_prerequisites',
-    'InputSanitizer'
+    'InputSanitizer',
+    'ConfigManager',
+    'SkillType'
 ]

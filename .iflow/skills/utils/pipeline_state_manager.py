@@ -268,12 +268,14 @@ class PipelineStateManager:
                         "total_stages": len(state.get("stages", [])),
                         "path": backup['path']
                     })
-                except Exception:
+                except Exception as e:
                     # Skip corrupted backups
+                    self.logger.warning(f"Skipping corrupted backup: {e}")
                     continue
         
-        except Exception:
+        except Exception as e:
             # Return empty list on error
+            self.logger.warning(f"Error loading backup history: {e}")
             pass
         
         return history

@@ -53,7 +53,8 @@ class ReviewTool:
                 version_match = re.search(r'(\d+\.\d+\.?\d*)', output)
                 self.tool_version = version_match.group(1) if version_match else "unknown"
             return self.installed
-        except Exception:
+        except Exception as e:
+            self.logger.warning(f"Failed to check if {self.tool_name} is installed: {e}")
             self.installed = False
             return False
     

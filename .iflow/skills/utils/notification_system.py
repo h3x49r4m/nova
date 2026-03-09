@@ -599,7 +599,8 @@ class NotificationSystem:
         
         try:
             return handler_class(config.config)
-        except Exception:
+        except Exception as e:
+            self.logger.warning(f"Failed to initialize notification handler {handler_class.__name__}: {e}")
             return None
     
     def add_channel(self, config: NotificationConfig):
@@ -706,7 +707,8 @@ class NotificationSystem:
             try:
                 if handler.send(message):
                     success = True
-            except Exception:
+            except Exception as e:
+                self.logger.warning(f"Failed to send notification via {handler.__class__.__name__}: {e}")
                 pass
         
         self.notification_history.append(message)

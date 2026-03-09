@@ -121,11 +121,8 @@ class VersionCompatibilityValidator:
             return None
         
         try:
-            with open(config_file, 'r') as f:
-                config = json.load(f)
-                self.skill_cache[skill_name] = config
-                return config
-        except Exception:
+except Exception as e:
+            self.logger.warning(f"Failed to load skill config for {skill_name}: {e}")
             return None
     
     def _load_skill_capabilities(
@@ -159,7 +156,8 @@ class VersionCompatibilityValidator:
         try:
             with open(capabilities_file, 'r') as f:
                 return json.load(f)
-        except Exception:
+        except Exception as e:
+            self.logger.warning(f"Failed to load capabilities from {capabilities_file}: {e}")
             return None
     
     def validate_skill_version(

@@ -173,8 +173,8 @@ def print_version_info() -> None:
             print(f"  Git: {result.stdout.strip()}")
         else:
             print("  Git: Not available")
-    except Exception:
-        print("  Git: Not available")
+    except Exception as e:
+        print(f"  Git: Not available (Error: {e})")
     
     # Check requirements
     print("\nVersion Requirements:")

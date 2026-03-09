@@ -227,7 +227,8 @@ class ErrorContextCollector:
             frame = inspect.currentframe()
             if frame and frame.f_back:
                 return self._sanitize_variables(frame.f_back.f_locals)
-        except Exception:
+        except Exception as e:
+            self.logger.warning(f"Failed to get local variables: {e}")
             pass
         
         return {}
@@ -268,7 +269,8 @@ class ErrorContextCollector:
             try:
                 sanitized_value = self._sanitize_value(value, depth)
                 sanitized[key] = sanitized_value
-            except Exception:
+            except Exception as e:
+                self.logger.debug(f"Failed to serialize variable {key}: {e}")
                 sanitized[key] = "<unable to serialize>"
         
         return sanitized

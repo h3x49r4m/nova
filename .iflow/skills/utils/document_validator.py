@@ -175,15 +175,17 @@ class DocumentValidator:
                     )
                     if not is_schema_valid:
                         issues.extend([f"Schema error: {err}" for err in schema_errors])
-                except Exception:
+                except Exception as e:
+                    self.logger.warning(f"Schema validation error: {e}")
                     pass
             
             return len(issues) == 0, issues
         
         except UnicodeDecodeError:
             return False, ["Failed to read document (encoding issue)"]
-        except Exception:
-            return False, ["Failed to validate document"]
+        except Exception as e:
+            self.logger.error(f"Document validation failed: {e}")
+            return False, [f"Failed to validate document: {e}"]
     
     def _get_required_sections(self, doc_name: str) -> List[str]:
         """Get required sections for a document type."""
@@ -357,7 +359,8 @@ class DocumentValidator:
                 with open(output_file, 'w') as f:
                     json.dump(report_data, f, indent=2)
             
-            except Exception:
+            except Exception as e:
+                self.logger.warning(f"Failed to write report to {output_file}: {e}")
                 pass
         
         return report
@@ -387,7 +390,8 @@ class DocumentValidator:
             with open(self.validation_log, 'w') as f:
                 json.dump(existing_log, f, indent=2)
         
-        except Exception:
+        except Exception as e:
+            self.logger.warning(f"Failed to save validation log: {e}")
             pass
     
     def get_validation_history(self, limit: int = 50) -> List[Dict[str, Any]]:
@@ -409,7 +413,8 @@ class DocumentValidator:
             
             return log[-limit:]
         
-        except Exception:
+        except Exception as e:
+            self.logger.warning(f"Failed to load validation history: {e}")
             return []
 
 

@@ -384,19 +384,19 @@ class TestGitFlow(unittest.TestCase):
 
     def test_start_workflow(self):
         """Test starting a new workflow."""
-        code, output = self.git_flow.start_workflow("Test Feature")
+        code, output = self.git_flow.start_workflow("Test-Feature")
 
         self.assertEqual(code, 0)
         self.assertIn("✓ Workflow initialized", output)
-        self.assertIn("Test Feature", output)
+        self.assertIn("Test-Feature", output)
         self.assertIsNotNone(self.git_flow.workflow_state)
-        self.assertEqual(self.git_flow.workflow_state.feature, "Test Feature")
+        self.assertEqual(self.git_flow.workflow_state.feature, "Test-Feature")
         self.assertEqual(self.git_flow.workflow_state.status, WorkflowStatus.IN_PROGRESS)
 
     def test_start_workflow_already_exists(self):
         """Test starting workflow when one already exists."""
-        self.git_flow.start_workflow("Feature 1")
-        code, output = self.git_flow.start_workflow("Feature 2")
+        self.git_flow.start_workflow("Feature-1")
+        code, output = self.git_flow.start_workflow("Feature-2")
 
         self.assertEqual(code, 1)
         self.assertIn("Workflow already exists", output)
@@ -467,7 +467,7 @@ class TestGitFlow(unittest.TestCase):
 
     def test_save_and_load_workflow_state(self):
         """Test saving and loading workflow state."""
-        self.git_flow.start_workflow("Test Feature")
+        self.git_flow.start_workflow("Test-Feature")
         original_phase_count = len(self.git_flow.workflow_state.phases)
 
         # Save
@@ -475,12 +475,12 @@ class TestGitFlow(unittest.TestCase):
 
         # Create new instance and load
         new_git_flow = GitFlow(self.repo_root)
-        self.assertEqual(new_git_flow.workflow_state.feature, "Test Feature")
+        self.assertEqual(new_git_flow.workflow_state.feature, "Test-Feature")
         self.assertEqual(len(new_git_flow.workflow_state.phases), original_phase_count)
 
     def test_save_and_load_branch_states(self):
         """Test saving and loading branch states."""
-        self.git_flow.start_workflow("Test Feature")
+        self.git_flow.start_workflow("Test-Feature")
         branch = BranchState("feature/test", "Software Engineer", 1)
         self.git_flow.workflow_state.branches["feature/test"] = branch
 

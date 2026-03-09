@@ -65,7 +65,7 @@ class GitManage:
         )
         self.load_config()
     
-    def load_config(self):
+    def load_config(self) -> None:
         """Load configuration from config file."""
         self.config = {
             'pre_commit_checks': True,
@@ -392,7 +392,7 @@ class GitManage:
         """
         # Check for secrets before generating diff
         if self.config['detect_secrets'] and files:
-            has_secrets, _ = self.check_for_secrets_in_files(files)
+            has_secrets, _ = self.detect_secrets(files)
             if has_secrets:
                 return '[SECRET DETECTED: Potential secrets found in files. Review and remove before committing.]'
         import io
@@ -584,7 +584,7 @@ class GitManage:
         
         # Check for secrets in diff output
         if diff_output and self.config['detect_secrets']:
-            has_secrets, _ = self.check_for_secrets_in_files(files)
+            has_secrets, _ = self.detect_secrets(files)
             if has_secrets:
                 self.logger.warning("Potential secrets detected in diff output")
         

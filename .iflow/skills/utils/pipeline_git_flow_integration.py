@@ -227,8 +227,9 @@ class PipelineGitFlowIntegration:
                         "total_stages": len(state.get("stages", [])),
                         "updated_at": state.get("updated_at")
                     }
-                except Exception:
-                    status[pipeline_name] = {"status": "unknown", "error": "Failed to read state"}
+                except Exception as e:
+                    self.logger.warning(f"Failed to read pipeline state {pipeline_name}: {e}")
+                    status[pipeline_name] = {"status": "unknown", "error": f"Failed to read state: {e}"}
             else:
                 status[pipeline_name] = {"status": "not_started"}
         

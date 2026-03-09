@@ -48,7 +48,7 @@ class QAEngineer:
         )
         self.load_config()
     
-    def load_config(self):
+    def load_config(self) -> None:
         """Load configuration from config file."""
         self.config = {
             'version': '1.0.0',
