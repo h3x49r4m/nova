@@ -6,13 +6,10 @@ Tests the complete workflow for adding a new feature to an existing project,
 including all role skills and their interactions.
 """
 
-import json
 import pytest
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
 import subprocess
 import sys
 

@@ -5,19 +5,13 @@ handling state versioning, backup, and recovery.
 """
 
 import json
-import os
-import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from .exceptions import (
-    IFlowError,
-    PipelineError,
     FileError,
-    BackupError,
-    ErrorCode,
-    ErrorCategory
+    BackupError
 )
 from .backup_manager import BackupManager
 from .file_lock import FileLock

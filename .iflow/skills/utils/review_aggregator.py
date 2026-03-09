@@ -8,10 +8,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from .exceptions import IFlowError, ErrorCode
-from .review_rules import RuleSeverity
 
 
 class FindingSeverity(Enum):

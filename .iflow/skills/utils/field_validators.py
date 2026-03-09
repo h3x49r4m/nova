@@ -7,10 +7,8 @@ emails, URLs, branch names, commit messages, and more.
 import re
 from datetime import datetime
 from enum import Enum
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from .exceptions import IFlowError, ErrorCode
 from .constants import SecretPatterns
 
 

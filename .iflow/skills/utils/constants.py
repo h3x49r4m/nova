@@ -398,3 +398,38 @@ class LoggingConstants(Enum):
     DEFAULT_LOG_LEVEL = "INFO"
     DEFAULT_LOG_FORMAT = "json"
     MAX_BACKUP_COUNT = 5
+
+
+# Compiled regex patterns for performance
+import re
+
+
+class RegexPatterns:
+    """Compiled regex patterns used across skills for better performance."""
+
+    # Pipeline status patterns
+    PIPELINE_STATUS = re.compile(r'\*\*Status:\*\* (.+)')
+    PIPELINE_PROGRESS = re.compile(r'\*\*Progress:\*\* \d+%')
+    PIPELINE_PHASE = re.compile(r'\*\*Phase:\*\* \d+/\d+ - (.+)')
+
+    # Phase checkbox patterns
+    PHASE_CHECKBOX_UNCHECKED = re.compile(r'- \[ \] (.+)')
+    PHASE_CHECKBOX_CHECKED = re.compile(r'- \[x\] (.+)')
+
+    # Common markdown patterns
+    MARKDOWN_BOLD = re.compile(r'\*\*(.+?)\*\*')
+    MARKDOWN_LINK = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
+
+    # Version patterns
+    SEMVER = re.compile(r'^\d+\.\d+\.\d+$')
+    VERSION_WITH_PREFIX = re.compile(r'^v?(\d+\.\d+\.\d+)$')
+
+    # Git patterns
+    GIT_BRANCH = re.compile(r'^[\w\-/]+$')
+    GIT_COMMIT_SHA = re.compile(r'^[0-9a-f]{7,40}$')
+    CONVENTIONAL_COMMIT = re.compile(r'^(feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert)(\(.+\))?: .+')
+
+    # File and path patterns
+    FILE_EXTENSION = re.compile(r'\.([a-z]+)$')
+    PYTHON_FILE = re.compile(r'^[\w_]+\.py$')
+    MARKDOWN_FILE = re.compile(r'^[\w_-]+\.md$')

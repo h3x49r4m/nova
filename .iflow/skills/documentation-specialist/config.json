@@ -19,7 +19,6 @@
     }
   ],
   "settings": {
-    "type": "role",
     "domains": {
       "documentation": {
         "supported": true

@@ -9,8 +9,6 @@ import time
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import Mock, patch
-from datetime import datetime
 
 import sys
 utils_path = Path(__file__).parent.parent / 'utils'
@@ -24,7 +22,6 @@ from metrics_collector import (
     Histogram,
     HistogramBucket
 )
-from exceptions import IFlowError, ErrorCode
 
 
 class TestMetric:

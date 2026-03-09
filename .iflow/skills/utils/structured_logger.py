@@ -15,11 +15,6 @@ from typing import Any, Dict, List, Optional, Set
 import threading
 from logging.handlers import RotatingFileHandler
 
-try:
-    from .exceptions import IFlowError, ErrorCode
-except ImportError:
-    from exceptions import IFlowError, ErrorCode
-
 
 class LogLevel(Enum):
     """Log levels."""

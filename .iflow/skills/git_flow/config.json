@@ -56,9 +56,6 @@
         "master",
         "production"
       ]
-    },
-    "type": "role",
-    "domains": {},
-    "compatible_pipelines": []
+    }
   }
 }

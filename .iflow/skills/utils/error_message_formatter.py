@@ -5,11 +5,10 @@ detailed context, suggestions, and actionable information.
 """
 
 import traceback
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple
 from enum import Enum
 
-from .exceptions import IFlowError, ErrorCode, ErrorCategory
+from .exceptions import ErrorCode, ErrorCategory
 
 
 class ErrorSeverity(Enum):
@@ -331,7 +330,6 @@ class ErrorMessageFormatter:
         Returns:
             Dictionary with error information
         """
-        import json
         
         error_data = {
             "error": type(error).__name__,

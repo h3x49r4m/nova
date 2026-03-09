@@ -12,13 +12,10 @@ from pathlib import Path
 from typing import Optional, Union, Any
 from contextlib import contextmanager
 
-from .constants import Timeouts
 
 # Platform-specific imports
 if sys.platform == 'win32':
     import msvcrt
-    import ctypes
-    import ctypes.wintypes
 else:
     import fcntl
 

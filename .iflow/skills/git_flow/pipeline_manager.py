@@ -6,7 +6,6 @@ Handles pipeline versioning, migrations, and updates with rollback support.
 
 import json
 import shutil
-import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Callable, Any

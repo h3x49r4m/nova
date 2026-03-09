@@ -8,7 +8,7 @@ import unittest
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 # Import workflow classes
 import sys

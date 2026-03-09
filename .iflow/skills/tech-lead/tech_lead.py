@@ -6,9 +6,7 @@ Provides architecture design, technical strategy, and code standards.
 
 import argparse
 import json
-import os
 import re
-import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -19,13 +17,9 @@ utils_path = Path(__file__).parent.parent / 'utils'
 sys.path.insert(0, str(utils_path))
 
 from utils import (
-    IFlowError,
     ErrorCode,
-    ValidationError,
-    FileError,
     StructuredLogger,
     LogFormat,
-    LogLevel,
     InputSanitizer,
     run_git_command
 )

@@ -6,7 +6,7 @@ Provides centralized input validation and sanitization to prevent injection atta
 
 import re
 import html
-from typing import Optional, List, Union
+from typing import Optional, List
 from pathlib import Path
 
 

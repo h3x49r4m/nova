@@ -4,12 +4,10 @@ This module provides functionality for translating technical error messages
 into user-friendly, actionable messages that non-technical users can understand.
 """
 
-import re
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional
 from enum import Enum
 
-from .exceptions import IFlowError, ErrorCode, ErrorCategory
+from .exceptions import IFlowError, ErrorCode
 
 
 class Audience(Enum):

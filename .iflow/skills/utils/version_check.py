@@ -6,7 +6,6 @@ Checks Python and Git version requirements.
 
 import sys
 import subprocess
-from pathlib import Path
 from typing import Tuple, Optional
 from .exceptions import ValidationError, ErrorCode, ErrorCategory
 from .constants import SystemRequirements

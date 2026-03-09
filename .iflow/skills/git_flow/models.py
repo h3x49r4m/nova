@@ -5,7 +5,7 @@ Defines data model classes for workflow, branches, phases, and dependencies.
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional, Set, Tuple, Any
+from typing import Dict, List, Optional
 from enum import Enum
 
 # Import enums from utils

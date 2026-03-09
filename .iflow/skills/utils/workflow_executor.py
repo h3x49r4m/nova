@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 
 from .workflow_parser import Workflow, WorkflowStep, StepStatus, WorkflowStatus
-from .exceptions import IFlowError, ErrorCode
 from .skill_invoker import SkillInvoker, create_skill_invoker
 
 # Import skill manager from parent directory
@@ -17,7 +16,7 @@ import sys
 from pathlib import Path
 skill_manager_path = Path(__file__).parent.parent
 sys.path.insert(0, str(skill_manager_path))
-from skill_manager import SkillRegistry, SkillVersionManager
+from skill_manager import SkillRegistry
 
 
 class WorkflowExecutor:

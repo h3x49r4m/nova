@@ -6,9 +6,7 @@ Provides full-stack implementation capabilities.
 
 import argparse
 import json
-import os
 import re
-import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -19,15 +17,13 @@ utils_path = Path(__file__).parent.parent / 'utils'
 sys.path.insert(0, str(utils_path))
 
 from utils import (
-    IFlowError,
     ErrorCode,
-    ValidationError,
     FileError,
     StructuredLogger,
     LogFormat,
-    LogLevel,
     InputSanitizer,
-    run_git_command
+    run_git_command,
+    RegexPatterns
 )
 
 
@@ -961,20 +957,17 @@ Verification:
                 content = f.read()
             
             # Update current phase and status
-            content = re.sub(
-                r'\*\*Phase:\*\* \d+/\d+ - (.+)',
+            content = RegexPatterns.PIPELINE_PHASE.sub(
                 f'**Phase:** 3/5 - {phase_name}',
                 content
             )
-            
-            content = re.sub(
-                r'\*\*Status:\*\* (.+)',
+
+            content = RegexPatterns.PIPELINE_STATUS.sub(
                 f'**Status:** {status}',
                 content
             )
-            
-            content = re.sub(
-                r'\*\*Progress:\*\* \d+%',
+
+            content = RegexPatterns.PIPELINE_PROGRESS.sub(
                 '**Progress:** 60%',
                 content
             )

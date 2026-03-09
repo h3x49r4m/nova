@@ -1,6 +1,6 @@
 """Tests for error recovery strategies."""
 
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 import pytest
 
@@ -19,7 +19,6 @@ from utils.error_recovery_strategies import (
     create_fallback_strategy,
     create_rollback_strategy
 )
-from utils.exceptions import IFlowError, ErrorCode
 
 
 class TestRecoveryStrategyType:

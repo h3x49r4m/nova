@@ -18,7 +18,6 @@
     }
   ],
   "settings": {
-    "type": "role",
     "domains": {
       "product-management": {
         "supported": true

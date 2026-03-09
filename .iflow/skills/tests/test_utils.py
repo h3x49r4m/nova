@@ -5,11 +5,10 @@ Tests shared utilities used across the skills system.
 """
 
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock, call, mock_open
+from unittest.mock import patch
 from threading import Thread
 import time
 
@@ -29,10 +28,7 @@ from utils.git_command import (
     ErrorCategory
 )
 from utils.schema_validator import (
-    SchemaValidator,
-    SchemaValidationError,
-    validate_workflow_state,
-    validate_branch_state
+    SchemaValidator
 )
 from utils.file_lock import FileLock, FileLockError
 from utils.constants import (

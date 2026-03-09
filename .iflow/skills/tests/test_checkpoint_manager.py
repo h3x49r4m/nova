@@ -8,8 +8,6 @@ import pytest
 import tempfile
 import shutil
 from pathlib import Path
-from datetime import datetime
-from unittest.mock import Mock, patch, MagicMock
 
 import sys
 utils_path = Path(__file__).parent.parent / 'utils'

@@ -13,7 +13,6 @@ from typing import Optional
 # Import skill manager classes
 sys.path.insert(0, str(Path(__file__).parent))
 from skill_manager import (
-    SkillVersionManager,
     SkillRegistry,
     SkillDependencyResolver,
     SkillCompatibilityChecker

@@ -5,14 +5,13 @@ Tracks all modifications to state files for compliance and debugging.
 """
 
 import json
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Union
 from copy import deepcopy
 
 from .file_lock import FileLock, FileLockError
-from .exceptions import IFlowError, ErrorCode, ErrorCategory
+from .exceptions import IFlowError
 from .constants import AuditConstants
 
 # Import audit types from separate module

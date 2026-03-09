@@ -20,7 +20,6 @@
     }
   ],
   "settings": {
-    "type": "role",
     "domains": {
       "testing": {
         "supported": true

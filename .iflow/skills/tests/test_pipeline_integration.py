@@ -9,21 +9,18 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock, call
+from unittest.mock import Mock
 import shutil
 
 # Import utility classes
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from utils.git_command import run_git_command, validate_git_repo, get_current_branch
+from utils.git_command import run_git_command
 from utils.file_lock import FileLock, FileLockError
-from utils.schema_validator import SchemaValidator, SchemaValidationError
-from utils.constants import Timeouts, CommitTypes, PhaseStatus, WorkflowStatus
-from utils.exceptions import IFlowError, ErrorCode
+from utils.constants import PhaseStatus, WorkflowStatus
 
 # Import PipelineOrchestrator and related classes
 from utils.pipeline_orchestrator import (
-    PipelineOrchestrator,
     PipelineState,
     Stage,
     PipelineStatus,

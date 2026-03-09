@@ -1,9 +1,7 @@
 """Tests for enhanced error context collector."""
 
 import os
-import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 
 import pytest
 
@@ -12,7 +10,6 @@ from utils.error_context_collector import (
     ErrorContextCollector,
     collect_error_context,
     with_error_context,
-    ErrorContextManager,
     error_context
 )
 from utils.exceptions import IFlowError, ErrorCode

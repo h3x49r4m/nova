@@ -5,12 +5,10 @@ Tests git operations, commit handling, and safety checks.
 """
 
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock, call
-from datetime import datetime
+from unittest.mock import Mock, patch
 
 # Import git-manage classes
 import sys
@@ -22,11 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from git_manage.git_manage import GitManage
 # Import exceptions and constants from utils
 from utils import (
-    ValidationError,
-    SecurityError,
     ErrorCode,
-    ErrorCategory,
-    Timeouts,
     CommitTypes,
     CoverageThresholds,
     DEFAULT_PROTECTED_BRANCHES

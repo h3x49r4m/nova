@@ -9,11 +9,10 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Tuple, Optional, List, TypeVar, ParamSpec, Union, Dict
-import sys
-from .exceptions import GitError, ErrorCode, ErrorCategory, wrap_error, GitCommandTimeout
-from .constants import RetryPolicy, Timeouts, ValidationPatterns, SecretPatterns
-from .shared_validators import SharedValidators, ValidationResult
+from typing import Tuple, Optional, List, Union, Dict
+from .exceptions import GitError, ErrorCode, GitCommandTimeout
+from .constants import RetryPolicy, Timeouts, SecretPatterns
+from .shared_validators import SharedValidators
 
 # Global metrics collector for git operations
 try:

@@ -8,13 +8,6 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from .exceptions import (
-    IFlowError,
-    VersionError,
-    ConfigError,
-    ErrorCode,
-    ErrorCategory
-)
 
 
 class VersionCompatibilityValidator:
@@ -116,12 +109,16 @@ class VersionCompatibilityValidator:
         
         skill_dir = self.skills_dir / skill_name
         config_file = skill_dir / "config.json"
-        
+
         if not config_file.exists():
             return None
-        
+
         try:
-except Exception as e:
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+                self.skill_cache[skill_name] = config
+                return config
+        except Exception as e:
             self.logger.warning(f"Failed to load skill config for {skill_name}: {e}")
             return None
     

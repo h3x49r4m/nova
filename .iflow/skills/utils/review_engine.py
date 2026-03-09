@@ -8,10 +8,8 @@ quality gate enforcement.
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional
 from enum import Enum
-import asyncio
-import concurrent.futures
 
 from .review_tool_integration import (
     ReviewToolIntegration,
@@ -19,16 +17,12 @@ from .review_tool_integration import (
 )
 from .quality_gates import (
     QualityGateEvaluator,
-    QualityGateType,
     QualityGateStatus
 )
 from .exceptions import (
     IFlowError,
-    ValidationError,
-    ErrorCode,
-    ErrorCategory
+    ErrorCode
 )
-from .constants import Timeouts
 
 
 class ReviewType(Enum):

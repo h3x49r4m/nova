@@ -7,12 +7,11 @@ Each handler implements the NotificationChannelHandler interface.
 import json
 import smtplib
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from email.mime.text import MIMEText
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
-from .notification_types import NotificationChannel, NotificationMessage, NotificationSeverity, NotificationTrigger
+from .notification_types import NotificationMessage
 
 
 class NotificationChannelHandler(ABC):

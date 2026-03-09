@@ -18,7 +18,6 @@
     }
   ],
   "settings": {
-    "type": "role",
     "domains": {
       "project-management": {
         "supported": true

@@ -5,11 +5,9 @@ Tests version management, capabilities, compatibility checking, and dependency r
 """
 
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 
 # Import skill manager classes
 import sys

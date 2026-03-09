@@ -30,7 +30,6 @@
     "require_conventional_commits": true,
     "auto_add_verification_section": true,
     "backup_before_destructive": true,
-    "type": "role",
     "domains": {},
     "compatible_pipelines": []
   }

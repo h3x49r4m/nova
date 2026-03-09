@@ -1,6 +1,5 @@
 """Tests for conflict resolver system."""
 
-import json
 import shutil
 import tempfile
 from pathlib import Path

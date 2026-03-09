@@ -14,7 +14,6 @@
   ],
   "dependencies": [],
   "settings": {
-    "type": "pipeline",
     "domains": {},
     "compatible_pipelines": []
   }

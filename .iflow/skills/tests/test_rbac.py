@@ -4,11 +4,9 @@ Test suite for RBAC (Role-Based Access Control).
 Tests role management, user management, permissions, policies, and access control.
 """
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 
 # Import RBAC classes
 import sys
@@ -20,7 +18,6 @@ from utils.rbac import (
     User,
     AccessPolicy,
     RBACManager,
-    get_rbac_manager,
     require_permission
 )
 from utils.exceptions import IFlowError, ErrorCode

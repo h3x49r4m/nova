@@ -6,7 +6,6 @@ Provides standardized git operations with safety checks and best practices.
 
 import argparse
 import json
-import os
 import re
 import subprocess
 import sys
@@ -20,13 +19,8 @@ sys.path.insert(0, str(utils_path))
 from utils import (
     run_git_command,
     get_current_branch,
-    validate_branch_name,
-    validate_file_path,
     IFlowError,
     ErrorCode,
-    ValidationError,
-    SecurityError,
-    FileError,
     Timeouts,
     CoverageThresholds,
     CommitTypes,
@@ -35,7 +29,6 @@ from utils import (
     DEFAULT_COVERAGE_THRESHOLDS,
     StructuredLogger,
     LogFormat,
-    LogLevel,
     InputSanitizer
 )
 
@@ -395,7 +388,6 @@ class GitManage:
             has_secrets, _ = self.detect_secrets(files)
             if has_secrets:
                 return '[SECRET DETECTED: Potential secrets found in files. Review and remove before committing.]'
-        import io
         max_size_bytes = max_size_mb * 1024 * 1024
         
         # Try streaming approach first for large diffs

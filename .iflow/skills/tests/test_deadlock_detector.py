@@ -4,7 +4,6 @@ Unit tests for DeadlockDetector module.
 """
 
 import pytest
-from typing import Dict, List
 
 import sys
 utils_path = Path(__file__).parent.parent / 'utils'
@@ -16,7 +15,6 @@ from deadlock_detector import (
     DeadlockType,
     DependencyType
 )
-from exceptions import IFlowError, ErrorCode
 
 
 class TestDeadlock:

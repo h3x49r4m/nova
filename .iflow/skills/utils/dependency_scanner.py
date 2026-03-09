@@ -5,7 +5,6 @@ for security vulnerabilities and outdated packages.
 """
 
 import json
-import re
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
@@ -13,7 +12,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from .exceptions import IFlowError, ErrorCode
 from .constants import Timeouts
 
 

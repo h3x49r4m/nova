@@ -4,11 +4,9 @@
 Tests token-based authentication and integration with RBAC.
 """
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch
 
 # Import authentication classes
 import sys
@@ -19,7 +17,7 @@ from utils.authentication import (
     TokenManager,
     AuthenticationError
 )
-from utils.rbac import RBACManager, User, Role, Permission
+from utils.rbac import RBACManager, Role, Permission
 
 
 class TestTokenManager(unittest.TestCase):

@@ -5,13 +5,10 @@ Tests workflow orchestration, branch management, and phase transitions.
 """
 
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock, call
-from datetime import datetime
-from copy import deepcopy
+from unittest.mock import patch
 
 # Import git-flow classes
 import sys
@@ -32,7 +29,6 @@ from git_flow.git_flow import (
     DependencyGraph
 )
 # Import exceptions and constants from utils
-from utils import IFlowError, ErrorCode, ValidationError
 
 
 class TestBranchStatus(unittest.TestCase):

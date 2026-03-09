@@ -7,14 +7,12 @@ phase tracking, and reversible approvals. Delegates git operations to git-manage
 
 import argparse
 import json
-import os
 import sys
 import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
-from enum import Enum
 from .pipeline_manager import PipelineUpdateManager
 # Import data models from separate module
 from .models import ReviewEvent, BranchState, Phase, WorkflowState, DependencyGraph
@@ -32,7 +30,6 @@ from utils import (
     FileLockError,
     validate_workflow_state,
     validate_branch_state,
-    SchemaValidationError,
     StructuredLogger,
     LogFormat,
     LogLevel,
@@ -717,7 +714,6 @@ class GitFlow:
         
         try:
             from datetime import datetime, timezone
-            import time
             
             started = datetime.fromisoformat(phase.started_at)
             now = datetime.now(timezone.utc)

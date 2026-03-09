@@ -8,14 +8,13 @@ import pytest
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 
 import sys
 utils_path = Path(__file__).parent.parent / 'utils'
 sys.path.insert(0, str(utils_path))
 
 from document_validator import DocumentValidator
-from exceptions import IFlowError, ValidationError, ErrorCode
 
 
 class TestDocumentValidator:

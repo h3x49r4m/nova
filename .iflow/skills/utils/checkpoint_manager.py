@@ -10,12 +10,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from enum import Enum
 import hashlib
-import shutil
 
-from .exceptions import IFlowError, ErrorCode, ErrorCategory
+from .exceptions import IFlowError, ErrorCode
 from .backup_manager import BackupManager
 from .state_validator import StateValidator
-from .constants import BackupConstants
 
 
 class CheckpointStatus(Enum):
