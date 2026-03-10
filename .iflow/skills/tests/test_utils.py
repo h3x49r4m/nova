@@ -12,9 +12,6 @@ from unittest.mock import patch
 from threading import Thread
 import time
 
-# Import utility classes
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.git_command import (
     run_git_command,
     validate_git_repo,

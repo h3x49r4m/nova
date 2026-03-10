@@ -1,5 +1,5 @@
 {
-  "name": "git_flow",
+  "name": "git-flow",
   "version": "1.0.0",
   "description": "Git-flow orchestration with role-based branching and review gates",
   "type": "role",
@@ -16,7 +16,7 @@
   ],
   "dependencies": [
     {
-      "name": "git_manage",
+      "name": "git-manage",
       "min_version": "1.0.0"
     }
   ],

@@ -5,11 +5,7 @@ Tests secret detection, input sanitization, and other security-related functiona
 """
 
 import unittest
-from pathlib import Path
 
-# Import utility classes
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.shared_validators import SharedValidators
 from utils.input_sanitizer import InputSanitizer
 from utils.constants import SecretPatterns

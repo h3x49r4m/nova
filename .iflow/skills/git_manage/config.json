@@ -1,5 +1,5 @@
 {
-  "name": "git_manage",
+  "name": "git-manage",
   "version": "1.0.0",
   "description": "Standardized git operations with safety checks and best practices",
   "type": "role",

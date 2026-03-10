@@ -10,10 +10,6 @@ import tempfile
 import shutil
 from pathlib import Path
 
-import sys
-skills_path = Path(__file__).parent.parent
-sys.path.insert(0, str(skills_path))
-
 from utils.metrics_collector import (
     MetricsCollector,
     Metric,

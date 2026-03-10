@@ -5,14 +5,10 @@ Tests git command execution with secret detection and error handling.
 """
 
 import unittest
-import sys
 import tempfile
 import subprocess
 from pathlib import Path
 from unittest.mock import Mock, patch
-
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.git_command import run_git_command, check_for_secrets
 from utils.exceptions import GitError, GitCommandTimeout, ErrorCode

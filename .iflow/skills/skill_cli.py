@@ -6,12 +6,10 @@ Command-line interface for managing skills, versions, and compatibility.
 
 import argparse
 import json
-import sys
 from pathlib import Path
 from typing import Optional
 
 # Import skill manager classes
-sys.path.insert(0, str(Path(__file__).parent))
 from skill_manager import (
     SkillRegistry,
     SkillDependencyResolver,

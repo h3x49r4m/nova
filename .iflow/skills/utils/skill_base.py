@@ -5,13 +5,8 @@ extracting common patterns and providing standardized functionality.
 """
 
 import json
-import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-
-# Add utils to path
-utils_path = Path(__file__).parent
-sys.path.insert(0, str(utils_path))
 
 from .exceptions import IFlowError, ErrorCode, ValidationError
 from .structured_logger import StructuredLogger, LogFormat

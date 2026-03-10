@@ -205,7 +205,7 @@ def authenticate(username: str, password: str) -> bool:
     '''Authenticate user'''
     # In real implementation, would check against database
     validate_password(password)
-    return username == "admin" and password == "admin123"
+    return username == "admin" and password == "test_password_placeholder"
 """)
         
         # Initialize git repository

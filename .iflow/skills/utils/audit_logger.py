@@ -18,61 +18,6 @@ from .constants import AuditConstants
 from .audit_types import AuditEventType, AuditSeverity, AuditEvent
 
 
-class AuditEventType(Enum):
-    """Types of audit events."""
-    CREATE = "create"
-    READ = "read"
-    UPDATE = "update"
-    DELETE = "delete"
-    MERGE = "merge"
-    BACKUP = "backup"
-    RESTORE = "restore"
-    VALIDATION = "validation"
-    ERROR = "error"
-    SYSTEM = "system"
-
-
-class AuditSeverity(Enum):
-    """Severity levels for audit events."""
-    INFO = "info"
-    WARNING = "warning"
-    ERROR = "error"
-    CRITICAL = "critical"
-
-
-@dataclass
-class AuditEvent:
-    """A single audit event."""
-    event_id: str
-    event_type: AuditEventType
-    severity: AuditSeverity
-    timestamp: str
-    actor: str
-    component: str
-    file_path: str
-    operation: str
-    details: Dict[str, Any]
-    previous_state: Optional[Dict] = None
-    new_state: Optional[Dict] = None
-    error: Optional[str] = None
-    tags: Optional[List[str]] = None
-    metadata: Optional[Dict[str, Any]] = None
-    
-    def to_dict(self) -> Dict:
-        """Convert to dictionary."""
-        return asdict(self)
-    
-    @classmethod
-    def from_dict(cls, data: Dict) -> 'AuditEvent':
-        """Create from dictionary."""
-        # Convert string enums back to enums
-        if isinstance(data.get('event_type'), str):
-            data['event_type'] = AuditEventType(data['event_type'])
-        if isinstance(data.get('severity'), str):
-            data['severity'] = AuditSeverity(data['severity'])
-        return cls(**data)
-
-
 class AuditLogger:
     """Manages audit logging for state changes."""
     

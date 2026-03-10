@@ -10,8 +10,6 @@ import unittest
 from pathlib import Path
 
 # Import transactional state manager
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.transactional_state import (
     TransactionalStateManager,
     StateTransaction,

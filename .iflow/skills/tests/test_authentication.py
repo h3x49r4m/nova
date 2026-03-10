@@ -8,9 +8,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-# Import authentication classes
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.authentication import (
     AuthenticationSystem,
     Authenticator,

@@ -7,15 +7,11 @@ Provides feature planning, prioritization, and user story creation.
 import argparse
 import json
 import re
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
 # Import shared utilities
-utils_path = Path(__file__).parent.parent / 'utils'
-sys.path.insert(0, str(utils_path))
-
 from utils import (
     ErrorCode,
     StructuredLogger,

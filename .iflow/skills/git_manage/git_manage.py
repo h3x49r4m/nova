@@ -4,18 +4,15 @@ Git Management Skill - Implementation
 Provides standardized git operations with safety checks and best practices.
 """
 
+import sys
 import argparse
 import json
 import re
 import subprocess
-import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 # Import shared utilities
-utils_path = Path(__file__).parent.parent / 'utils'
-sys.path.insert(0, str(utils_path))
-
 from utils import (
     run_git_command,
     get_current_branch,

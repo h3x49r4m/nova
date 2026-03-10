@@ -7,15 +7,11 @@ Provides sprint planning, resource allocation, and timeline tracking.
 import argparse
 import json
 import re
-import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
 # Import shared utilities
-utils_path = Path(__file__).parent.parent / 'utils'
-sys.path.insert(0, str(utils_path))
-
 from utils import (
     ErrorCode,
     StructuredLogger,

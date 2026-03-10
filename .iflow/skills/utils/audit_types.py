@@ -51,8 +51,14 @@ class AuditEvent:
     metadata: Optional[Dict[str, Any]] = None
     
     def to_dict(self) -> Dict:
-        """Convert to dictionary."""
-        return asdict(self)
+        """Convert to dictionary with Enum values as strings."""
+        data = asdict(self)
+        # Convert Enum values to their string values
+        if isinstance(data.get('event_type'), AuditEventType):
+            data['event_type'] = data['event_type'].value
+        if isinstance(data.get('severity'), AuditSeverity):
+            data['severity'] = data['severity'].value
+        return data
     
     @classmethod
     def from_dict(cls, data: Dict) -> 'AuditEvent':

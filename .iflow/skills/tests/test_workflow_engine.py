@@ -10,9 +10,6 @@ import shutil
 from pathlib import Path
 from unittest.mock import Mock
 
-# Import workflow classes
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.workflow_parser import WorkflowParser, Workflow, WorkflowStep, StepStatus, WorkflowStatus
 from utils.workflow_executor import WorkflowExecutor
 from utils.skill_invoker import SkillInvocationResult

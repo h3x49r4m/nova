@@ -184,7 +184,7 @@ npm test -- tests/auth.test.js
 NODE_ENV=production
 PORT=3000
 DATABASE_URL=postgresql://...
-JWT_SECRET=your-secret-key
+# JWT_SECRET=REPLACE_WITH_SECURE_RANDOM_STRING
 REDIS_URL=redis://...
 ```
 

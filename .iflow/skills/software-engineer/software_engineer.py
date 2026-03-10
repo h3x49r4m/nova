@@ -7,24 +7,20 @@ Provides full-stack implementation capabilities.
 import argparse
 import json
 import re
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
 # Import shared utilities
-utils_path = Path(__file__).parent.parent / 'utils'
-sys.path.insert(0, str(utils_path))
-
 from utils import (
     ErrorCode,
     FileError,
     StructuredLogger,
     LogFormat,
     InputSanitizer,
-    run_git_command
+    run_git_command,
+    RegexPatterns
 )
-from utils.constants import RegexPatterns
 
 
 class SoftwareEngineer:
@@ -736,7 +732,7 @@ This document provides comprehensive documentation for the REST API endpoints, i
 ```json
 {{
   "email": "admin@example.com",
-  "password": "admin123",
+  "password": "secure_password_placeholder",
   "name": "Admin User"
 }}
 ```

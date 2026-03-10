@@ -7,7 +7,6 @@ phase tracking, and reversible approvals. Delegates git operations to git-manage
 
 import argparse
 import json
-import sys
 import re
 import subprocess
 from datetime import datetime
@@ -18,7 +17,6 @@ from .pipeline_manager import PipelineUpdateManager
 from .models import ReviewEvent, BranchState, Phase, WorkflowState, DependencyGraph
 
 # Import shared git command utility
-sys.path.insert(0, str(Path(__file__).parent.parent / 'utils'))
 from utils import (
     run_git_command,
     get_current_branch,
@@ -36,9 +34,12 @@ from utils import (
     validate_json_schema,
     BranchStatus,
     PhaseStatus,
-    WorkflowStatus
+    WorkflowStatus,
+    CheckpointManager,
+    PrerequisiteChecker,
+    validate_workflow_prerequisites,
+    InputSanitizer
 )
-from utils import CheckpointManager, PrerequisiteChecker, validate_workflow_prerequisites, InputSanitizer
 
 
 class GitFlow:

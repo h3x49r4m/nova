@@ -8,9 +8,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-# Import RBAC classes
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.rbac import (
     Permission,
     ResourceType,

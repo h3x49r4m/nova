@@ -4,12 +4,7 @@ Test runner for all iFlow CLI skills tests.
 Provides convenient command-line interface for running tests.
 """
 
-import sys
 import unittest
-from pathlib import Path
-
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from test_skill_manager import (
     TestSkillVersionManager,

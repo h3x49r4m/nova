@@ -9,9 +9,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-# Import skill manager classes
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from skill_manager import (
     SkillVersionManager,
     SkillRegistry,

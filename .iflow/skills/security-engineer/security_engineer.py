@@ -6,15 +6,11 @@ Provides security validation and scanning.
 
 import argparse
 import json
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple
 
 # Import shared utilities
-utils_path = Path(__file__).parent.parent / 'utils'
-sys.path.insert(0, str(utils_path))
-
 from utils import (
     ErrorCode,
     StructuredLogger,

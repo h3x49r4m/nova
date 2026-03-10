@@ -4,11 +4,6 @@ Unit tests for DeadlockDetector module.
 """
 
 import pytest
-from pathlib import Path
-
-import sys
-skills_path = Path(__file__).parent.parent
-sys.path.insert(0, str(skills_path))
 
 from utils.deadlock_detector import (
     DeadlockDetector,

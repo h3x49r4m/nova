@@ -12,9 +12,6 @@ from pathlib import Path
 from unittest.mock import Mock
 import shutil
 
-# Import utility classes
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.git_command import run_git_command
 from utils.file_lock import FileLock, FileLockError
 from utils.constants import PhaseStatus, WorkflowStatus
