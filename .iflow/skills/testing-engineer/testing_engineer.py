@@ -545,8 +545,8 @@ Changes:
 Branch: {branch}
 
 Files changed:
-- {project_path}/.state/test-plan.md
-- {project_path}/.state/test-results.md
+- {project_path}/.iflow/skills/.shared-state/test-plan.md
+- {project_path}/.iflow/skills/.shared-state/test-results.md
 
 Verification:
 - Tests: passed

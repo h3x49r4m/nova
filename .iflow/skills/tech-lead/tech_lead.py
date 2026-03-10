@@ -884,7 +884,7 @@ Changes:
 Branch: {branch}
 
 Files changed:
-- {project_path}/.state/architecture-spec.md
+- {project_path}/.iflow/skills/.shared-state/architecture-spec.md
 
 Verification:
 - Tests: passed

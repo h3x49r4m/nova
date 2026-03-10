@@ -1193,9 +1193,9 @@ Changes:
 Branch: {branch}
 
 Files changed:
-- {project_path}/.state/api-docs.md
-- {project_path}/.state/user-guide.md
-- {project_path}/.state/changelog.md
+- {project_path}/.iflow/skills/.shared-state/api-docs.md
+- {project_path}/.iflow/skills/.shared-state/user-guide.md
+- {project_path}/.iflow/skills/.shared-state/changelog.md
 
 Verification:
 - Tests: passed

@@ -319,8 +319,8 @@ Changes:
 Branch: {branch}
 
 Files changed:
-- {project_path}/.state/quality-report.md
-- {project_path}/.state/test-results.md
+- {project_path}/.iflow/skills/.shared-state/quality-report.md
+- {project_path}/.iflow/skills/.shared-state/test-results.md
 
 Verification:
 - Tests: passed

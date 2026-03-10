@@ -784,7 +784,7 @@ Changes:
 Branch: {branch}
 
 Files changed:
-- {project_path}/.state/design-spec.md
+- {project_path}/.iflow/skills/.shared-state/design-spec.md
 
 Verification:
 - Tests: passed

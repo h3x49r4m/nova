@@ -469,7 +469,7 @@ Branch: {branch}
 Files changed:
 """
             for file in files:
-                commit_message += f"- {project_path}/.state/{file}\n"
+                commit_message += f"- {project_path}/.iflow/skills/.shared-state/{file}\n"
             
             commit_message += """
 Verification:

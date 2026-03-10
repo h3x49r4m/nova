@@ -22,9 +22,9 @@ from utils import (
     StructuredLogger,
     LogFormat,
     InputSanitizer,
-    run_git_command,
-    RegexPatterns
+    run_git_command
 )
+from utils.constants import RegexPatterns
 
 
 class SoftwareEngineer:
@@ -298,7 +298,7 @@ project/
 │   │   ├── store/        # State management
 │   │   └── utils/        # Utility functions
 │   └── package.json      # Node dependencies
-└── .state/               # Project state files
+└── .iflow/skills/.shared-state/               # Project state files
 ```
 
 ## Implementation Tasks
@@ -918,8 +918,8 @@ Changes:
 Branch: {branch}
 
 Files changed:
-- {project_path}/.state/implementation.md
-- {project_path}/.state/api-docs.md
+- {project_path}/.iflow/skills/.shared-state/implementation.md
+- {project_path}/.iflow/skills/.shared-state/api-docs.md
 
 Verification:
 - Tests: passed

@@ -11,10 +11,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 import sys
-utils_path = Path(__file__).parent.parent / 'utils'
-sys.path.insert(0, str(utils_path))
+skills_path = Path(__file__).parent.parent
+sys.path.insert(0, str(skills_path))
 
-from document_validator import DocumentValidator
+from utils.document_validator import DocumentValidator
 
 
 class TestDocumentValidator:

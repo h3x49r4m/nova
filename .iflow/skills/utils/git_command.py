@@ -357,7 +357,7 @@ Branch: {branch}
 Files changed:
 """
         for file in staged_files:
-            commit_message += f"- {project_path}/.state/{file}\n"
+            commit_message += f"- {project_path}/.iflow/skills/.shared-state/{file}\n"
         
         # Add verification section if provided
         if verification:

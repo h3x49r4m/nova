@@ -485,7 +485,7 @@ Changes:
 Branch: {branch}
 
 Files changed:
-- {project_path}/.state/security-report.md
+- {project_path}/.iflow/skills/.shared-state/security-report.md
 
 Verification:
 - Tests: passed

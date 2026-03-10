@@ -24,9 +24,9 @@ from utils.git_command import (
     validate_file_path,
     check_for_secrets,
     GitError,
-    ErrorCode,
-    ErrorCategory
+    ErrorCode
 )
+from utils.exceptions import ErrorCategory
 from utils.schema_validator import (
     SchemaValidator
 )

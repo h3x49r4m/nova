@@ -439,7 +439,7 @@ Changes:
 Branch: {branch}
 
 Files changed:
-- {project_path}/.state/project-spec.md
+- {project_path}/.iflow/skills/.shared-state/project-spec.md
 
 Verification:
 - Tests: passed

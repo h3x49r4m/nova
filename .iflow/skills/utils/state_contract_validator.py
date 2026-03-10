@@ -67,18 +67,18 @@ def get_shared_state_dir(project_path: Path) -> Path:
     Returns:
         Path to the shared state directory
     """
-    # Check for .state/
-    state_dir = project_path / '.state'
-    if state_dir.exists():
-        return state_dir
-    
-    # Check for .iflow/skills/.shared-state/
+    # Check for .iflow/skills/.shared-state/ (preferred)
     shared_state = project_path / '.iflow' / 'skills' / '.shared-state'
     if shared_state.exists():
         return shared_state
     
-    # Default to .state/
-    return state_dir
+    # Check for .state/ (legacy support)
+    state_dir = project_path / '.state'
+    if state_dir.exists():
+        return state_dir
+    
+    # Default to .iflow/skills/.shared-state/
+    return shared_state
 
 
 def validate_state_contracts(

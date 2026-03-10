@@ -13,22 +13,53 @@ import shutil
 from pathlib import Path
 import subprocess
 import sys
+import importlib.util
 
 # Add skills directory to path
 skills_path = Path(__file__).parent.parent
-sys.path.insert(0, str(skills_path))
 
-from client.client import Client
-from product_manager.product_manager import ProductManager
-from project_manager.project_manager import ProjectManager
-from ui_ux_designer.ui_ux_designer import UIUXDesigner
-from tech_lead.tech_lead import TechLead
-from software_engineer.software_engineer import SoftwareEngineer
-from testing_engineer.testing_engineer import TestingEngineer
-from qa_engineer.qa_engineer import QAEngineer
-from devops_engineer.devops_engineer import DevOpsEngineer
-from security_engineer.security_engineer import SecurityEngineer
-from documentation_specialist.documentation_specialist import DocumentationSpecialist
+# Import skill modules using importlib to handle hyphenated directory names
+def import_skill_module(skill_dir, module_name):
+    """Import a skill module from a hyphenated directory."""
+    module_path = skills_path / skill_dir / f"{module_name}.py"
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+client_module = import_skill_module('client', 'client')
+Client = client_module.Client
+
+product_manager_module = import_skill_module('product-manager', 'product_manager')
+ProductManager = product_manager_module.ProductManager
+
+project_manager_module = import_skill_module('project-manager', 'project_manager')
+ProjectManager = project_manager_module.ProjectManager
+
+ui_ux_designer_module = import_skill_module('ui-ux-designer', 'ui_ux_designer')
+UIUXDesigner = ui_ux_designer_module.UxDesigner
+
+tech_lead_module = import_skill_module('tech-lead', 'tech_lead')
+TechLead = tech_lead_module.TechLead
+
+software_engineer_module = import_skill_module('software-engineer', 'software_engineer')
+SoftwareEngineer = software_engineer_module.SoftwareEngineer
+
+testing_engineer_module = import_skill_module('testing-engineer', 'testing_engineer')
+TestingEngineer = testing_engineer_module.TestingEngineer
+
+qa_engineer_module = import_skill_module('qa-engineer', 'qa_engineer')
+QAEngineer = qa_engineer_module.QAEngineer
+
+devops_engineer_module = import_skill_module('devops-engineer', 'devops_engineer')
+DevOpsEngineer = devops_engineer_module.DevOpsEngineer
+
+security_engineer_module = import_skill_module('security-engineer', 'security_engineer')
+SecurityEngineer = security_engineer_module.SecurityEngineer
+
+documentation_specialist_module = import_skill_module('documentation-specialist', 'documentation_specialist')
+DocumentationSpecialist = documentation_specialist_module.DocumentationSpecialist
 
 
 class TestNewProjectPipeline:

@@ -479,7 +479,7 @@ Changes:
 Branch: {branch}
 
 Files changed:
-- {project_path}/.state/deployment-status.md
+- {project_path}/.iflow/skills/.shared-state/deployment-status.md
 
 Verification:
 - Tests: passed

@@ -648,7 +648,7 @@ Changes:
 Branch: {branch}
 
 Files changed:
-- {project_path}/.state/implementation-plan.md
+- {project_path}/.iflow/skills/.shared-state/implementation-plan.md
 
 Verification:
 - Tests: passed

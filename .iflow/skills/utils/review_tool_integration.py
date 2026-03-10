@@ -33,6 +33,7 @@ class ReviewTool:
         self.version = version
         self.installed = False
         self.tool_version = None
+        self.tool_name = name  # For backward compatibility
     
     def check_installed(self) -> bool:
         """Check if the tool is installed."""
@@ -51,17 +52,14 @@ class ReviewTool:
                 self.tool_version = version_match.group(1) if version_match else "unknown"
             return self.installed
         except Exception as e:
-            self.logger.warning(f"Failed to check if {self.tool_name} is installed: {e}")
+            # Logger not available in base class, using print for debugging
+            print(f"Warning: Failed to check if {self.tool_name} is installed: {e}")
             self.installed = False
             return False
     
     def run_scan(self, path: Path, **kwargs) -> Dict[str, Any]:
         """Run a scan. Override in subclass."""
-        raise NotImplementedError
-    
-    def parse_results(self, output: str) -> Dict[str, Any]:
-        """Parse tool output. Override in subclass."""
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.run_scan() must be implemented by subclass")
 
 
 class SonarQubeScanner(ReviewTool):

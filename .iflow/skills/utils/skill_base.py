@@ -158,18 +158,18 @@ class SkillBase:
         """
         project_path = project_path or self.repo_root
         
-        # Check for .state/
-        state_dir = project_path / '.state'
-        if state_dir.exists():
-            return state_dir
-        
-        # Check for .iflow/skills/.shared-state/
+        # Check for .iflow/skills/.shared-state/ (preferred)
         shared_state = project_path / '.iflow' / 'skills' / '.shared-state'
         if shared_state.exists():
             return shared_state
         
-        # Default to .state/
-        return state_dir
+        # Check for .state/ (legacy support)
+        state_dir = project_path / '.state'
+        if state_dir.exists():
+            return state_dir
+        
+        # Default to .iflow/skills/.shared-state/
+        return shared_state
     
     def read_state_file(
         self,

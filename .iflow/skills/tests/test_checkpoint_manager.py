@@ -10,11 +10,11 @@ import shutil
 from pathlib import Path
 
 import sys
-utils_path = Path(__file__).parent.parent / 'utils'
-sys.path.insert(0, str(utils_path))
+skills_path = Path(__file__).parent.parent
+sys.path.insert(0, str(skills_path))
 
-from checkpoint_manager import CheckpointManager, Checkpoint, CheckpointStatus
-from exceptions import IFlowError, ErrorCode
+from utils.checkpoint_manager import CheckpointManager, Checkpoint, CheckpointStatus
+from utils.exceptions import IFlowError, ErrorCode
 
 
 class TestCheckpoint:
