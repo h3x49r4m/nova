@@ -563,6 +563,8 @@ Verification:
 
 def main():
     """Main CLI entry point."""
+    logger = StructuredLogger(name='client_cli')
+    
     parser = argparse.ArgumentParser(description='Client skill for requirements gathering and project initialization')
     parser.add_argument('--project-path', type=str, help='Path to the project directory')
     parser.add_argument('--project-name', type=str, help='Name of the project')
@@ -612,7 +614,7 @@ def main():
         # Load requirements from JSON file
         requirements_file = Path(args.requirements_file)
         if not requirements_file.exists():
-            print(f"Error: Requirements file not found: {requirements_file}", file=sys.stderr)
+            logger.error(f"Requirements file not found: {requirements_file}")
             return 1
         
         with open(requirements_file, 'r') as f:
@@ -640,7 +642,7 @@ def main():
         # Load requirements from JSON file
         requirements_file = Path(args.requirements_file)
         if not requirements_file.exists():
-            print(f"Error: Requirements file not found: {requirements_file}", file=sys.stderr)
+            logger.error(f"Requirements file not found: {requirements_file}")
             return 1
         
         with open(requirements_file, 'r') as f:

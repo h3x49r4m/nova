@@ -1,0 +1,52 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop, refactor/** ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.14'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+
+    - name: Run ruff linting
+      run: |
+        ruff check .iflow/skills/
+
+    - name: Run ruff formatting check
+      run: |
+        ruff format --check .iflow/skills/
+
+  type-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.14'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+
+    - name: Run mypy type checking
+      run: |
+        mypy .iflow/skills/ --strict --ignore-missing-imports

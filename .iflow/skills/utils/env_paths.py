@@ -8,6 +8,15 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from .structured_logger import StructuredLogger, LogFormat
+
+# Module-level logger for static methods
+_logger = StructuredLogger(
+    name="env_paths",
+    log_dir=Path.cwd() / ".iflow" / "logs",
+    log_format=LogFormat.JSON
+)
+
 
 class EnvPaths:
     """Environment-based path configuration with defaults."""
@@ -208,23 +217,23 @@ class EnvPaths:
             # Check if root exists
             root = EnvPaths.get_root()
             if not root.exists():
-                print(f"Warning: Root directory does not exist: {root}")
+                _logger.warning(f"Root directory does not exist: {root}")
 
             # Check if skills dir exists
             skills_dir = EnvPaths.get_skills_dir()
             if not skills_dir.exists():
-                print(f"Warning: Skills directory does not exist: {skills_dir}")
+                _logger.warning(f"Skills directory does not exist: {skills_dir}")
 
             # Check if utils dir exists
             utils_dir = EnvPaths.get_utils_dir()
             if not utils_dir.exists():
-                print(f"Warning: Utils directory does not exist: {utils_dir}")
+                _logger.warning(f"Utils directory does not exist: {utils_dir}")
                 return False
 
             return True
 
         except Exception as e:
-            print(f"Error validating paths: {e}")
+            _logger.error(f"Error validating paths: {e}")
             return False
 
 

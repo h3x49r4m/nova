@@ -16,6 +16,7 @@ from enum import Enum
 from .file_lock import FileLock, FileLockError
 from .exceptions import BackupError, ErrorCode, ErrorCategory
 from .constants import BackupConstants
+from .structured_logger import StructuredLogger, LogFormat
 
 
 class BackupStatus(Enum):
@@ -65,6 +66,13 @@ class BackupManager:
         self.max_backups = max_backups or BackupConstants.MAX_BACKUPS_PER_FILE.value
         self.backup_dir.mkdir(parents=True, exist_ok=True)
         
+        # Initialize logger
+        self.logger = StructuredLogger(
+            name="backup_manager",
+            log_dir=self.backup_dir / ".logs",
+            log_format=LogFormat.JSON
+        )
+        
         # Create index file
         self.index_file = self.backup_dir / 'backup_index.json'
         self.index = self._load_index()
@@ -86,7 +94,7 @@ class BackupManager:
                 
                 return index
         except (FileLockError, json.JSONDecodeError, IOError) as e:
-            print(f"Warning: Could not load backup index: {e}")
+            self.logger.warning(f"Could not load backup index: {e}")
             return {}
     
     def _save_index(self):

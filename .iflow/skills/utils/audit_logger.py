@@ -13,6 +13,7 @@ from copy import deepcopy
 from .file_lock import FileLock, FileLockError
 from .exceptions import IFlowError
 from .constants import AuditConstants
+from .structured_logger import StructuredLogger, LogFormat
 
 # Import audit types from separate module
 from .audit_types import AuditEventType, AuditSeverity, AuditEvent
@@ -32,6 +33,13 @@ class AuditLogger:
         self.log_dir = Path(log_dir)
         self.component = component
         self.log_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Initialize logger for system messages
+        self.logger = StructuredLogger(
+            name="audit_logger",
+            log_dir=self.log_dir / ".logs",
+            log_format=LogFormat.JSON
+        )
         
         # Create log file
         self.log_file = self.log_dir / f"{component}_audit.log"
@@ -63,7 +71,7 @@ class AuditLogger:
                 with open(self.index_file, 'w') as f:
                     json.dump(self.index, f, indent=2)
         except FileLockError as e:
-            print(f"Warning: Could not save audit index: {e}")
+            self.logger.warning(f"Could not save audit index: {e}")
     
     def _generate_event_id(self) -> str:
         """Generate a unique event ID."""
@@ -158,7 +166,7 @@ class AuditLogger:
                 with open(self.log_file, 'a') as f:
                     f.write(self._format_log_entry(event) + '\n')
         except FileLockError as e:
-            print(f"Warning: Could not write to audit log: {e}")
+            self.logger.warning(f"Could not write to audit log: {e}")
         
         # Update index
         file_key = file_path

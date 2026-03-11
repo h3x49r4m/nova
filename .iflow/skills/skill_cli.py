@@ -15,6 +15,7 @@ from skill_manager import (
     SkillDependencyResolver,
     SkillCompatibilityChecker
 )
+from utils import StructuredLogger, LogFormat
 
 
 class SkillCLI:
@@ -26,6 +27,13 @@ class SkillCLI:
             self.skills_dir = Path.cwd() / '.iflow' / 'skills'
         else:
             self.skills_dir = skills_dir
+        
+        # Initialize logger
+        self.logger = StructuredLogger(
+            name="skill_cli",
+            log_dir=self.skills_dir / ".logs",
+            log_format=LogFormat.JSON
+        )
         
         self.registry = SkillRegistry(self.skills_dir)
         self.resolver = SkillDependencyResolver(self.registry)
@@ -65,7 +73,7 @@ class SkillCLI:
         skill = self.registry.get_skill(skill_name)
         
         if not skill:
-            print(f"Skill '{skill_name}' not found.")
+            self.logger.error(f"Skill '{skill_name}' not found.")
             return 1
         
         print(f"Skill: {skill_name}")
@@ -101,7 +109,7 @@ class SkillCLI:
         skill = self.registry.get_skill(skill_name)
         
         if not skill:
-            print(f"Skill '{skill_name}' not found.")
+            self.logger.error(f"Skill '{skill_name}' not found.")
             return 1
         
         print(f"Versions for {skill_name}:")
@@ -161,7 +169,7 @@ class SkillCLI:
         config_path = Path(pipeline_config_path)
         
         if not config_path.exists():
-            print(f"Pipeline config not found: {pipeline_config_path}")
+            self.logger.error(f"Pipeline config not found: {pipeline_config_path}")
             return 1
         
         with open(config_path, 'r') as f:
@@ -228,7 +236,7 @@ class SkillCLI:
         state_file = Path(state_path)
         
         if not state_file.exists():
-            print(f"Workflow state not found: {state_path}")
+            self.logger.error(f"Workflow state not found: {state_path}")
             return 1
         
         with open(state_file, 'r') as f:
@@ -305,7 +313,7 @@ def main():
     elif args.command == 'validate-state':
         return cli.validate_workflow_state(args.state)
     else:
-        print(f"Unknown command: {args.command}")
+        cli.logger.error(f"Unknown command: {args.command}")
         return 1
 
 

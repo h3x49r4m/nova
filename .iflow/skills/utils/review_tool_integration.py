@@ -16,6 +16,14 @@ from .exceptions import (
     ErrorCode
 )
 from .constants import Timeouts
+from .structured_logger import StructuredLogger, LogFormat
+
+# Module-level logger for logging
+_logger = StructuredLogger(
+    name="review_tool_integration",
+    log_dir=Path.cwd() / ".iflow" / "logs",
+    log_format=LogFormat.JSON
+)
 
 
 class ReviewTool:
@@ -52,8 +60,7 @@ class ReviewTool:
                 self.tool_version = version_match.group(1) if version_match else "unknown"
             return self.installed
         except Exception as e:
-            # Logger not available in base class, using print for debugging
-            print(f"Warning: Failed to check if {self.tool_name} is installed: {e}")
+            _logger.warning(f"Failed to check if {self.tool_name} is installed: {e}")
             self.installed = False
             return False
     

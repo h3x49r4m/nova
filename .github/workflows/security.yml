@@ -1,0 +1,81 @@
+name: Security
+
+on:
+  push:
+    branches: [ main, develop, refactor/** ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.14'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run bandit security scanner
+      run: |
+        bandit -r .iflow/skills/ -f json -o bandit-report.json || true
+
+    - name: Upload bandit report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: bandit-report
+        path: bandit-report.json
+
+    - name: Run safety dependency check
+      run: |
+        safety check --json > safety-report.json || true
+
+    - name: Upload safety report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: safety-report
+        path: safety-report.json
+
+    - name: Check for secrets
+      run: |
+        git log --all --full-history -p -- '**/*' | tr '[:upper:]' '[:lower:]' | grep -E '(password|secret|api_key|access_key)' | head -n 20 || echo "No secrets found in git history"
+
+  dependency-vulnerabilities:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.14'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pip-audit
+
+    - name: Run pip-audit
+      run: |
+        pip-audit --format json --output pip-audit-report.json || true
+
+    - name: Upload pip-audit report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: pip-audit-report
+        path: pip-audit-report.json

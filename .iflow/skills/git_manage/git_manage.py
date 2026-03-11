@@ -78,10 +78,20 @@ class GitManage:
                     
                 # Validate user config against schema
                 from utils import validate_json_schema
+                from utils.exceptions import ConfigError, ErrorCode
                 schema_dir = self.repo_root / '.iflow' / 'schemas'
                 is_valid, errors = validate_json_schema(user_config, schema_dir / 'skill-config.json')
                 if not is_valid:
-                    print(f"Warning: Config validation failed: {errors}. Using default config.", file=sys.stderr)
+                    error_msg = f"Config validation failed: {errors}. Using default config."
+                    # Check if strict validation is enabled (default: true)
+                    strict_validation = user_config.get('strict_validation', True)
+                    if strict_validation:
+                        raise ConfigError(
+                            error_msg,
+                            code=ErrorCode.INVALID_CONFIG
+                        )
+                    else:
+                        self.logger.warning(error_msg)
                 else:
                     self.config.update(user_config)
                     
