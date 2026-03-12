@@ -6,7 +6,7 @@ Centralized configuration management for skills and pipelines.
 
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any, Union, Tuple
 from enum import Enum
 
 from .exceptions import IFlowError, ErrorCode, ValidationError
@@ -70,7 +70,7 @@ class ConfigManager:
 
         try:
             with open(config_path, 'r') as f:
-                config = json.load(f)
+                config: Dict[str, Any] = json.load(f)
         except json.JSONDecodeError as e:
             raise IFlowError(
                 f"Invalid JSON in configuration file: {e}",
@@ -221,7 +221,7 @@ class ConfigManager:
             List of compatible pipeline names
         """
         settings = skill_config.get("settings", {})
-        compatible_pipelines = settings.get("compatible_pipelines", [])
+        compatible_pipelines: List[str] = settings.get("compatible_pipelines", [])
 
         # If compatible_pipelines is ["*"], return all pipelines
         if compatible_pipelines == ["*"]:
@@ -240,7 +240,8 @@ class ConfigManager:
         Returns:
             List of dependencies
         """
-        return skill_config.get("dependencies", [])
+        dependencies: List[Dict[str, str]] = skill_config.get("dependencies", [])
+        return dependencies
 
     @staticmethod
     def check_compatibility(skill_config: Dict[str, Any], pipeline_config: Dict[str, Any]) -> Tuple[bool, List[str]]:
@@ -323,7 +324,7 @@ class ConfigManager:
         Returns:
             Default configuration dictionary
         """
-        config = ConfigManager.DEFAULT_CONFIG.copy()
+        config: Dict[str, Any] = ConfigManager.DEFAULT_CONFIG.copy()
         config["name"] = name
         config["description"] = description
         config["type"] = skill_type.value

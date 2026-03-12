@@ -7,7 +7,7 @@ throughout the notification system.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
 class NotificationChannel(Enum):

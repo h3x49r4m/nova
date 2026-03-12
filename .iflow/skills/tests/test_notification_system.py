@@ -14,8 +14,7 @@ from utils.notification_system import (
     NotificationChannel,
     NotificationMessage,
     NotificationConfig,
-    NotificationSystem,
-    NotificationError
+    NotificationSystem
 )
 from utils.exceptions import IFlowError
 

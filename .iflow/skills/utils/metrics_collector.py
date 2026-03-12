@@ -571,7 +571,7 @@ class MetricsTimer:
         self.collector = collector
         self.name = name
         self.labels = labels
-        self.start_time = None
+        self.start_time: Optional[float] = None
     
     def __enter__(self) -> 'MetricsTimer':
         """Enter context."""

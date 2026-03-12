@@ -167,15 +167,15 @@ class SlackNotificationHandler(NotificationChannelHandler):
     def send(self, message: NotificationMessage) -> bool:
         """Send Slack notification."""
         try:
-            import requests
-            
+            import requests  # type: ignore
+
             # Build Slack message
             slack_msg = self._build_slack_message(message)
-            
+
             # Send to webhook
             response = requests.post(self.webhook_url, json=slack_msg, timeout=10)
             response.raise_for_status()
-            
+
             return True
         
         except Exception as e:
@@ -259,10 +259,10 @@ class WebhookNotificationHandler(NotificationChannelHandler):
         """Send webhook notification."""
         try:
             import requests
-            
+
             # Build payload
             payload = message.to_dict()
-            
+
             # Send webhook
             response = requests.request(
                 self.method,
@@ -291,10 +291,10 @@ class WebhookNotificationHandler(NotificationChannelHandler):
 class CLINotificationHandler(NotificationChannelHandler):
     """Handler for CLI notifications."""
     
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
         Initialize CLI handler.
-        
+
         Args:
             config: CLI configuration
         """

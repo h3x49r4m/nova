@@ -18,11 +18,11 @@ class VersionChecker:
         """Initialize version checker."""
         pass
     
-    def check_python(self, min_version: Tuple[int, int] = None) -> Tuple[bool, Optional[str]]:
+    def check_python(self, min_version: Optional[Tuple[int, int]] = None) -> Tuple[bool, Optional[str]]:
         """Check Python version."""
         return check_python_version(min_version)
     
-    def check_git(self, min_version: Tuple[int, int, int] = None) -> Tuple[bool, Optional[str]]:
+    def check_git(self, min_version: Optional[Tuple[int, int, int]] = None) -> Tuple[bool, Optional[str]]:
         """Check Git version."""
         return check_git_version(min_version)
     
@@ -31,7 +31,7 @@ class VersionChecker:
         return validate_system_requirements(strict)
 
 
-def check_python_version(min_version: Tuple[int, int] = None) -> Tuple[bool, Optional[str]]:
+def check_python_version(min_version: Optional[Tuple[int, int]] = None) -> Tuple[bool, Optional[str]]:
     """
     Check if Python version meets minimum requirements.
     
@@ -57,7 +57,7 @@ def check_python_version(min_version: Tuple[int, int] = None) -> Tuple[bool, Opt
     return True, None
 
 
-def check_git_version(min_version: Tuple[int, int, int] = None) -> Tuple[bool, Optional[str]]:
+def check_git_version(min_version: Optional[Tuple[int, int, int]] = None) -> Tuple[bool, Optional[str]]:
     """
     Check if Git version meets minimum requirements.
     
@@ -138,23 +138,23 @@ def validate_system_requirements(strict: bool = False) -> Tuple[bool, list]:
     # Check Python version
     python_ok, python_error = check_python_version()
     if not python_ok:
-        errors.append(python_error)
+        errors.append(python_error or "Python version check failed")
         if strict:
             raise ValidationError(
-                python_error,
+                python_error or "Python version check failed",
                 ErrorCode.VERSION_MISMATCH,
-                ErrorCategory.SYSTEM
+                {"error": python_error or "Python version check failed"}
             )
-    
+
     # Check Git version
     git_ok, git_error = check_git_version()
     if not git_ok:
-        errors.append(git_error)
+        errors.append(git_error or "Git version check failed")
         if strict:
             raise ValidationError(
-                git_error,
+                git_error or "Git version check failed",
                 ErrorCode.VERSION_MISMATCH,
-                ErrorCategory.SYSTEM
+                {"error": git_error or "Git version check failed"}
             )
     
     return len(errors) == 0, errors

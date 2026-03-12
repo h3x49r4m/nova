@@ -6,7 +6,7 @@ Provides centralized input validation and sanitization to prevent injection atta
 
 import re
 import html
-from typing import Optional, List
+from typing import Optional, List, Callable
 from pathlib import Path
 
 
@@ -341,7 +341,7 @@ class InputSanitizer:
     @staticmethod
     def sanitize_list(
         items: List[str],
-        item_sanitizer: Optional[callable] = None
+        item_sanitizer: Optional[Callable[[str], str]] = None
     ) -> List[str]:
         """
         Sanitize a list of string items.

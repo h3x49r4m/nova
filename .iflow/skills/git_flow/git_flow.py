@@ -87,7 +87,6 @@ class GitFlow:
                 "auto_create_branch": True,
                 "auto_phase_transition": True,
                 "require_all_phases": False,
-                "require_all_phases": False,
                 "allow_parallel_phases": False,
                 "phases_file": None
             },

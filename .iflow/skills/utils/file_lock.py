@@ -9,7 +9,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Optional, Union, Any
+from typing import Optional, Union, Any, Dict
 from contextlib import contextmanager
 
 
@@ -105,7 +105,7 @@ class FileLock:
             self._lock_fd = self._file_handle.fileno()
 
             # Try to lock the file
-            msvcrt.locking(self._lock_fd, msvcrt.LK_NBLCK, 1)
+            msvcrt.locking(self._lock_fd, msvcrt.LK_NBLCK, 1)  # type: ignore
 
             # Write our PID to the lock file
             self._file_handle.write(str(os.getpid()).encode())
@@ -197,19 +197,19 @@ def locked_file(file_path: Union[str, Path], mode: str = 'r', timeout: float = 3
             yield f
 
 
-def read_locked_json(file_path: Union[str, Path], timeout: float = 30.0) -> dict:
+def read_locked_json(file_path: Union[str, Path], timeout: float = 30.0) -> Dict[str, Any]:
     """
     Read JSON file with file locking.
-    
+
     Args:
         file_path: Path to JSON file
         timeout: Lock timeout in seconds
-        
+
     Returns:
         Parsed JSON dictionary
     """
     with locked_file(file_path, 'r', timeout=timeout) as f:
-        return json.load(f)
+        return json.load(f)  # type: ignore[no-any-return]
 
 
 def write_locked_json(file_path: Union[str, Path], data: dict, timeout: float = 30.0) -> None:

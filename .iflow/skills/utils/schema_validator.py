@@ -6,7 +6,7 @@ Validates state files against JSON schemas to ensure data integrity.
 
 import json
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Any
 
 
 class SchemaValidationError(Exception):
@@ -57,7 +57,7 @@ class SchemaValidator:
         
         try:
             with open(schema_file, 'r') as f:
-                schema = json.load(f)
+                schema: Dict[str, Any] = json.load(f)
                 self._schema_cache[schema_name] = schema
                 return schema
         except (json.JSONDecodeError, IOError):
@@ -106,7 +106,7 @@ class SchemaValidator:
         
         return len(errors) == 0, errors
     
-    def _validate_field(self, value: any, field_schema: Dict, field_path: str = '') -> List[str]:
+    def _validate_field(self, value: Any, field_schema: Dict, field_path: str = '') -> List[str]:
         """
         Validate a single field value against its schema.
         
@@ -181,7 +181,7 @@ class SchemaValidator:
         
         return errors
     
-    def _check_type(self, value: any, expected_type: str) -> bool:
+    def _check_type(self, value: Any, expected_type: str) -> bool:
         """
         Check if value matches expected type.
         
@@ -203,7 +203,7 @@ class SchemaValidator:
         }
         
         if expected_type in type_map:
-            return isinstance(value, type_map[expected_type])
+            return isinstance(value, type_map[expected_type])  # type: ignore[arg-type]
         
         # Handle union types (e.g., ["string", "null"])
         if isinstance(expected_type, list):

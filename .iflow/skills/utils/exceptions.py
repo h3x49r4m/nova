@@ -4,7 +4,7 @@ Common Exception Classes
 Standardized exception hierarchy for the iFlow CLI skills system.
 """
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from enum import Enum
 
 
@@ -121,12 +121,12 @@ class IFlowError(Exception):
         self.message = message
         self.code = code
         self.category = category
-        self.details = details or {}
+        self.details: Dict[str, Any] = details or {}
         self.cause = cause
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert error to dictionary for serialization."""
-        result = {
+        result: Dict[str, Any] = {
             "message": self.message,
             "code": self.code.name,
             "code_value": self.code.value,
@@ -158,7 +158,7 @@ class GitCommandTimeout(GitError):
     """Git command timeout errors."""
 
     def __init__(self, message: str, command: Optional[List[str]] = None, timeout: Optional[int] = None):
-        details = {}
+        details: Dict[str, Any] = {}
         if command:
             details['command'] = ' '.join(command)
         if timeout:

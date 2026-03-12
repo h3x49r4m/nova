@@ -8,6 +8,7 @@ import json
 import logging
 import sys
 import re
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -30,6 +31,20 @@ class LogFormat(Enum):
     JSON = "json"
     TEXT = "text"
     CONCISE = "concise"
+
+
+@dataclass
+class LogContext:
+    """Log context for structured logging."""
+    user_id: Optional[str] = None
+    session_id: Optional[str] = None
+    component: Optional[str] = None
+    metadata: Dict[str, Any] = None
+    
+    def __post_init__(self):
+        """Initialize metadata if None."""
+        if self.metadata is None:
+            self.metadata = {}
 
 
 class StructuredLogger:

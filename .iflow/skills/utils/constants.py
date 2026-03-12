@@ -141,6 +141,9 @@ class LoggingConstants(Enum):
     MAX_LOG_FILE_SIZE_MB = 10
     LOG_BACKUP_COUNT = 5
     LOG_DIR = ".iflow/logs"
+    LOG_ROTATION_SIZE_LINES = 10000
+    LOG_RETENTION_DAYS = 90
+    MAX_BACKUP_COUNT = 5
 
 
 class PhaseTimeouts(Enum):
@@ -388,16 +391,6 @@ class ReviewToolConstants(Enum):
     HIGH_SEVERITY = "high"
     MEDIUM_SEVERITY = "medium"
     LOW_SEVERITY = "low"
-
-
-class LoggingConstants(Enum):
-    """Logging configuration constants."""
-    LOG_MAX_SIZE_MB = 50
-    LOG_ROTATION_SIZE_LINES = 10000
-    LOG_RETENTION_DAYS = 90
-    DEFAULT_LOG_LEVEL = "INFO"
-    DEFAULT_LOG_FORMAT = "json"
-    MAX_BACKUP_COUNT = 5
 
 
 # Compiled regex patterns for performance

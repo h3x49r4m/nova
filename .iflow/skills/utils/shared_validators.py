@@ -5,7 +5,7 @@ Provides centralized validation functions to eliminate code duplication.
 """
 
 import re
-from typing import Tuple, Optional, List, Any
+from typing import Tuple, Optional, List, Any, Callable
 from pathlib import Path
 
 from .constants import (
@@ -461,7 +461,7 @@ class SharedValidators:
         return ValidationResult(is_valid=True)
 
     @staticmethod
-    def validate_all(validators: List[Tuple[callable, Any]], fail_fast: bool = True) -> List[ValidationResult]:
+    def validate_all(validators: List[Tuple[Callable[[Any], ValidationResult], Any]], fail_fast: bool = True) -> List[ValidationResult]:
         """
         Run multiple validators and return results.
 
