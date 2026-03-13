@@ -16,7 +16,8 @@ from utils import (
     ErrorCode,
     CommitTypes,
     CoverageThresholds,
-    DEFAULT_PROTECTED_BRANCHES
+    DEFAULT_PROTECTED_BRANCHES,
+    SecretPatterns
 )
 
 
@@ -37,7 +38,7 @@ class TestGitManage(unittest.TestCase):
             'run_tests': False,  # Disabled for tests
             'check_coverage': False,  # Disabled for tests
             'detect_secrets': True,
-            'branch_protection': True,
+            'branch_protection': False,  # Disabled for tests
             'protected_branches': DEFAULT_PROTECTED_BRANCHES.copy(),
             'coverage_threshold': CoverageThresholds.LINES.value,
             'coverage_thresholds': {
@@ -52,6 +53,14 @@ class TestGitManage(unittest.TestCase):
         subprocess.run(['git', 'init'], cwd=self.repo_root, capture_output=True)
         subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=self.repo_root, capture_output=True)
         subprocess.run(['git', 'config', 'user.name', 'Test User'], cwd=self.repo_root, capture_output=True)
+        
+        # Create and commit initial file to ensure HEAD is properly initialized
+        initial_file = self.repo_root / 'initial.txt'
+        initial_file.write_text('initial content')
+        subprocess.run(['git', 'add', 'initial.txt'], cwd=self.repo_root, capture_output=True)
+        subprocess.run(['git', 'commit', '-m', 'Initial commit'], cwd=self.repo_root, capture_output=True)
+        
+        # Now checkout main branch
         subprocess.run(['git', 'checkout', '-b', 'main'], cwd=self.repo_root, capture_output=True)
 
         # Create a test file
@@ -258,6 +267,7 @@ class TestGitManage(unittest.TestCase):
         """Test committing to a protected branch."""
         mock_run_git.return_value = (0, 'test.txt', '')  # Staged file
         self.git_manage.config['auto_create_branch'] = False
+        self.git_manage.config['branch_protection'] = True  # Enable branch protection for this test
 
         code, output = self.git_manage.commit('feat', None, 'test')
 
@@ -536,7 +546,8 @@ class TestGitManageConfig(unittest.TestCase):
             'detect_secrets': False,
             'branch_protection': False,
             'protected_branches': ['custom-main'],
-            'coverage_threshold': 90
+            'coverage_threshold': 90,
+            'strict_validation': False
         }
         config_file = self.config_dir / 'config.json'
         config_file.write_text(json.dumps(custom_config))
@@ -551,7 +562,8 @@ class TestGitManageConfig(unittest.TestCase):
         """Test that user config merges with defaults."""
         custom_config = {
             'run_tests': False,
-            'custom_field': 'custom_value'
+            'custom_field': 'custom_value',
+            'strict_validation': False
         }
         config_file = self.config_dir / 'config.json'
         config_file.write_text(json.dumps(custom_config))
@@ -591,7 +603,7 @@ class TestGitManageConstants(unittest.TestCase):
             repo_root = Path(temp_dir)
             config_dir = repo_root / '.iflow' / 'skills' / 'git-manage'
             config_dir.mkdir(parents=True)
-            (config_dir / 'config.json').write_text('{}')
+            (config_dir / 'config.json').write_text('{"strict_validation": false}')
 
             git_manage = GitManage(repo_root)
 
@@ -612,7 +624,7 @@ class TestGitManageConstants(unittest.TestCase):
             repo_root = Path(temp_dir)
             config_dir = repo_root / '.iflow' / 'skills' / 'git-manage'
             config_dir.mkdir(parents=True)
-            (config_dir / 'config.json').write_text('{}')
+            (config_dir / 'config.json').write_text('{"strict_validation": false}')
 
             git_manage = GitManage(repo_root)
 

@@ -92,6 +92,8 @@ class GitManage:
                         )
                     else:
                         self.logger.warning(error_msg)
+                        # Even if validation fails, apply the user config when strict_validation is False
+                        self.config.update(user_config)
                 else:
                     self.config.update(user_config)
                     
