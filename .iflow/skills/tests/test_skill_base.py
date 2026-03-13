@@ -34,7 +34,7 @@ class TestSkillBase(unittest.TestCase):
     
     def test_skill_initialization(self):
         """Test skill initialization with default parameters."""
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         self.assertEqual(skill.skill_name, 'test-skill')
         self.assertEqual(skill.repo_root, self.temp_dir)
@@ -45,7 +45,7 @@ class TestSkillBase(unittest.TestCase):
         """Test skill initialization with custom repo root."""
         custom_dir = Path(tempfile.mkdtemp())
         try:
-            skill = TestableSkill(skill_name='test-skill', repo_root=custom_dir)
+            skill = MockSkill(skill_name='test-skill', repo_root=custom_dir)
             
             self.assertEqual(skill.repo_root, custom_dir)
         finally:
@@ -55,7 +55,7 @@ class TestSkillBase(unittest.TestCase):
     
     def test_get_default_config(self):
         """Test getting default configuration."""
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         default_config = skill.get_default_config()
         
@@ -65,7 +65,7 @@ class TestSkillBase(unittest.TestCase):
     
     def test_load_config_default(self):
         """Test loading default configuration when no config file exists."""
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         # No config file should exist
         config_file = skill.config_file
@@ -94,7 +94,7 @@ class TestSkillBase(unittest.TestCase):
         with open(config_file, 'w') as f:
             json.dump(test_config, f)
         
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         # Config should be loaded and merged with defaults
         self.assertEqual(skill.config['version'], '2.0.0')
@@ -112,14 +112,14 @@ class TestSkillBase(unittest.TestCase):
             f.write('{invalid json}')
         
         # Should not raise exception, just log warning
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         # Should have defaults
         self.assertIn('version', skill.config)
     
     def test_save_config(self):
         """Test saving configuration to file."""
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         # Add required fields and modify config
         skill.config['name'] = 'test-skill'
@@ -143,7 +143,7 @@ class TestSkillBase(unittest.TestCase):
     
     def test_get_state_dir(self):
         """Test getting state directory."""
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         # Default state directory
         state_dir = skill.get_state_dir()
@@ -160,7 +160,7 @@ class TestSkillBase(unittest.TestCase):
         shared_state = self.temp_dir / '.iflow' / 'skills' / '.shared-state'
         shared_state.mkdir(parents=True)
         
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         state_dir = skill.get_state_dir()
         self.assertEqual(state_dir, shared_state)
@@ -173,7 +173,7 @@ class TestSkillBase(unittest.TestCase):
         with open(state_file, 'w') as f:
             f.write(test_content)
         
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         code, content = skill.read_state_file('test-state.md')
         
@@ -182,7 +182,7 @@ class TestSkillBase(unittest.TestCase):
     
     def test_read_state_file_not_found(self):
         """Test reading a non-existent state file."""
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         code, message = skill.read_state_file('nonexistent.md')
         
@@ -191,7 +191,7 @@ class TestSkillBase(unittest.TestCase):
     
     def test_write_state_file(self):
         """Test writing a state file."""
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         test_content = 'Test content to write'
         code, message = skill.write_state_file('test-write.md', test_content)
@@ -210,7 +210,7 @@ class TestSkillBase(unittest.TestCase):
     
     def test_write_state_file_creates_dir(self):
         """Test writing a state file creates directory if needed."""
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         # Remove state directory
         if self.state_dir.exists():
@@ -244,7 +244,7 @@ class TestSkillBase(unittest.TestCase):
         with open(skill_md, 'w') as f:
             f.write(skill_md_content)
         
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         contracts = skill.get_state_contracts()
         
@@ -253,21 +253,21 @@ class TestSkillBase(unittest.TestCase):
     
     def test_log_workflow_start(self):
         """Test logging workflow start."""
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         # Should not raise exception
         skill.log_workflow_start('test-workflow', param1='value1')
     
     def test_log_workflow_complete(self):
         """Test logging workflow complete."""
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         # Should not raise exception
         skill.log_workflow_complete('test-workflow', 1.5, result='success')
     
     def test_log_error(self):
         """Test logging errors."""
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         error = Exception('Test error')
         context = {'param': 'value'}
@@ -277,7 +277,7 @@ class TestSkillBase(unittest.TestCase):
     
     def test_handle_error_iflow_error(self):
         """Test handling IFlowError."""
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         error = IFlowError(message='Test error', code=ErrorCode.VALIDATION_ERROR)
         code, message = skill.handle_error(error)
@@ -287,7 +287,7 @@ class TestSkillBase(unittest.TestCase):
     
     def test_handle_error_validation_error(self):
         """Test handling ValidationError."""
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         error = ValidationError(message='Validation failed', code=ErrorCode.VALIDATION_ERROR)
         code, message = skill.handle_error(error)
@@ -297,7 +297,7 @@ class TestSkillBase(unittest.TestCase):
     
     def test_handle_error_generic_error(self):
         """Test handling generic error."""
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         error = Exception('Generic error')
         code, message = skill.handle_error(error)
@@ -307,17 +307,17 @@ class TestSkillBase(unittest.TestCase):
     
     def test_repr(self):
         """Test string representation."""
-        skill = TestableSkill(skill_name='test-skill', repo_root=self.temp_dir)
+        skill = MockSkill(skill_name='test-skill', repo_root=self.temp_dir)
         
         repr_str = repr(skill)
         
-        self.assertIn('TestableSkill', repr_str)
+        self.assertIn('MockSkill', repr_str)
         self.assertIn('test-skill', repr_str)
         self.assertIn(str(self.temp_dir), repr_str)
     
     def test_run_workflow_not_implemented(self):
         """Test that run_workflow raises NotImplementedError."""
-        # Create SkillBase directly (not TestableSkill which overrides run_workflow)
+        # Create SkillBase directly (not MockSkill which overrides run_workflow)
         from utils.skill_base import SkillBase as BaseSkill
         
         skill = BaseSkill(skill_name='test-skill', repo_root=self.temp_dir)
@@ -326,9 +326,9 @@ class TestSkillBase(unittest.TestCase):
             skill.run_workflow(self.temp_dir, 'test-workflow')
 
 
-class TestableSkill(SkillBase):
-    """Testable skill for testing SkillBase."""
-    
+class MockSkill(SkillBase):
+    """Mock skill for testing SkillBase."""
+
     def get_default_config(self):
         """Get default config for testing."""
         return {
@@ -336,7 +336,7 @@ class TestableSkill(SkillBase):
             'auto_commit': True,
             'test_mode': True
         }
-    
+
     def run_workflow(self, project_path, workflow_name, **kwargs):
         """Override for testing."""
         return 0, f"Workflow {workflow_name} executed"

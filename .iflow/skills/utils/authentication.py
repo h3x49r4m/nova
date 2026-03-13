@@ -8,7 +8,7 @@ import json
 import secrets
 import hashlib
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 from collections import defaultdict
@@ -61,8 +61,8 @@ class RateLimiter:
         Returns:
             Tuple of (is_allowed, remaining_attempts)
         """
-        now = datetime.utcnow()
-        
+        now = datetime.now(timezone.utc)
+
         # Check if currently blocked
         if identifier in self.blocked_until:
             if now < self.blocked_until[identifier]:
@@ -93,7 +93,7 @@ class RateLimiter:
         Args:
             identifier: Unique identifier (e.g., username, IP address)
         """
-        self.attempts[identifier].append(datetime.utcnow())
+        self.attempts[identifier].append(datetime.now(timezone.utc))
     
     def reset_attempts(self, identifier: str) -> None:
         """
@@ -170,8 +170,8 @@ class TokenManager:
         else:
             # Use simple token system
             token = secrets.token_urlsafe(32)
-            expires_at = datetime.utcnow() + self.token_expiry
-            
+            expires_at = datetime.now(timezone.utc) + self.token_expiry
+
             self.access_tokens[token] = {
                 "user_id": user_id,
                 "username": username,
@@ -218,8 +218,8 @@ class TokenManager:
         else:
             # Use simple token system
             token = secrets.token_urlsafe(32)
-            expires_at = datetime.utcnow() + self.refresh_token_expiry
-            
+            expires_at = datetime.now(timezone.utc) + self.refresh_token_expiry
+
             self.refresh_tokens[token] = {
                 "user_id": user_id,
                 "username": username,
@@ -269,22 +269,22 @@ class TokenManager:
             if token in self.access_tokens:
                 token_data = self.access_tokens[token]
                 expires_at = datetime.fromisoformat(token_data["expires_at"])
-                
-                if datetime.utcnow() > expires_at:
+
+                if datetime.now(timezone.utc) > expires_at:
                     del self.access_tokens[token]
                     raise AuthenticationError("Token has expired")
-                
+
                 return token_data
             
             # Check refresh tokens
             if token in self.refresh_tokens:
                 token_data = self.refresh_tokens[token]
                 expires_at = datetime.fromisoformat(token_data["expires_at"])
-                
-                if datetime.utcnow() > expires_at:
+
+                if datetime.now(timezone.utc) > expires_at:
                     del self.refresh_tokens[token]
                     raise AuthenticationError("Token has expired")
-                
+
                 return token_data
             
             raise AuthenticationError("Invalid token")

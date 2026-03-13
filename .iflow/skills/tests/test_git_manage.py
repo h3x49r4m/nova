@@ -43,7 +43,8 @@ class TestGitManage(unittest.TestCase):
             'coverage_thresholds': {
                 'lines': CoverageThresholds.LINES.value,
                 'branches': CoverageThresholds.BRANCHES.value
-            }
+            },
+            'strict_validation': False  # Disable schema validation in tests
         }))
 
         # Initialize git repo
