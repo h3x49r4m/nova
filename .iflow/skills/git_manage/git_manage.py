@@ -88,7 +88,7 @@ class GitManage:
                     if strict_validation:
                         raise ConfigError(
                             error_msg,
-                            code=ErrorCode.INVALID_CONFIG
+                            code=ErrorCode.CONFIG_INVALID
                         )
                     else:
                         self.logger.warning(error_msg)
