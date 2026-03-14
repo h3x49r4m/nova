@@ -56,7 +56,7 @@ include = ["iflow*"]
 "*" = ["*.json", "*.md", "*.txt", "*.py"]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py314"
 line-length = 100
 select = [
     "E",   # pycodestyle errors
@@ -80,7 +80,7 @@ ignore = [
 "tests/*" = ["ARG", "S101"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.14"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
