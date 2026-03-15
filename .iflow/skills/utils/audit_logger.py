@@ -60,14 +60,26 @@ class AuditLogger:
         
         try:
             with open(self.index_file, 'r') as f:
-                return json.load(f)
+                data = json.load(f)
+                # Validate and cast the loaded data
+                if isinstance(data, dict):
+                    result: Dict[str, List[str]] = {}
+                    for key, value in data.items():
+                        if isinstance(key, str) and isinstance(value, list):
+                            # Ensure all items in the list are strings
+                            str_list = [str(item) for item in value]
+                            result[key] = str_list
+                    return result
+                return {}
         except (json.JSONDecodeError, IOError):
             return {}
     
     def _save_index(self):
         """Save audit index to file."""
         try:
-            with FileLock(self.index_file, timeout=10):
+            # Use a separate lock file for the index file
+            lock_file = self.index_file.with_suffix('.lock')
+            with FileLock(lock_file, timeout=10):
                 with open(self.index_file, 'w') as f:
                     json.dump(self.index, f, indent=2)
         except FileLockError as e:
@@ -162,7 +174,9 @@ class AuditLogger:
         
         # Write to log file
         try:
-            with FileLock(self.log_file, timeout=5):
+            # Use a separate lock file for the log file
+            lock_file = self.log_file.with_suffix('.lock')
+            with FileLock(lock_file, timeout=5):
                 with open(self.log_file, 'a') as f:
                     f.write(self._format_log_entry(event) + '\n')
         except FileLockError as e:
@@ -317,10 +331,19 @@ class AuditLogger:
                     
                     # Create minimal event (full parsing would be more complex)
                     # For now, just store the raw log line
+                    try:
+                        # Safely convert string to enum
+                        event_type_enum = AuditEventType(type_str.lower())
+                        severity_enum = AuditSeverity(severity_str.lower())
+                    except (ValueError, AttributeError):
+                        # If conversion fails, use default values
+                        event_type_enum = AuditEventType.SYSTEM
+                        severity_enum = AuditSeverity.INFO
+                    
                     event = AuditEvent(
                         event_id="",
-                        event_type=AuditEventType(type_str.lower()),
-                        severity=AuditSeverity(severity_str.lower()),
+                        event_type=event_type_enum,
+                        severity=severity_enum,
                         timestamp=timestamp,
                         actor="",
                         component=self.component,
@@ -331,7 +354,9 @@ class AuditLogger:
                     
                     # Apply filters
                     if file_path:
-                        if file_path not in line:
+                        # Convert file_path to string for comparison
+                        file_path_str = str(file_path)
+                        if file_path_str not in line:
                             continue
                     
                     if event_type and event.event_type != event_type:
@@ -400,7 +425,7 @@ class AuditLogger:
                         # Simplified - would need proper parsing in production
                         return AuditEvent(
                             event_id=event_id,
-                            event_type=AuditEventType.UNKNOWN,
+                            event_type=AuditEventType.SYSTEM,
                             severity=AuditSeverity.INFO,
                             timestamp=datetime.now().isoformat(),
                             actor="",
@@ -414,14 +439,14 @@ class AuditLogger:
         
         return None
     
-    def get_statistics(self) -> Dict:
+    def get_statistics(self) -> Dict[str, Any]:
         """
         Get audit log statistics.
         
         Returns:
             Dictionary with statistics
         """
-        stats = {
+        stats: Dict[str, Any] = {
             'total_events': 0,
             'by_type': {},
             'by_severity': {},
@@ -441,27 +466,36 @@ class AuditLogger:
                     # Count by type
                     for event_type in AuditEventType:
                         if event_type.value.upper() in line:
-                            stats['by_type'][event_type.value] = stats['by_type'].get(event_type.value, 0) + 1
+                            by_type = stats['by_type']
+                            if isinstance(by_type, dict):
+                                by_type[event_type.value] = by_type.get(event_type.value, 0) + 1
                     
                     # Count by severity
                     for severity in AuditSeverity:
                         if severity.value.upper() in line:
-                            stats['by_severity'][severity.value] = stats['by_severity'].get(severity.value, 0) + 1
+                            by_severity = stats['by_severity']
+                            if isinstance(by_severity, dict):
+                                by_severity[severity.value] = by_severity.get(severity.value, 0) + 1
                     
                     # Count by file
                     if '| File:' in line:
                         file_part = line.split('| File: ')[1].split(' |')[0]
-                        stats['by_file'][file_part] = stats['by_file'].get(file_part, 0) + 1
+                        by_file = stats['by_file']
+                        if isinstance(by_file, dict):
+                            by_file[file_part] = by_file.get(file_part, 0) + 1
                     
                     # Count by actor
                     if '| Actor:' in line:
                         actor_part = line.split('| Actor: ')[1].split(' |')[0]
-                        stats['by_actor'][actor_part] = stats['by_actor'].get(actor_part, 0) + 1
+                        by_actor = stats['by_actor']
+                        if isinstance(by_actor, dict):
+                            by_actor[actor_part] = by_actor.get(actor_part, 0) + 1
                     
                     # Track recent errors
                     if '[ERROR]' in line:
-                        if len(stats['recent_errors']) < 10:
-                            stats['recent_errors'].append(line.strip())
+                        recent_errors = stats['recent_errors']
+                        if isinstance(recent_errors, list) and len(recent_errors) < 10:
+                            recent_errors.append(line.strip())
         except IOError:
             pass
         
@@ -483,38 +517,44 @@ class AuditLogger:
         cutoff_date = datetime.now().timestamp() - (max_age_days * 24 * 60 * 60)
         
         try:
+            # Use a separate lock file for the log file
+            lock_file = self.log_file.with_suffix('.lock')
             temp_file = self.log_file.with_suffix('.tmp')
             removed_count = 0
             
-            with open(self.log_file, 'r') as f:
-                for line in f:
-                    if not line.strip():
-                        continue
+            with FileLock(lock_file, timeout=10):
+                if not self.log_file.exists():
+                    return 0
                     
-                    # Parse timestamp
-                    if line.startswith('['):
-                        timestamp_str = line[1:].split(']')[0]
-                        try:
-                            timestamp = datetime.fromisoformat(timestamp_str)
-                            if timestamp.timestamp() >= cutoff_date:
-                                temp_file.write(line + '\n')
-                            else:
-                                removed_count += 1
-                        except ValueError:
-                            # Keep lines we can't parse
-                            temp_file.write(line + '\n')
-                    else:
-                        temp_file.write(line + '\n')
-            
-            # Replace original file
-            temp_file.replace(self.log_file)
+                with open(self.log_file, 'r') as f, open(temp_file, 'w') as tmp:
+                    for line in f:
+                        if not line.strip():
+                            continue
+                        
+                        # Parse timestamp
+                        if line.startswith('['):
+                            timestamp_str = line[1:].split(']')[0]
+                            try:
+                                timestamp = datetime.fromisoformat(timestamp_str)
+                                if timestamp.timestamp() >= cutoff_date:
+                                    tmp.write(line + '\n')
+                                else:
+                                    removed_count += 1
+                            except ValueError:
+                                # Keep lines we can't parse
+                                tmp.write(line + '\n')
+                        else:
+                            tmp.write(line + '\n')
+                
+                # Replace original file
+                temp_file.replace(self.log_file)
             
             # Rebuild index
             self._rebuild_index()
             
             return removed_count
             
-        except IOError:
+        except (IOError, FileLockError):
             return 0
     
     def _rebuild_index(self):

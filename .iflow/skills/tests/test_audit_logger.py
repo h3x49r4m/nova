@@ -384,8 +384,8 @@ class TestAuditLoggerEdgeCases:
 
     def test_index_size_limit(self, audit_logger):
         """Test that the index limits the number of events per file."""
-        # Log many events for the same file
-        for i in range(150):  # More than the max index size
+        # Log many events for the same file (more than MAX_INDEX_EVENTS)
+        for i in range(1100):  # More than the max index size (1000)
             audit_logger.log_event(
                 event_type=AuditEventType.CREATE,
                 operation=f"operation_{i}",
@@ -395,5 +395,5 @@ class TestAuditLoggerEdgeCases:
             )
         
         # Verify the index doesn't exceed the limit
-        # The limit is defined in AuditConstants.MAX_INDEX_EVENTS
-        assert len(audit_logger.index["/test/path"]) <= 100  # Assuming limit is 100
+        # The limit is defined in AuditConstants.MAX_INDEX_EVENTS (1000)
+        assert len(audit_logger.index["/test/path"]) <= 1000
