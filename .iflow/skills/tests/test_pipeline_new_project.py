@@ -47,7 +47,7 @@ software_engineer_module = import_skill_module('software-engineer', 'software_en
 SoftwareEngineer = software_engineer_module.SoftwareEngineer
 
 testing_engineer_module = import_skill_module('testing-engineer', 'testing_engineer')
-TestingEngineer = testing_engineer_module.TestingEngineer
+TestingEngineer = testing_engineer_module.TestingEngineerSkill
 
 qa_engineer_module = import_skill_module('qa-engineer', 'qa_engineer')
 QAEngineer = qa_engineer_module.QAEngineer

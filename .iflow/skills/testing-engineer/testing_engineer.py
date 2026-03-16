@@ -20,7 +20,7 @@ from utils import (
 )
 
 
-class TestingEngineer:
+class TestingEngineerSkill:
     """Testing Engineer role for test automation and frameworks."""
 
     def __init__(self, repo_root: Optional[Path] = None):
@@ -29,7 +29,7 @@ class TestingEngineer:
         self.config_dir = self.repo_root / '.iflow' / 'skills' / 'testing-engineer'
         self.config_file = self.config_dir / 'config.json'
         self.state_dir = self.repo_root / '.state'
-        
+
         self.logger = StructuredLogger(
             name="testing-engineer",
             log_dir=self.repo_root / ".iflow" / "logs",
@@ -687,8 +687,8 @@ def main():
     if not args.command:
         parser.print_help()
         return 0
-    
-    engineer = TestingEngineer()
+
+    engineer = TestingEngineerSkill()
     project_path = Path(args.project_path) if args.project_path else Path.cwd()
     
     if args.command == 'create-plan':

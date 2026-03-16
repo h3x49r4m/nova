@@ -129,6 +129,8 @@ class StateValidator:
     def _validate_schema(self, state: Dict[str, Any], state_type: str, result: ValidationResult):
         """Validate state against JSON schema."""
         try:
+            if self.schema_dir is None:
+                return
             schema_path = self.schema_dir / f"{state_type}.json"
             if schema_path.exists():
                 is_valid, errors = self.schema_validator.validate(state, state_type)

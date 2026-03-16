@@ -4,6 +4,7 @@ Centralized Constants
 Defines all magic numbers, timeouts, and configuration constants used across the skills system.
 """
 
+import re
 from enum import Enum
 from typing import Tuple
 
@@ -110,6 +111,10 @@ class ValidationPatterns(Enum):
     COMMIT_MAX_LENGTH = 72
     FILE_MAX_LENGTH = 4096
     TAG_MAX_LENGTH = 128
+    BRANCH_NAME_PATTERN = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]$')
+    URL_PATTERN = re.compile(r'^https?://[^\s/$.?#].[^\s]*$')
+    EMAIL_PATTERN = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+    VERSION_PATTERN = re.compile(r'^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$')
 
 
 class SystemRequirements(Enum):

@@ -17,7 +17,7 @@ from .shared_validators import SharedValidators
 # Global metrics collector for git operations
 try:
     from .metrics_collector import MetricsCollector
-    _metrics = MetricsCollector()
+    _metrics: Optional[MetricsCollector] = MetricsCollector()
 except ImportError:
     _metrics = None
 
@@ -237,7 +237,7 @@ def get_repo_root(cwd: Optional[Path] = None) -> Optional[Path]:
         if code == 0:
             return Path(stdout.strip())
         return None
-    except (GitCommandError, GitCommandTimeout):
+    except (GitError, GitCommandTimeout):
         return None
 
 

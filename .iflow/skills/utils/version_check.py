@@ -29,6 +29,38 @@ class VersionChecker:
     def validate_system(self, strict: bool = False) -> Tuple[bool, list]:
         """Validate system requirements."""
         return validate_system_requirements(strict)
+    
+    def _parse_version(self, version_str: str) -> Tuple[int, int, int]:
+        """
+        Parse version string into major, minor, patch components.
+        
+        This method handles version strings that may have prefixes like
+        "git version 2.39.5" or "python 3.14.2" and extracts the version numbers.
+        
+        Args:
+            version_str: Version string (e.g., "1.2.3", "git version 2.39.5")
+            
+        Returns:
+            Tuple of (major, minor, patch)
+        """
+        import re
+        
+        # Extract version numbers from the string
+        # Match patterns like "1.2.3", "2.39.5-rc1", "v3.14.2"
+        version_match = re.search(r'(\d+)\.(\d+)\.(\d+)', version_str)
+        
+        if version_match:
+            major = int(version_match.group(1))
+            minor = int(version_match.group(2))
+            patch = int(version_match.group(3))
+        else:
+            # Fallback: try to split by dots and convert to integers
+            parts = version_str.replace('-', '.').split('.')
+            major = int(parts[0]) if len(parts) > 0 and parts[0].isdigit() else 0
+            minor = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+            patch = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+        
+        return (major, minor, patch)
 
 
 def check_python_version(min_version: Optional[Tuple[int, int]] = None) -> Tuple[bool, Optional[str]]:

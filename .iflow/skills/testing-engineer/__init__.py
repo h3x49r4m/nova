@@ -1,5 +1,5 @@
 # Testing Engineer skill - Test automation and frameworks
 
-from .testing_engineer import TestingEngineer
+from .testing_engineer import TestingEngineerSkill
 
-__all__ = ['TestingEngineer']
+__all__ = ['TestingEngineerSkill']
