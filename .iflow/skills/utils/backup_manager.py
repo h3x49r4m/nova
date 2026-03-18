@@ -75,7 +75,7 @@ class BackupManager:
         # Create index file
         self.index_file = self.backup_dir / 'backup_index.json'
         self.index = self._load_index()
-        
+
         # Create empty index file if it doesn't exist
         if not self.index_file.exists():
             self._save_index()

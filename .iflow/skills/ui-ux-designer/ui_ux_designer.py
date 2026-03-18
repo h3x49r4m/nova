@@ -7,6 +7,7 @@ Provides design creation, wireframing, prototyping, and design system management
 import argparse
 import json
 import re
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any

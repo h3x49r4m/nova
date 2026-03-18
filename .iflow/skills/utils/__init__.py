@@ -17,6 +17,7 @@ from .constants import (
     Timeouts,
     WorkflowStatus,
 )
+from .deadlock_detector import DeadlockDetector, validate_git_flow_dependencies
 from .exceptions import (
     ErrorCategory,
     ErrorCode,
@@ -61,6 +62,7 @@ __all__ = [
     'CommitTypes',
     'ConfigManager',
     'CoverageThresholds',
+    'DeadlockDetector',
     'ErrorCategory',
     'ErrorCode',
     'FileError',
@@ -92,6 +94,7 @@ __all__ = [
     'validate_branch_name',
     'validate_branch_state',
     'validate_file_path',
+    'validate_git_flow_dependencies',
     'validate_git_repo',
     'validate_json_schema',
     'validate_workflow_prerequisites',

@@ -44,8 +44,15 @@ class GitManage:
 
     def __init__(self, repo_root: Path | None = None):
         """Initialize git manager."""
-        self.repo_root = repo_root or Path.cwd()
-        self.config_dir = self.repo_root / '.iflow' / 'skills' / 'git-manage'
+        if repo_root is None:
+            # Find git repository root
+            self.repo_root = self._find_git_root()
+        else:
+            self.repo_root = Path(repo_root)
+
+        # Find config directory relative to this file's location
+        git_manage_file = Path(__file__).resolve()
+        self.config_dir = git_manage_file.parent
         self.config_file = self.config_dir / 'config.json'
         self.logger = StructuredLogger(
             name="git-manage",
@@ -53,6 +60,27 @@ class GitManage:
             log_format=LogFormat.JSON
         )
         self.load_config()
+
+    def _find_git_root(self) -> Path:
+        """Find the git repository root directory."""
+        cwd = Path.cwd()
+        current = cwd
+
+        # Search upward for .git directory
+        while current != current.parent:
+            if (current / '.git').exists():
+                return current
+            current = current.parent
+
+        # If .git not found, check for .iflow directory
+        current = cwd
+        while current != current.parent:
+            if (current / '.iflow').exists():
+                return current
+            current = current.parent
+
+        # Fallback to current directory
+        return cwd
 
     def load_config(self) -> None:
         """Load configuration from config file."""

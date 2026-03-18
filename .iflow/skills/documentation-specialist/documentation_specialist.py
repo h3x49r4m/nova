@@ -6,6 +6,7 @@ Provides documentation creation and maintenance.
 
 import argparse
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -39,7 +40,7 @@ class DocumentationSpecialist:
 
         if self.config_file.exists():
             try:
-                with open(self.config_file) as f:
+                with self.config_file.open() as f:
                     user_config = json.load(f)
                 self.config.update(user_config)
             except (OSError, json.JSONDecodeError) as e:
@@ -569,7 +570,7 @@ See the [SDK Documentation](https://docs.example.com/sdk) for more information.
 See [changelog.md](./changelog.md) for API version history and changes.
 """
 
-            with open(docs_file, 'w') as f:
+            with Path(docs_file).open('w') as f:
                 f.write(docs_content)
 
             self.logger.info(f"API documentation created: {docs_file}")
@@ -929,7 +930,7 @@ Stay updated with the latest features and improvements:
 Check the [changelog](./changelog.md) for detailed release notes.
 """
 
-            with open(guide_file, 'w') as f:
+            with Path(guide_file).open('w') as f:
                 f.write(guide_content)
 
             self.logger.info(f"User guide created: {guide_file}")
@@ -1133,7 +1134,7 @@ For questions or issues related to a specific release, please:
 **Last Updated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 """
 
-            with open(changelog_file, 'w') as f:
+            with Path(changelog_file).open('w') as f:
                 f.write(changelog_content)
 
             self.logger.info(f"Changelog created: {changelog_file}")

@@ -12,6 +12,7 @@ from pathlib import Path
 
 # Import shared utilities
 from utils import ErrorCode, LogFormat, StructuredLogger, run_git_command
+import sys
 
 
 class TestingEngineerSkill:

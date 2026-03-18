@@ -7,6 +7,7 @@ Provides requirements gathering, stakeholder communication, and project initiali
 import argparse
 import json
 import re
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -203,7 +204,7 @@ No issues reported.
         self,
         project_path: Path,
         requirements: dict[str, Any],
-        acceptance_criteria: list[str],
+        acceptance_criteria: list[str],  # noqa: ARG002
         stakeholders: list[dict[str, str]],
         constraints: dict[str, list[str]],
     ) -> tuple[int, str]:
@@ -213,7 +214,7 @@ No issues reported.
         Args:
             project_path: Path to the project directory
             requirements: Dictionary of requirements
-            acceptance_criteria: List of acceptance criteria
+            acceptance_criteria: List of acceptance criteria (currently unused, reserved for future)
             stakeholders: List of stakeholders
             constraints: Dictionary of constraints
 
@@ -245,13 +246,13 @@ No issues reported.
 
 """
             # Add primary objectives
-            for idx, objective in enumerate(
+            for _idx, objective in enumerate(
                 requirements.get("primary_objectives", []), 1
             ):
                 spec_content += f"- {InputSanitizer.sanitize_html(objective)}\n"
 
             spec_content += "\n### Secondary Objectives\n\n"
-            for idx, objective in enumerate(
+            for _idx, objective in enumerate(
                 requirements.get("secondary_objectives", []), 1
             ):
                 spec_content += f"- {InputSanitizer.sanitize_html(objective)}\n"

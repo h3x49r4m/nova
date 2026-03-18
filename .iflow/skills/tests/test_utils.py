@@ -106,14 +106,21 @@ class TestGitCommand(unittest.TestCase):
     def test_get_repo_root(self):
         """Test getting repository root."""
         root = get_repo_root(self.repo_root)
-        self.assertEqual(root, self.repo_root)
+        # Use resolve() to normalize paths (handles macOS /private/var symlinks)
+        self.assertEqual(root.resolve(), self.repo_root.resolve())
 
     def test_get_repo_root_not_in_repo(self):
-        """Test getting repo root when not in a repo."""
-        non_repo_dir = self.temp_dir / 'non_repo'
+        """Test getting repo root when not in a repo - creates a temporary non-git directory."""
+        import tempfile
+        # Create a completely separate temp directory that's not a git repo
+        temp_dir2 = tempfile.mkdtemp()
+        non_repo_dir = Path(temp_dir2) / 'non_repo'
         non_repo_dir.mkdir()
         root = get_repo_root(non_repo_dir)
         self.assertIsNone(root)
+        # Clean up
+        import shutil
+        shutil.rmtree(temp_dir2)
 
     def test_validate_branch_name_valid(self):
         """Test validating valid branch names."""

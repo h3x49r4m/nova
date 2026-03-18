@@ -21,6 +21,7 @@ from utils import (
 )
 from utils.exceptions import GitCommandTimeout, GitError
 from utils.types import RequirementItem, Requirements, ScaleLevel
+import sys
 
 
 class ArchitecturePattern:

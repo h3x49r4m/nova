@@ -9,6 +9,7 @@ import argparse
 import json
 import re
 import subprocess
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -17,9 +18,12 @@ from typing import Any
 from utils import (
     BranchStatus,
     CheckpointManager,
+    DeadlockDetector,
+    ErrorCode,
     FileLockError,
     GitCommandTimeout,
     GitError,
+    IFlowError,
     InputSanitizer,
     LogFormat,
     LogLevel,
@@ -32,6 +36,7 @@ from utils import (
     run_git_command,
     validate_branch_name,
     validate_branch_state,
+    validate_git_flow_dependencies,
     validate_json_schema,
     validate_workflow_prerequisites,
     validate_workflow_state,
@@ -119,7 +124,7 @@ class GitFlow:
 
         if self.config_file.exists():
             try:
-                with open(self.config_file) as f:
+                with self.config_file.open() as f:
                     user_config = json.load(f)
 
                 # Validate user config against schema if schema exists
@@ -176,13 +181,13 @@ class GitFlow:
         if phases_file:
             phases_path = self.skill_dir / phases_file
             if phases_path.exists():
-                with open(phases_path) as f:
+                with phases_path.open() as f:
                     phases_data = json.load(f)
                     self.phases = [Phase.from_dict(p) for p in phases_data.get("phases", default_phases)]
             else:
                 self.phases = [Phase.from_dict(p) for p in default_phases]
         elif self.phases_file.exists():
-            with open(self.phases_file) as f:
+            with self.phases_file.open() as f:
                 phases_data = json.load(f)
                 self.phases = [Phase.from_dict(p) for p in phases_data.get("phases", default_phases)]
         else:
@@ -280,8 +285,8 @@ class GitFlow:
 
         try:
             return run_git_command(command, cwd=self.repo_root, timeout=timeout)
-        except GitCommandError as e:
-            return e.returncode, '', e.message
+        except GitError as e:
+            return e.code.value if hasattr(e, 'code') else 1, '', str(e)
         except GitCommandTimeout as e:
             return 124, '', str(e)
 
@@ -612,72 +617,6 @@ class GitFlow:
 
         return 0, '\n'.join(output)
 
-    def merge_branch(self, branch_name: str) -> tuple[int, str]:
-        if not self.workflow_state:
-            return 1, 'No workflow initialized.'
-
-        branch = self.workflow_state.branches[branch_name]
-
-        if self.config.get("merge", {}).get("require_dependencies_merged", True):
-            for dep_name in branch.dependencies:
-                dep_branch = self.workflow_state.branches.get(dep_name)
-                if dep_branch and dep_branch.status != BranchStatus.MERGED:
-                    return 1, f'Dependency "{dep_name}" is not merged yet.'
-
-        output = []
-
-        output.append('Step 1: Checkout main...')
-        code, stdout, stderr = self.run_git_command(['checkout', 'main'])
-        if code != 0:
-            return code, f'Failed to checkout main: {stderr}'
-        output.append('✓ Checkout main')
-
-        output.append('Step 2: Pull latest changes...')
-        code, stdout, stderr = self.run_git_command(['pull'])
-        if code != 0:
-            return code, f'Failed to pull: {stderr}'
-        output.append('✓ Pull complete')
-
-        output.append(f'Step 3: Checkout {branch_name}...')
-        code, stdout, stderr = self.run_git_command(['checkout', branch_name])
-        if code != 0:
-            return code, f'Failed to checkout {branch_name}: {stderr}'
-        output.append(f'✓ Checkout {branch_name}')
-
-        output.append('Step 4: Rebase onto main...')
-        code, stdout, stderr = self.run_git_command(['rebase', 'main'])
-        if code != 0:
-            return code, f'Rebase failed: {stderr}'
-        output.append('✓ Rebase complete')
-
-        output.append('Step 5: Checkout main...')
-        code, stdout, stderr = self.run_git_command(['checkout', 'main'])
-        if code != 0:
-            return code, f'Failed to checkout main: {stderr}'
-        output.append('✓ Checkout main')
-
-        output.append(f'Step 6: Merge {branch_name}...')
-        code, stdout, stderr = self.run_git_command(['merge', '--no-ff', branch_name])
-        if code != 0:
-            return code, f'Merge failed: {stderr}'
-        output.append('✓ Merge complete')
-
-        code, stdout, stderr = self.run_git_command(['log', '-1', '--pretty=%H'])
-        if code == 0:
-            merge_commit = stdout.strip()
-            branch.merge_commit = merge_commit
-            branch.status = BranchStatus.MERGED
-
-            event = ReviewEvent("merge", "you", merge_commit=merge_commit)
-            branch.review_history.append(event.to_dict())
-
-        if self.config.get("merge", {}).get("delete_branch_after_merge", True):
-            output.append(f'Step 7: Delete branch {branch_name}...')
-            self.run_git_command(['branch', '-D', branch_name])
-            output.append('✓ Branch deleted')
-
-        return 0, '\n'.join(output)
-
     def check_for_conflicts(self) -> tuple[bool, list[str]]:
         """
         Check if there are any git merge conflicts.
@@ -790,12 +729,12 @@ class GitFlow:
         output = ['Aborting merge/rebase operation...']
 
         # Try to abort rebase first
-        code, stdout, stderr = self.run_git_command(['rebase', '--abort'])
+        code, _stdout, _stderr = self.run_git_command(['rebase', '--abort'])
         if code == 0:
             output.append('✓ Rebase aborted')
         else:
             # Try to abort merge
-            code, stdout, stderr = self.run_git_command(['merge', '--abort'])
+            code, _stdout, _stderr = self.run_git_command(['merge', '--abort'])
             if code == 0:
                 output.append('✓ Merge aborted')
             else:
@@ -831,7 +770,7 @@ class GitFlow:
 
         if strategy == 'ours':
             # Accept our changes for all conflicts
-            code, stdout, stderr = self.run_git_command(['checkout', '--ours', '.'])
+            code, _stdout, stderr = self.run_git_command(['checkout', '--ours', '.'])
             if code == 0:
                 output.append('✓ Accepted our changes for all files')
             else:
@@ -839,7 +778,7 @@ class GitFlow:
 
         elif strategy == 'theirs':
             # Accept their changes for all conflicts
-            code, stdout, stderr = self.run_git_command(['checkout', '--theirs', '.'])
+            code, _stdout, stderr = self.run_git_command(['checkout', '--theirs', '.'])
             if code == 0:
                 output.append('✓ Accepted their changes for all files')
             else:
@@ -1056,13 +995,13 @@ class GitFlow:
 
         return True, ''
 
-    def _has_circular_dependency(self, branch_name: str, visited: set | None = None) -> bool:
+    def _has_circular_dependency(self, branch_name: str, visited: set | None = None) -> bool:  # noqa: ARG002
         """
         Check if a branch has circular dependencies using deadlock detector.
 
         Args:
             branch_name: Name of branch to check
-            visited: Set of already visited branches (for recursion)
+            visited: Set of already visited branches (for recursion, currently unused)
 
         Returns:
             True if circular dependency exists, False otherwise

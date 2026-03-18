@@ -7,7 +7,8 @@ Provides CI/CD and infrastructure management.
 import argparse
 import json
 import re
-from datetime import datetime
+import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 # Import shared utilities
@@ -44,7 +45,7 @@ class DevOpsEngineer:
 
         if self.config_file.exists():
             try:
-                with open(self.config_file) as f:
+                with self.config_file.open() as f:
                     user_config = json.load(f)
                 self.config.update(user_config)
             except (OSError, json.JSONDecodeError) as e:
@@ -420,7 +421,7 @@ None
 **On-Call:** PagerDuty rotation
 """
 
-            with open(status_file, 'w') as f:
+            with Path(status_file).open('w') as f:
                 f.write(status_content)
 
             self.logger.info(f"Deployment status created: {status_file}")
@@ -503,7 +504,7 @@ Verification:
             if not pipeline_file.exists():
                 return ErrorCode.FILE_NOT_FOUND.value, f"Pipeline status not found: {pipeline_file}"
 
-            with open(pipeline_file) as f:
+            with Path(pipeline_file).open() as f:
                 content = f.read()
 
             # Update current phase and status
@@ -545,7 +546,7 @@ Verification:
                 content
             )
 
-            with open(pipeline_file, 'w') as f:
+            with Path(pipeline_file).open('w') as f:
                 f.write(content)
 
             self.logger.info(f"Pipeline status updated: {pipeline_file}")
