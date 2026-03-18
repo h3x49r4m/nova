@@ -6,36 +6,28 @@ Tests shared utilities used across the skills system.
 
 import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 from threading import Thread
-import time
+from unittest.mock import patch
 
+from utils.constants import CommitTypes, SecretPatterns, Timeouts, ValidationPatterns
+from utils.exceptions import ErrorCategory, IFlowError, ValidationError
+from utils.file_lock import FileLock, FileLockError
 from utils.git_command import (
-    run_git_command,
-    validate_git_repo,
+    ErrorCode,
+    GitError,
+    check_for_secrets,
     get_current_branch,
     get_repo_root,
+    run_git_command,
     validate_branch_name,
     validate_file_path,
-    check_for_secrets,
-    GitError,
-    ErrorCode
-)
-from utils.exceptions import ErrorCategory
-from utils.schema_validator import (
-    SchemaValidator
-)
-from utils.file_lock import FileLock, FileLockError
-from utils.constants import (
-    Timeouts,
-    CommitTypes,
-    SecretPatterns,
-    ValidationPatterns
+    validate_git_repo,
 )
 from utils.input_sanitizer import InputSanitizer
-from utils.exceptions import IFlowError, ValidationError
+from utils.schema_validator import SchemaValidator
 
 
 class TestGitCommand(unittest.TestCase):
@@ -61,7 +53,7 @@ class TestGitCommand(unittest.TestCase):
 
     def test_run_git_command_success(self):
         """Test running a successful git command."""
-        returncode, stdout, stderr = run_git_command(['status'], cwd=self.repo_root)
+        returncode, stdout, _stderr = run_git_command(['status'], cwd=self.repo_root)
 
         self.assertEqual(returncode, 0)
         self.assertIsInstance(stdout, str)
@@ -225,77 +217,77 @@ class TestSecretDetection(unittest.TestCase):
         """Test detecting password secrets."""
         stdout = "password='MySecretPassword123'"
         stderr = ""
-        
+
         self.assertTrue(check_for_secrets(stdout, stderr))
 
     def test_check_for_secrets_aws_keys(self):
         """Test detecting AWS access keys."""
         stdout = "aws_access_key_id=AKIAIOSFODNN7EXAMPLE"
         stderr = "aws_secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-        
+
         self.assertTrue(check_for_secrets(stdout, stderr))
 
     def test_check_for_secrets_jwt_token(self):
         """Test detecting JWT tokens."""
         stdout = "token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
         stderr = ""
-        
+
         self.assertTrue(check_for_secrets(stdout, stderr))
 
     def test_check_for_secrets_private_key(self):
         """Test detecting private keys."""
         stdout = "-----BEGIN RSA PRIVATE KEY-----"
         stderr = ""
-        
+
         self.assertTrue(check_for_secrets(stdout, stderr))
 
     def test_check_for_secrets_github_token(self):
         """Test detecting GitHub tokens."""
         stdout = "github_token=ghp_1234567890abcdefghijklmnopqrstuvwxyz123456"
         stderr = ""
-        
+
         self.assertTrue(check_for_secrets(stdout, stderr))
 
     def test_check_for_secrets_database_url(self):
         """Test detecting database URLs."""
         stdout = "database_url='postgresql://user:password123@localhost:5432/mydb'"
         stderr = ""
-        
+
         self.assertTrue(check_for_secrets(stdout, stderr))
 
     def test_check_for_secrets_no_secrets(self):
         """Test output without secrets."""
         stdout = "This is normal output"
         stderr = "Some error message"
-        
+
         self.assertFalse(check_for_secrets(stdout, stderr))
 
     def test_check_for_secrets_empty_output(self):
         """Test with empty output."""
         stdout = ""
         stderr = ""
-        
+
         self.assertFalse(check_for_secrets(stdout, stderr))
 
     def test_check_for_secrets_case_insensitive(self):
         """Test that secret detection is case insensitive."""
         stdout = "API_KEY='secret'"
         stderr = "Password='test'"
-        
+
         self.assertTrue(check_for_secrets(stdout, stderr))
 
     def test_check_for_secrets_multiple_patterns(self):
         """Test detecting multiple secret types."""
         stdout = "api_key='abc' and password='def'"
         stderr = ""
-        
+
         self.assertTrue(check_for_secrets(stdout, stderr))
 
     def test_check_for_secrets_in_stderr(self):
         """Test detecting secrets in stderr."""
         stdout = ""
         stderr = "ERROR: secret token detected: abc123def456"
-        
+
         self.assertTrue(check_for_secrets(stdout, stderr))
 
 
@@ -426,7 +418,7 @@ class TestSchemaValidator(unittest.TestCase):
             }
         }
 
-        is_valid, errors = validator.validate(data, 'nested-schema')
+        is_valid, _errors = validator.validate(data, 'nested-schema')
 
         self.assertTrue(is_valid)
 
@@ -444,7 +436,7 @@ class TestSchemaValidator(unittest.TestCase):
         validator = SchemaValidator(self.schema_dir)
         data = {"items": [1, 2, 3]}
 
-        is_valid, errors = validator.validate(data, 'array-schema')
+        is_valid, _errors = validator.validate(data, 'array-schema')
 
         self.assertTrue(is_valid)
 
@@ -618,7 +610,7 @@ class TestIntegration(unittest.TestCase):
         self.assertEqual(branch, 'main')
 
         # Validate branch name
-        is_valid, error = validate_branch_name(branch)
+        is_valid, _error = validate_branch_name(branch)
         self.assertTrue(is_valid)
 
     def test_schema_validation_with_file_lock(self):
@@ -645,7 +637,7 @@ class TestIntegration(unittest.TestCase):
         with FileLock(lock_file, timeout=1):
             validator = SchemaValidator(self.schema_dir)
 
-            with open(data_file, 'r') as f:
+            with open(data_file) as f:
                 data = json.load(f)
 
             is_valid, errors = validator.validate(data, 'test-schema')
@@ -674,9 +666,9 @@ class TestIntegration(unittest.TestCase):
                 with FileLock(lock_file, timeout=2):
                     validator = SchemaValidator(self.schema_dir)
                     data = {"id": thread_id}
-                    is_valid, errors = validator.validate(data, 'concurrent-schema')
+                    is_valid, _errors = validator.validate(data, 'concurrent-schema')
                     results.append((thread_id, is_valid))
-            except FileLockError as e:
+            except FileLockError:
                 results.append((thread_id, False))
 
         # Create multiple threads

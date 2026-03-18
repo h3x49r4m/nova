@@ -1,23 +1,15 @@
 """Tests for structured_logger module."""
 
-import pytest
-from pathlib import Path
-import sys
 import json
-import logging
-from datetime import datetime
-from unittest.mock import Mock, patch, MagicMock
-from io import StringIO
+import sys
+from pathlib import Path
+
+import pytest
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from utils.structured_logger import (
-    LogLevel,
-    LogFormat,
-    StructuredLogger,
-    LogContext
-)
+from utils.structured_logger import LogContext, LogFormat, LogLevel, StructuredLogger
 
 
 class TestLogLevel:
@@ -95,7 +87,7 @@ class TestStructuredLogger:
             log_format=LogFormat.JSON
         )
         logger.debug("Debug message")
-        
+
         log_file = tmp_path / "test_logger.log"
         assert log_file.exists()
         content = log_file.read_text()
@@ -109,7 +101,7 @@ class TestStructuredLogger:
             log_format=LogFormat.JSON
         )
         logger.info("Info message")
-        
+
         log_file = tmp_path / "test_logger.log"
         content = log_file.read_text()
         assert "Info message" in content
@@ -122,7 +114,7 @@ class TestStructuredLogger:
             log_format=LogFormat.JSON
         )
         logger.warning("Warning message")
-        
+
         log_file = tmp_path / "test_logger.log"
         content = log_file.read_text()
         assert "Warning message" in content
@@ -135,7 +127,7 @@ class TestStructuredLogger:
             log_format=LogFormat.JSON
         )
         logger.error("Error message")
-        
+
         log_file = tmp_path / "test_logger.log"
         content = log_file.read_text()
         assert "Error message" in content
@@ -148,7 +140,7 @@ class TestStructuredLogger:
             log_format=LogFormat.JSON
         )
         logger.critical("Critical message")
-        
+
         log_file = tmp_path / "test_logger.log"
         content = log_file.read_text()
         assert "Critical message" in content
@@ -165,7 +157,7 @@ class TestStructuredLogger:
             session_id="session456"
         )
         logger.info("Message with context", context=context)
-        
+
         log_file = tmp_path / "test_logger.log"
         content = log_file.read_text()
         assert "user123" in content
@@ -178,7 +170,7 @@ class TestStructuredLogger:
             log_format=LogFormat.JSON
         )
         logger.info("Message with metadata", metadata={"key": "value"})
-        
+
         log_file = tmp_path / "test_logger.log"
         content = log_file.read_text()
         assert "key" in content
@@ -195,7 +187,7 @@ class TestStructuredLogger:
             raise ValueError("Test exception")
         except ValueError as e:
             logger.exception("An error occurred", exc_info=e)
-        
+
         log_file = tmp_path / "test_logger.log"
         content = log_file.read_text()
         assert "Test exception" in content
@@ -208,7 +200,7 @@ class TestStructuredLogger:
             log_format=LogFormat.JSON
         )
         logger.info("Test message")
-        
+
         log_file = tmp_path / "test_logger.log"
         content = log_file.read_text()
         # Verify it's valid JSON
@@ -224,7 +216,7 @@ class TestStructuredLogger:
             log_format=LogFormat.TEXT
         )
         logger.info("Test message")
-        
+
         log_file = tmp_path / "test_logger.log"
         content = log_file.read_text()
         assert "Test message" in content
@@ -241,7 +233,7 @@ class TestStructuredLogger:
         logger.debug("Debug message")
         logger.info("Info message")
         logger.warning("Warning message")
-        
+
         log_file = tmp_path / "test_logger.log"
         content = log_file.read_text()
         assert "Debug message" not in content
@@ -257,11 +249,11 @@ class TestStructuredLogger:
             max_bytes=100,
             backup_count=3
         )
-        
+
         # Write enough logs to trigger rotation
         for i in range(10):
             logger.info(f"Message {i}: " + "x" * 50)
-        
+
         # Check for backup files
         backup_files = list(tmp_path.glob("test_logger.log.*"))
         assert len(backup_files) > 0
@@ -278,16 +270,16 @@ class TestStructuredLogger:
             log_dir=tmp_path,
             log_format=LogFormat.JSON
         )
-        
+
         logger1.info("Message from logger1")
         logger2.info("Message from logger2")
-        
+
         log_file1 = tmp_path / "logger1.log"
         log_file2 = tmp_path / "logger2.log"
-        
+
         content1 = log_file1.read_text()
         content2 = log_file2.read_text()
-        
+
         assert "Message from logger1" in content1
         assert "Message from logger2" in content2
 
@@ -300,7 +292,7 @@ class TestStructuredLogger:
         )
         logger.add_context("request_id", "req123")
         logger.info("Message with added context")
-        
+
         log_file = tmp_path / "test_logger.log"
         content = log_file.read_text()
         assert "req123" in content
@@ -315,7 +307,7 @@ class TestStructuredLogger:
         logger.add_context("request_id", "req123")
         logger.remove_context("request_id")
         logger.info("Message without context")
-        
+
         log_file = tmp_path / "test_logger.log"
         content = log_file.read_text()
         assert "req123" not in content
@@ -331,7 +323,7 @@ class TestStructuredLogger:
         logger.add_context("user_id", "user456")
         logger.clear_context()
         logger.info("Message with cleared context")
-        
+
         log_file = tmp_path / "test_logger.log"
         content = log_file.read_text()
         assert "req123" not in content

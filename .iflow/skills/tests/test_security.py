@@ -6,9 +6,9 @@ Tests secret detection, input sanitization, and other security-related functiona
 
 import unittest
 
-from utils.shared_validators import SharedValidators
-from utils.input_sanitizer import InputSanitizer
 from utils.constants import SecretPatterns
+from utils.input_sanitizer import InputSanitizer
+from utils.shared_validators import SharedValidators
 
 
 class TestSecretDetection(unittest.TestCase):

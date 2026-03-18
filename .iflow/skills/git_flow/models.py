@@ -5,7 +5,6 @@ Defines data model classes for workflow, branches, phases, and dependencies.
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional
 from enum import Enum
 
 # Import enums from utils
@@ -37,8 +36,8 @@ except ImportError:
 class ReviewEvent:
     """Represents a review event (approval, rejection, request changes)."""
 
-    def __init__(self, action: str, actor: str, comment: Optional[str] = None,
-                 reason: Optional[str] = None, merge_commit: Optional[str] = None):
+    def __init__(self, action: str, actor: str, comment: str | None = None,
+                 reason: str | None = None, merge_commit: str | None = None):
         self.action = action
         self.actor = actor
         self.timestamp = datetime.now().isoformat()
@@ -46,7 +45,7 @@ class ReviewEvent:
         self.reason = reason
         self.merge_commit = merge_commit
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         return {
             "action": self.action,
@@ -67,17 +66,17 @@ class BranchState:
         self.status = BranchStatus.PENDING
         self.phase = phase
         self.created_at = datetime.now().isoformat()
-        self.commits: List[Dict] = []
-        self.merge_commit: Optional[str] = None
-        self.approved_by: Optional[str] = None
-        self.approved_at: Optional[str] = None
-        self.unapproved_by: Optional[str] = None
-        self.unapproved_at: Optional[str] = None
-        self.dependencies: List[str] = []
-        self.dependents: List[str] = []
-        self.review_history: List[Dict] = []
+        self.commits: list[dict] = []
+        self.merge_commit: str | None = None
+        self.approved_by: str | None = None
+        self.approved_at: str | None = None
+        self.unapproved_by: str | None = None
+        self.unapproved_at: str | None = None
+        self.dependencies: list[str] = []
+        self.dependents: list[str] = []
+        self.review_history: list[dict] = []
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         return {
             "name": self.name,
@@ -109,7 +108,7 @@ class BranchState:
         return self.created_at
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'BranchState':
+    def from_dict(cls, data: dict) -> BranchState:
         """Create from dictionary."""
         branch = cls(data["name"], data["role"], data["phase"])
         status_str = data.get("status", "pending")
@@ -140,14 +139,14 @@ class Phase:
         self.order = order
         self.required = required
         self.status = PhaseStatus.PENDING
-        self.branch: Optional[str] = None
-        self.dependencies: List[int] = []
-        self.started_at: Optional[str] = None
-        self.completed_at: Optional[str] = None
+        self.branch: str | None = None
+        self.dependencies: list[int] = []
+        self.started_at: str | None = None
+        self.completed_at: str | None = None
         self.timeout_seconds: int = 604800  # 7 days default
         self.timeout_warning_sent: bool = False
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         return {
             "name": self.name,
@@ -164,7 +163,7 @@ class Phase:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'Phase':
+    def from_dict(cls, data: dict) -> Phase:
         """Create from dictionary."""
         phase = cls(data["name"], data["role"], data["order"], data["required"])
         status_str = data.get("status", "pending")
@@ -189,12 +188,12 @@ class WorkflowState:
         self.feature = feature
         self.status = WorkflowStatus.INITIALIZED
         self.current_phase = 0
-        self.phases: List[Phase] = []
-        self.branches: Dict[str, BranchState] = {}
+        self.phases: list[Phase] = []
+        self.branches: dict[str, BranchState] = {}
         self.created_at = datetime.now().isoformat()
         self.updated_at = datetime.now().isoformat()
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         return {
             "feature": self.feature,
@@ -226,7 +225,7 @@ class WorkflowState:
         return version
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'WorkflowState':
+    def from_dict(cls, data: dict) -> WorkflowState:
         """Create from dictionary."""
         workflow = cls(data["feature"])
         status_str = data.get("status", "initialized")
@@ -248,10 +247,10 @@ class DependencyGraph:
 
     def __init__(self):
         """Initialize an empty dependency graph."""
-        self.graph: Dict[str, List[str]] = {}
-        self.reverse_graph: Dict[str, List[str]] = {}
+        self.graph: dict[str, list[str]] = {}
+        self.reverse_graph: dict[str, list[str]] = {}
 
-    def add_dependency(self, branch: str, depends_on: List[str]):
+    def add_dependency(self, branch: str, depends_on: list[str]):
         """
         Add a dependency relationship between branches.
 
@@ -270,7 +269,7 @@ class DependencyGraph:
                 self.reverse_graph[dep] = []
             self.reverse_graph[dep].append(branch)
 
-    def get_dependents(self, branch: str) -> List[str]:
+    def get_dependents(self, branch: str) -> list[str]:
         """
         Get branches that depend on the given branch.
 
@@ -282,7 +281,7 @@ class DependencyGraph:
         """
         return self.reverse_graph.get(branch, [])
 
-    def get_all_dependents(self, branch: str) -> List[str]:
+    def get_all_dependents(self, branch: str) -> list[str]:
         """
         Get all branches that transitively depend on the given branch.
 

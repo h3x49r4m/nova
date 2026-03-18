@@ -224,9 +224,9 @@ No issues reported.
 
         try:
             # Sanitize inputs
-            safe_requirements = InputSanitizer.sanitize_dict(requirements)
+            InputSanitizer.sanitize_dict(requirements)
             safe_stakeholders = [InputSanitizer.sanitize_dict(s) for s in stakeholders]
-            safe_constraints = InputSanitizer.sanitize_dict(constraints)
+            InputSanitizer.sanitize_dict(constraints)
 
             # Create project spec content
             spec_content = f"""# Project Specification
@@ -511,7 +511,7 @@ Verification:
 - TDD: compliant"""
 
             # Commit changes
-            code, stdout, stderr = run_git_command(
+            code, _stdout, stderr = run_git_command(
                 ["commit", "-m", commit_message], cwd=project_path
             )
 
@@ -648,7 +648,7 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Initialize command
-    init_parser = subparsers.add_parser("init", help="Initialize project state")
+    subparsers.add_parser("init", help="Initialize project state")
 
     # Create spec command
     spec_parser = subparsers.add_parser(
@@ -662,7 +662,7 @@ def main():
     )
 
     # Extract features command
-    features_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "extract-features", help="Extract features from project spec"
     )
 

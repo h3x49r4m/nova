@@ -8,35 +8,38 @@ import inspect
 import os
 import platform
 import sys
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
-from functools import wraps
 import threading
+from datetime import datetime
+from functools import wraps
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from .exceptions import IFlowError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class ErrorContext:
     """Represents collected error context."""
-    
+
     def __init__(self):
         """Initialize an empty error context."""
         self.timestamp: str = ""
-        self.system_info: Dict[str, str] = {}
-        self.environment: Dict[str, str] = {}
-        self.call_stack: List[Dict[str, Any]] = []
-        self.variables: Dict[str, Any] = {}
-        self.files: Dict[str, Dict[str, Any]] = {}
-        self.process_info: Dict[str, Any] = {}
-        self.thread_info: Dict[str, Any] = {}
-        self.network_info: Dict[str, Any] = {}
-        self.disk_info: Dict[str, Any] = {}
-        self.memory_info: Dict[str, Any] = {}
-        self.performance_metrics: Dict[str, Any] = {}
-        self.custom_context: Dict[str, Any] = {}
-    
-    def to_dict(self) -> Dict[str, Any]:
+        self.system_info: dict[str, str] = {}
+        self.environment: dict[str, str] = {}
+        self.call_stack: list[dict[str, Any]] = []
+        self.variables: dict[str, Any] = {}
+        self.files: dict[str, dict[str, Any]] = {}
+        self.process_info: dict[str, Any] = {}
+        self.thread_info: dict[str, Any] = {}
+        self.network_info: dict[str, Any] = {}
+        self.disk_info: dict[str, Any] = {}
+        self.memory_info: dict[str, Any] = {}
+        self.performance_metrics: dict[str, Any] = {}
+        self.custom_context: dict[str, Any] = {}
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert context to dictionary."""
         return {
             "timestamp": self.timestamp,
@@ -57,10 +60,10 @@ class ErrorContext:
 
 class ErrorContextCollector:
     """Collects debugging context for errors."""
-    
+
     def __init__(
         self,
-        repo_root: Optional[Path] = None,
+        repo_root: Path | None = None,
         collect_system_info: bool = True,
         collect_environment: bool = True,
         collect_call_stack: bool = True,
@@ -74,7 +77,7 @@ class ErrorContextCollector:
     ):
         """
         Initialize the error context collector.
-        
+
         Args:
             repo_root: Repository root directory
             collect_system_info: Whether to collect system information
@@ -99,72 +102,72 @@ class ErrorContextCollector:
         self.collect_performance_metrics = collect_performance_metrics
         self.max_stack_frames = max_stack_frames
         self.max_variable_depth = max_variable_depth
-        
+
         # Sensitive environment keys to exclude
         self.sensitive_keys = {
             "PASSWORD", "SECRET", "TOKEN", "KEY", "API_KEY", "PRIVATE_KEY",
             "CREDENTIAL", "AUTH", "SESSION", "COOKIE"
         }
-        
+
         # Performance tracking
         self.start_time = datetime.now().timestamp()
-    
+
     def collect(
         self,
         error: Exception,
-        custom_context: Optional[Dict[str, Any]] = None,
+        custom_context: dict[str, Any] | None = None,
         skip_frames: int = 0
     ) -> ErrorContext:
         """
         Collect error context.
-        
+
         Args:
             error: The error that occurred
             custom_context: Additional custom context
             skip_frames: Number of stack frames to skip
-            
+
         Returns:
             Collected error context
         """
         context = ErrorContext()
         context.timestamp = datetime.now().isoformat()
-        
+
         if self.collect_system_info:
             context.system_info = self._collect_system_info()
-        
+
         if self.collect_environment:
             context.environment = self._collect_environment()
-        
+
         if self.collect_call_stack:
             context.call_stack = self._collect_call_stack(skip_frames)
-        
+
         if self.collect_variables:
             context.variables = self._collect_variables()
-        
+
         context.process_info = self._collect_process_info()
-        
+
         if self.collect_thread_info:
             context.thread_info = self._collect_thread_info()
-        
+
         if self.collect_network_info:
             context.network_info = self._collect_network_info()
-        
+
         if self.collect_disk_info:
             context.disk_info = self._collect_disk_info()
-        
+
         context.memory_info = self._collect_memory_info()
-        
+
         if self.collect_performance_metrics:
             context.performance_metrics = self._collect_performance_metrics()
-        
+
         context.files = self._collect_file_info()
-        
+
         if custom_context:
             context.custom_context = custom_context
-        
+
         return context
-    
-    def _collect_system_info(self) -> Dict[str, str]:
+
+    def _collect_system_info(self) -> dict[str, str]:
         """Collect system information."""
         return {
             "platform": platform.platform(),
@@ -178,35 +181,35 @@ class ErrorContextCollector:
             "hostname": platform.node(),
             "architecture": platform.architecture(),
         }
-    
-    def _collect_environment(self) -> Dict[str, str]:
+
+    def _collect_environment(self) -> dict[str, str]:
         """Collect environment variables (filtered)."""
         env_vars = {}
-        
+
         for key, value in os.environ.items():
             # Skip sensitive keys
             if any(sensitive in key.upper() for sensitive in self.sensitive_keys):
                 continue
-            
+
             # Skip very long values
             if len(str(value)) > 500:
                 value = f"{str(value)[:500]}... (truncated)"
-            
+
             env_vars[key] = str(value)
-        
+
         return env_vars
-    
-    def _collect_call_stack(self, skip_frames: int = 0) -> List[Dict[str, Any]]:
+
+    def _collect_call_stack(self, skip_frames: int = 0) -> list[dict[str, Any]]:
         """Collect call stack information."""
         frames = []
-        
+
         # Get the current stack
         stack = inspect.stack()
-        
+
         # Skip frames as requested
         start_frame = skip_frames + 1  # +1 for this method
         end_frame = min(start_frame + self.max_stack_frames, len(stack))
-        
+
         for frame_info in stack[start_frame:end_frame]:
             frame = {
                 "filename": frame_info.filename,
@@ -216,10 +219,10 @@ class ErrorContextCollector:
                 "local_vars": self._sanitize_variables(frame_info.frame.f_locals)
             }
             frames.append(frame)
-        
+
         return frames
-    
-    def _collect_variables(self) -> Dict[str, Any]:
+
+    def _collect_variables(self) -> dict[str, Any]:
         """Collect current variables from the calling frame."""
         try:
             # Get the frame that called this method
@@ -229,86 +232,86 @@ class ErrorContextCollector:
         except Exception as e:
             self.logger.warning(f"Failed to get local variables: {e}")
             pass
-        
+
         return {}
-    
+
     def _sanitize_variables(
         self,
-        variables: Dict[str, Any],
+        variables: dict[str, Any],
         depth: int = 0
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Sanitize variables for logging (remove sensitive data).
-        
+
         Args:
             variables: Variables to sanitize
             depth: Current recursion depth
-            
+
         Returns:
             Sanitized variables
         """
         if depth >= self.max_variable_depth:
             return {"_depth_limit": "Reached maximum depth"}
-        
+
         sanitized = {}
-        
+
         for key, value in variables.items():
             # Skip private/internal variables
             if key.startswith("_"):
                 continue
-            
+
             # Skip special variables
             if key in ["self", "cls", "__class__"]:
                 continue
-            
+
             # Skip sensitive keys
             if any(sensitive in key.upper() for sensitive in self.sensitive_keys):
                 continue
-            
+
             try:
                 sanitized_value = self._sanitize_value(value, depth)
                 sanitized[key] = sanitized_value
             except Exception as e:
                 self.logger.debug(f"Failed to serialize variable {key}: {e}")
                 sanitized[key] = "<unable to serialize>"
-        
+
         return sanitized
-    
+
     def _sanitize_value(self, value: Any, depth: int) -> Any:
         """
         Sanitize a single value.
-        
+
         Args:
             value: Value to sanitize
             depth: Current recursion depth
-            
+
         Returns:
             Sanitized value
         """
         # Handle None
         if value is None:
             return None
-        
+
         # Handle primitives
         if isinstance(value, (bool, int, float)):
             return value
-        
+
         # Handle strings
         if isinstance(value, str):
             if len(value) > 200:
                 return f"{value[:200]}... (truncated)"
             return value
-        
+
         # Handle bytes
         if isinstance(value, bytes):
             return f"<bytes: {len(value)} bytes>"
-        
+
         # Handle lists
         if isinstance(value, (list, tuple)):
             if depth >= self.max_variable_depth - 1:
                 return f"<{type(value).__name__} with {len(value)} items>"
             return [self._sanitize_value(item, depth + 1) for item in value[:10]]
-        
+
         # Handle dicts
         if isinstance(value, dict):
             if depth >= self.max_variable_depth - 1:
@@ -317,33 +320,33 @@ class ErrorContextCollector:
                 k: self._sanitize_value(v, depth + 1)
                 for k, v in list(value.items())[:10]
             }
-        
+
         # Handle sets
         if isinstance(value, set):
             if depth >= self.max_variable_depth - 1:
                 return f"<set with {len(value)} items>"
             return [self._sanitize_value(item, depth + 1) for item in list(value)[:10]]
-        
+
         # Handle objects
         if hasattr(value, "__dict__"):
             return f"<{type(value).__name__} object>"
-        
+
         # Handle generators/iterators
         if inspect.isgenerator(value) or inspect.isgeneratorfunction(value):
             return "<generator>"
-        
+
         # Handle functions
         if inspect.isfunction(value) or inspect.ismethod(value):
             return f"<function: {value.__name__}>"
-        
+
         # Handle modules
         if inspect.ismodule(value):
             return f"<module: {value.__name__}>"
-        
+
         # Handle other types
         return f"<{type(value).__name__}>"
-    
-    def _collect_process_info(self) -> Dict[str, Any]:
+
+    def _collect_process_info(self) -> dict[str, Any]:
         """Collect process information."""
         try:
             import psutil
@@ -374,12 +377,12 @@ class ErrorContextCollector:
                 "uid": os.getuid(),
                 "gid": os.getgid(),
             }
-    
-    def _collect_thread_info(self) -> Dict[str, Any]:
+
+    def _collect_thread_info(self) -> dict[str, Any]:
         """Collect thread information."""
         current_thread = threading.current_thread()
         all_threads = threading.enumerate()
-        
+
         return {
             "current_thread": {
                 "id": current_thread.ident,
@@ -391,14 +394,14 @@ class ErrorContextCollector:
             "active_threads": sum(1 for t in all_threads if t.is_alive()),
             "thread_names": [t.name for t in all_threads]
         }
-    
-    def _collect_network_info(self) -> Dict[str, Any]:
+
+    def _collect_network_info(self) -> dict[str, Any]:
         """Collect network information."""
         try:
             import psutil
             net_io = psutil.net_io_counters()
             net_connections = psutil.net_connections(kind='inet')
-            
+
             return {
                 "bytes_sent": net_io.bytes_sent,
                 "bytes_recv": net_io.bytes_recv,
@@ -409,14 +412,14 @@ class ErrorContextCollector:
             }
         except (ImportError, Exception):
             return {"error": "Unable to collect network info"}
-    
-    def _collect_disk_info(self) -> Dict[str, Any]:
+
+    def _collect_disk_info(self) -> dict[str, Any]:
         """Collect disk information."""
         try:
             import psutil
             disk_usage = psutil.disk_usage(self.repo_root)
             disk_io = psutil.disk_io_counters()
-            
+
             return {
                 "repository_path": str(self.repo_root),
                 "total": disk_usage.total,
@@ -430,15 +433,15 @@ class ErrorContextCollector:
             }
         except (ImportError, Exception):
             return {"error": "Unable to collect disk info"}
-    
-    def _collect_memory_info(self) -> Dict[str, Any]:
+
+    def _collect_memory_info(self) -> dict[str, Any]:
         """Collect memory information."""
         try:
             import psutil
             process = psutil.Process()
             mem_info = process.memory_info()
             swap = psutil.swap_memory()
-            
+
             return {
                 "process": {
                     "rss": mem_info.rss,
@@ -458,26 +461,26 @@ class ErrorContextCollector:
             }
         except (ImportError, Exception):
             return {"error": "Unable to collect memory info"}
-    
-    def _collect_performance_metrics(self) -> Dict[str, Any]:
+
+    def _collect_performance_metrics(self) -> dict[str, Any]:
         """Collect performance metrics."""
         current_time = datetime.now().timestamp()
         duration = current_time - self.start_time
-        
+
         return {
             "duration_seconds": duration,
             "timestamp": current_time,
             "sys.modules_count": len(sys.modules),
         }
-    
-    def _collect_file_info(self) -> Dict[str, Dict[str, Any]]:
+
+    def _collect_file_info(self) -> dict[str, dict[str, Any]]:
         """Collect information about relevant files."""
         files = {}
-        
+
         # Add git info if available
         try:
             import subprocess
-            
+
             # Get current branch
             result = subprocess.run(
                 ["git", "branch", "--show-current"],
@@ -490,7 +493,7 @@ class ErrorContextCollector:
                     "value": result.stdout.strip(),
                     "description": "Current git branch"
                 }
-            
+
             # Get latest commit
             result = subprocess.run(
                 ["git", "rev-parse", "HEAD"],
@@ -503,7 +506,7 @@ class ErrorContextCollector:
                     "value": result.stdout.strip(),
                     "description": "Latest git commit"
                 }
-            
+
             # Get commit message
             result = subprocess.run(
                 ["git", "log", "-1", "--pretty=%B"],
@@ -516,7 +519,7 @@ class ErrorContextCollector:
                     "value": result.stdout.strip(),
                     "description": "Latest commit message"
                 }
-            
+
             # Get modified files
             result = subprocess.run(
                 ["git", "diff", "--name-only"],
@@ -531,7 +534,7 @@ class ErrorContextCollector:
                     "count": len(modified_files),
                     "description": "Modified files in working directory"
                 }
-            
+
             # Get staged files
             result = subprocess.run(
                 ["git", "diff", "--cached", "--name-only"],
@@ -546,7 +549,7 @@ class ErrorContextCollector:
                     "count": len(staged_files),
                     "description": "Staged files"
                 }
-            
+
             # Get untracked files
             result = subprocess.run(
                 ["git", "ls-files", "--others", "--exclude-standard"],
@@ -563,32 +566,32 @@ class ErrorContextCollector:
                 }
         except (FileNotFoundError, subprocess.SubprocessError):
             pass
-        
+
         # Add repository info
         files["repository"] = {
             "path": str(self.repo_root),
             "exists": self.repo_root.exists(),
             "is_git_repo": (self.repo_root / ".git").exists()
         }
-        
+
         return files
 
 
 def collect_error_context(
     error: Exception,
-    repo_root: Optional[Path] = None,
-    custom_context: Optional[Dict[str, Any]] = None,
+    repo_root: Path | None = None,
+    custom_context: dict[str, Any] | None = None,
     **kwargs
 ) -> ErrorContext:
     """
     Collect error context.
-    
+
     Args:
         error: The error that occurred
         repo_root: Repository root directory
         custom_context: Additional custom context
         **kwargs: Additional arguments for ErrorContextCollector
-        
+
     Returns:
         Collected error context
     """
@@ -604,13 +607,13 @@ def with_error_context(
 ) -> Callable:
     """
     Decorator to automatically collect error context.
-    
+
     Args:
         collect_system_info: Whether to collect system information
         collect_environment: Whether to collect environment variables
         collect_variables: Whether to collect local variables
         collect_performance_metrics: Whether to collect performance metrics
-        
+
     Returns:
         Decorated function
     """
@@ -634,62 +637,62 @@ def with_error_context(
                     collect_variables=collect_variables,
                     collect_performance_metrics=collect_performance_metrics
                 )
-                
+
                 # Add context to exception if it's an IFlowError
                 if isinstance(e, IFlowError):
                     e.context = context.to_dict()
-                
+
                 raise
-        
+
         return wrapper
     return decorator
 
 
 class ErrorContextManager:
     """Context manager for collecting error context."""
-    
+
     def __init__(
         self,
-        repo_root: Optional[Path] = None,
+        repo_root: Path | None = None,
         **collector_kwargs
     ):
         """
         Initialize the error context manager.
-        
+
         Args:
             repo_root: Repository root directory
             **collector_kwargs: Additional arguments for ErrorContextCollector
         """
         self.repo_root = repo_root
         self.collector_kwargs = collector_kwargs
-        self.collector: Optional[ErrorContextCollector] = None
-    
+        self.collector: ErrorContextCollector | None = None
+
     def __enter__(self):
         """Enter the context manager."""
         self.collector = ErrorContextCollector(self.repo_root, **self.collector_kwargs)
         return self.collector
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exit the context manager."""
         if exc_type is not None and self.collector:
             # Collect context for the exception
             context = self.collector.collect(exc_val)
-            
+
             # Add context to exception if it's an IFlowError
             if isinstance(exc_val, IFlowError):
                 exc_val.context = context.to_dict()
-        
+
         return False  # Don't suppress exceptions
 
 
-def error_context(repo_root: Optional[Path] = None, **kwargs) -> ErrorContextManager:
+def error_context(repo_root: Path | None = None, **kwargs) -> ErrorContextManager:
     """
     Create an error context manager.
-    
+
     Args:
         repo_root: Repository root directory
         **kwargs: Additional arguments for ErrorContextCollector
-        
+
     Returns:
         ErrorContextManager instance
     """

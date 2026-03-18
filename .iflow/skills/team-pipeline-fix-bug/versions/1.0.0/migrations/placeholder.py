@@ -19,14 +19,14 @@ def validate(state: dict) -> tuple[bool, list[str]]:
     Validate that state is compatible with v1.0.0.
     """
     errors = []
-    
+
     if 'bug_id' not in state:
         errors.append("Missing required field: bug_id")
-    
+
     if 'status' not in state:
         errors.append("Missing required field: status")
-    
+
     if 'phases' not in state:
         errors.append("Missing required field: phases")
-    
+
     return (len(errors) == 0, errors)

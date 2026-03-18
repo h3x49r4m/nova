@@ -5,11 +5,11 @@ Centralized configuration management for skills and pipelines.
 """
 
 import json
-from pathlib import Path
-from typing import Dict, List, Optional, Any, Union, Tuple
 from enum import Enum
+from pathlib import Path
+from typing import Any
 
-from .exceptions import IFlowError, ErrorCode, ValidationError
+from .exceptions import ErrorCode, IFlowError, ValidationError
 
 
 class SkillType(Enum):
@@ -47,7 +47,7 @@ class ConfigManager:
     }
 
     @staticmethod
-    def load_config(config_path: Union[str, Path]) -> Dict[str, Any]:
+    def load_config(config_path: str | Path) -> dict[str, Any]:
         """
         Load configuration from a JSON file.
 
@@ -69,8 +69,8 @@ class ConfigManager:
             )
 
         try:
-            with open(config_path, 'r') as f:
-                config: Dict[str, Any] = json.load(f)
+            with open(config_path) as f:
+                config: dict[str, Any] = json.load(f)
         except json.JSONDecodeError as e:
             raise IFlowError(
                 f"Invalid JSON in configuration file: {e}",
@@ -80,7 +80,7 @@ class ConfigManager:
         return config
 
     @staticmethod
-    def validate_config(config: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    def validate_config(config: dict[str, Any]) -> tuple[bool, list[str]]:
         """
         Validate configuration against standard schema.
 
@@ -148,7 +148,7 @@ class ConfigManager:
         return bool(re.match(pattern, version))
 
     @staticmethod
-    def merge_configs(base_config: Dict[str, Any], override_config: Dict[str, Any]) -> Dict[str, Any]:
+    def merge_configs(base_config: dict[str, Any], override_config: dict[str, Any]) -> dict[str, Any]:
         """
         Merge two configurations, with override taking precedence.
 
@@ -170,7 +170,7 @@ class ConfigManager:
         return merged
 
     @staticmethod
-    def get_skill_config(skill_name: str, skills_dir: Optional[Path] = None) -> Dict[str, Any]:
+    def get_skill_config(skill_name: str, skills_dir: Path | None = None) -> dict[str, Any]:
         """
         Get configuration for a specific skill.
 
@@ -210,7 +210,7 @@ class ConfigManager:
         return config
 
     @staticmethod
-    def get_compatible_pipelines(skill_config: Dict[str, Any]) -> List[str]:
+    def get_compatible_pipelines(skill_config: dict[str, Any]) -> list[str]:
         """
         Get list of pipelines compatible with a skill.
 
@@ -221,7 +221,7 @@ class ConfigManager:
             List of compatible pipeline names
         """
         settings = skill_config.get("settings", {})
-        compatible_pipelines: List[str] = settings.get("compatible_pipelines", [])
+        compatible_pipelines: list[str] = settings.get("compatible_pipelines", [])
 
         # If compatible_pipelines is ["*"], return all pipelines
         if compatible_pipelines == ["*"]:
@@ -230,7 +230,7 @@ class ConfigManager:
         return compatible_pipelines
 
     @staticmethod
-    def get_skill_dependencies(skill_config: Dict[str, Any]) -> List[Dict[str, str]]:
+    def get_skill_dependencies(skill_config: dict[str, Any]) -> list[dict[str, str]]:
         """
         Get dependencies for a skill.
 
@@ -240,11 +240,11 @@ class ConfigManager:
         Returns:
             List of dependencies
         """
-        dependencies: List[Dict[str, str]] = skill_config.get("dependencies", [])
+        dependencies: list[dict[str, str]] = skill_config.get("dependencies", [])
         return dependencies
 
     @staticmethod
-    def check_compatibility(skill_config: Dict[str, Any], pipeline_config: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    def check_compatibility(skill_config: dict[str, Any], pipeline_config: dict[str, Any]) -> tuple[bool, list[str]]:
         """
         Check if a skill is compatible with a pipeline.
 
@@ -278,7 +278,7 @@ class ConfigManager:
         return (len(errors) == 0, errors)
 
     @staticmethod
-    def save_config(config: Dict[str, Any], config_path: Union[str, Path]) -> None:
+    def save_config(config: dict[str, Any], config_path: str | Path) -> None:
         """
         Save configuration to a JSON file.
 
@@ -305,14 +305,14 @@ class ConfigManager:
 
             with open(config_path, 'w') as f:
                 json.dump(config, f, indent=2)
-        except (IOError, OSError) as e:
+        except OSError as e:
             raise IFlowError(
                 f"Failed to save configuration to {config_path}: {e}",
                 ErrorCode.FILE_WRITE_ERROR
             )
 
     @staticmethod
-    def create_default_config(name: str, description: str, skill_type: SkillType = SkillType.ROLE) -> Dict[str, Any]:
+    def create_default_config(name: str, description: str, skill_type: SkillType = SkillType.ROLE) -> dict[str, Any]:
         """
         Create a default configuration for a skill.
 
@@ -324,7 +324,7 @@ class ConfigManager:
         Returns:
             Default configuration dictionary
         """
-        config: Dict[str, Any] = ConfigManager.DEFAULT_CONFIG.copy()
+        config: dict[str, Any] = ConfigManager.DEFAULT_CONFIG.copy()
         config["name"] = name
         config["description"] = description
         config["type"] = skill_type.value
@@ -333,7 +333,7 @@ class ConfigManager:
         return config
 
     @staticmethod
-    def get_config_schema() -> Dict[str, Any]:
+    def get_config_schema() -> dict[str, Any]:
         """
         Get the standard configuration schema.
 

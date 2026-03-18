@@ -4,25 +4,28 @@ Git-Flow Configuration Module
 Handles configuration loading, merging, and state management.
 """
 
-from pathlib import Path
-from typing import Dict, Optional, Any
+from typing import TYPE_CHECKING, Any
+
 from utils import (
-    StructuredLogger,
     LogFormat,
     LogLevel,
+    StructuredLogger,
     read_locked_json,
-    validate_json_schema
 )
-from .models import WorkflowState, BranchState
+
+from .models import BranchState, WorkflowState
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class GitFlowConfig:
     """Manages Git-Flow configuration and state persistence."""
-    
+
     def __init__(self, repo_root: Path, skill_dir: Path, dry_run: bool = False):
         """
         Initialize configuration manager.
-        
+
         Args:
             repo_root: Repository root path
             skill_dir: Git-flow skill directory path
@@ -31,24 +34,24 @@ class GitFlowConfig:
         self.repo_root = repo_root
         self.skill_dir = skill_dir
         self.dry_run = dry_run
-        
+
         self.config_file = self.skill_dir / 'config.json'
         self.phases_file = self.skill_dir / 'phases.json'
         self.workflow_state_file = self.skill_dir / 'workflow-state.json'
         self.branch_states_file = self.skill_dir / 'branch-states.json'
-        
+
         self.logger = StructuredLogger(
             name="git-flow-config",
             log_dir=self.repo_root / ".iflow" / "logs",
             log_level=LogLevel.INFO,
             log_format=LogFormat.JSON
         )
-        
-        self.config: Dict = {}
-        self.phases: Dict = {}
-        self.workflow_state: Optional[WorkflowState] = None
-        self.branch_states: Dict[str, BranchState] = {}
-    
+
+        self.config: dict = {}
+        self.phases: dict = {}
+        self.workflow_state: WorkflowState | None = None
+        self.branch_states: dict[str, BranchState] = {}
+
     def load_config(self) -> None:
         """Load configuration from config.json file."""
         default_config = {
@@ -82,7 +85,7 @@ class GitFlowConfig:
                 "on_error": True
             }
         }
-        
+
         if self.config_file.exists():
             try:
                 user_config = read_locked_json(self.config_file)
@@ -94,28 +97,28 @@ class GitFlowConfig:
         else:
             self.config = default_config
             self.logger.info("Using default configuration")
-    
-    def _merge_config(self, default: Dict, user: Dict) -> Dict:
+
+    def _merge_config(self, default: dict, user: dict) -> dict:
         """
         Merge user configuration with defaults.
-        
+
         Args:
             default: Default configuration dictionary
             user: User configuration dictionary
-            
+
         Returns:
             Merged configuration dictionary
         """
         result = default.copy()
-        
+
         for key, value in user.items():
             if key in result and isinstance(result[key], dict) and isinstance(value, dict):
                 result[key] = self._merge_config(result[key], value)
             else:
                 result[key] = value
-        
+
         return result
-    
+
     def load_phases(self) -> None:
         """Load phase definitions from phases.json file."""
         default_phases = {
@@ -150,7 +153,7 @@ class GitFlowConfig:
                 }
             ]
         }
-        
+
         if self.phases_file.exists():
             try:
                 self.phases = read_locked_json(self.phases_file)
@@ -161,7 +164,7 @@ class GitFlowConfig:
         else:
             self.phases = default_phases
             self.logger.info("Using default phases")
-    
+
     def load_workflow_state(self) -> None:
         """Load workflow state from workflow-state.json file."""
         if self.workflow_state_file.exists():
@@ -175,7 +178,7 @@ class GitFlowConfig:
         else:
             self.workflow_state = None
             self.logger.info("No existing workflow state")
-    
+
     def load_branch_states(self) -> None:
         """Load branch states from branch-states.json file."""
         if self.branch_states_file.exists():
@@ -192,7 +195,7 @@ class GitFlowConfig:
         else:
             self.branch_states = {}
             self.logger.info("No existing branch states")
-    
+
     def save_workflow_state(self) -> None:
         """Save workflow state to workflow-state.json file."""
         if self.workflow_state:
@@ -204,7 +207,7 @@ class GitFlowConfig:
                 self.logger.info("Workflow state saved successfully")
             except Exception as e:
                 self.logger.error(f"Failed to save workflow state: {e}")
-    
+
     def save_branch_states(self) -> None:
         """Save branch states to branch-states.json file."""
         try:
@@ -217,15 +220,15 @@ class GitFlowConfig:
             self.logger.info(f"Saved {len(self.branch_states)} branch states")
         except Exception as e:
             self.logger.error(f"Failed to save branch states: {e}")
-    
+
     def get_config_value(self, *keys: str, default: Any = None) -> Any:
         """
         Get a configuration value by nested keys.
-        
+
         Args:
             *keys: Nested keys to traverse the config
             default: Default value if key not found
-            
+
         Returns:
             Configuration value or default
         """
@@ -236,14 +239,14 @@ class GitFlowConfig:
             else:
                 return default
         return value
-    
-    def get_phase_by_order(self, order: int) -> Optional[Dict]:
+
+    def get_phase_by_order(self, order: int) -> dict | None:
         """
         Get phase definition by order number.
-        
+
         Args:
             order: Phase order number
-            
+
         Returns:
             Phase dictionary or None
         """
@@ -251,11 +254,11 @@ class GitFlowConfig:
             if phase.get("order") == order:
                 return phase
         return None
-    
+
     def get_all_phases(self) -> list:
         """
         Get all phases sorted by order.
-        
+
         Returns:
             List of phase dictionaries
         """

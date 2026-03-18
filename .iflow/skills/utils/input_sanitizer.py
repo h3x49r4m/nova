@@ -4,10 +4,13 @@ Input Sanitization Utility
 Provides centralized input validation and sanitization to prevent injection attacks.
 """
 
-import re
 import html
-from typing import Optional, List, Callable
+import re
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class InputSanitizer:
@@ -47,8 +50,8 @@ class InputSanitizer:
     @staticmethod
     def sanitize_string(
         input_str: str,
-        allowed_chars: Optional[str] = None,
-        max_length: Optional[int] = None,
+        allowed_chars: str | None = None,
+        max_length: int | None = None,
         remove_null: bool = True
     ) -> str:
         """
@@ -164,7 +167,7 @@ class InputSanitizer:
         return sanitized
 
     @staticmethod
-    def sanitize_file_path(file_path: str, base_dir: Optional[Path] = None) -> str:
+    def sanitize_file_path(file_path: str, base_dir: Path | None = None) -> str:
         """
         Sanitize a file path to prevent path traversal.
 
@@ -340,9 +343,9 @@ class InputSanitizer:
 
     @staticmethod
     def sanitize_list(
-        items: List[str],
-        item_sanitizer: Optional[Callable[[str], str]] = None
-    ) -> List[str]:
+        items: list[str],
+        item_sanitizer: Callable[[str], str] | None = None
+    ) -> list[str]:
         """
         Sanitize a list of string items.
 

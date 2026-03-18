@@ -4,12 +4,12 @@ Unit tests for DocumentValidator module.
 """
 
 import json
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from utils.document_validator import DocumentValidator
 
 
@@ -33,12 +33,12 @@ class TestDocumentValidator:
         """Set up shared state directory with test documents."""
         shared_state_dir = temp_dir / ".iflow" / "skills" / ".shared-state"
         shared_state_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Create test documents
         (shared_state_dir / "test-document.md").write_text("# Test Document\n\nContent here.")
         (shared_state_dir / "another-test.md").write_text("# Another Test\n\nMore content.")
         (shared_state_dir / "empty.md").write_text("")
-        
+
         return shared_state_dir
 
     def test_document_validator_initialization(self, temp_dir):
@@ -87,7 +87,7 @@ class TestDocumentValidator:
 
     def test_validate_required_documents_empty_required_list(self, document_validator):
         """Test validating with empty required documents list."""
-        code, message, results = document_validator.validate_required_documents(
+        code, _message, results = document_validator.validate_required_documents(
             phase_name="test-phase",
             required_docs=[]
         )
@@ -144,7 +144,7 @@ Content here.
 More content.
 """)
 
-        is_valid, issues = document_validator._validate_document_structure(doc_path)
+        is_valid, _issues = document_validator._validate_document_structure(doc_path)
 
         assert is_valid is True
 
@@ -155,7 +155,7 @@ More content.
         doc_path = doc_dir / "invalid.md"
         doc_path.write_text("No heading here")
 
-        is_valid, issues = document_validator._validate_document_structure(doc_path)
+        is_valid, _issues = document_validator._validate_document_structure(doc_path)
 
         assert is_valid is False
 
@@ -166,7 +166,7 @@ More content.
         doc_path = doc_dir / "markdown.md"
         doc_path.write_text("# Title\n\n- Item 1\n- Item 2\n\n**Bold** text.")
 
-        is_valid, issues = document_validator._validate_markdown_format(doc_path)
+        is_valid, _issues = document_validator._validate_markdown_format(doc_path)
 
         assert is_valid is True
 
@@ -187,7 +187,7 @@ More content.
 
         assert document_validator.validation_log.exists()
 
-        with open(document_validator.validation_log, 'r') as f:
+        with open(document_validator.validation_log) as f:
             log_data = json.load(f)
 
         assert "test-phase" in log_data
@@ -242,7 +242,7 @@ More content.
         }))
 
         with patch.object(document_validator.schema_validator, 'validate_json_schema', return_value=(True, [])):
-            is_valid, issues = document_validator._validate_document_schema(doc_path, "test-schema.json")
+            is_valid, _issues = document_validator._validate_document_schema(doc_path, "test-schema.json")
 
         assert is_valid is True
 
@@ -278,7 +278,7 @@ More content.
     def test_get_validation_summary(self, document_validator, setup_shared_state):
         """Test getting validation summary."""
         required_docs = ["test-document.md", "another-test.md"]
-        code, message, results = document_validator.validate_required_documents(
+        _code, _message, results = document_validator.validate_required_documents(
             phase_name="test-phase",
             required_docs=required_docs
         )
@@ -299,7 +299,7 @@ More content.
         doc_path = doc_dir / "encoding.md"
         doc_path.write_text("# Test\n\nContent with UTF-8: é, ñ, 中文", encoding='utf-8')
 
-        is_valid, issues = document_validator._validate_encoding(doc_path)
+        is_valid, _issues = document_validator._validate_encoding(doc_path)
 
         assert is_valid is True
 
@@ -308,12 +308,12 @@ More content.
         doc_dir = temp_dir / ".iflow" / "skills" / ".shared-state"
         doc_dir.mkdir(parents=True, exist_ok=True)
         doc_path = doc_dir / "invalid-encoding.md"
-        
+
         # Write with invalid UTF-8 sequence
         with open(doc_path, 'wb') as f:
             f.write(b'# Test\n\nInvalid UTF-8: \xff\xfe')
 
-        is_valid, issues = document_validator._validate_encoding(doc_path)
+        is_valid, _issues = document_validator._validate_encoding(doc_path)
 
         assert is_valid is False
 

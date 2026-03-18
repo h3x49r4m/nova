@@ -7,21 +7,21 @@ Tests exception hierarchy and error handling utilities.
 import unittest
 
 from utils.exceptions import (
-    IFlowError,
-    ErrorCode,
-    ErrorCategory,
-    GitError,
-    GitCommandTimeout,
-    FileError,
-    ConfigError,
-    SkillError,
-    WorkflowError,
-    ValidationError,
-    SecurityError,
     BackupError,
+    ConfigError,
+    ErrorCategory,
+    ErrorCode,
+    FileError,
+    GitCommandTimeout,
+    GitError,
+    IFlowError,
+    SecurityError,
+    SkillError,
+    ValidationError,
     VersionError,
+    WorkflowError,
+    is_retryable,
     wrap_error,
-    is_retryable
 )
 
 

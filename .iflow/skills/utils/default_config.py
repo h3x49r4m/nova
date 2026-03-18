@@ -5,25 +5,25 @@ iFlow CLI Skills components.
 """
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from .constants import (
-    Timeouts,
-    RetryPolicy,
-    GitBranches,
+    BackupConstants,
+    CachePolicy,
+    CommitTypes,
     CoverageThresholds,
     FileSizeLimits,
-    CachePolicy,
-    BackupConstants,
+    GitBranches,
+    LoggingConstants,
+    RetryPolicy,
     SecretPatterns,
-    CommitTypes,
-    LoggingConstants
+    Timeouts,
 )
 
 
 class DefaultConfig:
     """Centralized default configuration values."""
-    
+
     # Repository configuration
     REPO_ROOT = Path.cwd()
     SKILLS_DIR = REPO_ROOT / ".iflow" / "skills"
@@ -32,14 +32,14 @@ class DefaultConfig:
     LOG_DIR = REPO_ROOT / ".iflow" / "logs"
     SCHEMAS_DIR = REPO_ROOT / ".iflow" / "schemas"
     PROFILES_DIR = REPO_ROOT / ".iflow" / "profiles"
-    
+
     # File extensions
     PYTHON_EXT = ".py"
     JSON_EXT = ".json"
     MARKDOWN_EXT = ".md"
     YAML_EXT = ".yaml"
     YML_EXT = ".yml"
-    
+
     # Git configuration
     GIT_DEFAULT_REMOTE = "origin"
     GIT_DEFAULT_BRANCH = GitBranches.MAIN.value
@@ -48,7 +48,7 @@ class DefaultConfig:
         GitBranches.MASTER.value,
         GitBranches.PRODUCTION.value
     ]
-    
+
     # Workflow configuration
     WORKFLOW_DEFAULT_PHASES = [
         {
@@ -100,7 +100,7 @@ class DefaultConfig:
             "required": True
         }
     ]
-    
+
     # Document templates
     DOCUMENT_TEMPLATES = [
         "project-spec.template.md",
@@ -118,7 +118,7 @@ class DefaultConfig:
         "changelog.template.md",
         "pipeline-status.template.md"
     ]
-    
+
     # State documents
     STATE_DOCUMENTS = [
         "project-spec.md",
@@ -136,7 +136,7 @@ class DefaultConfig:
         "changelog.md",
         "pipeline-status.md"
     ]
-    
+
     # Roles
     ROLES = [
         "Client",
@@ -151,7 +151,7 @@ class DefaultConfig:
         "UI/UX Designer",
         "Project Manager"
     ]
-    
+
     # Pipeline configurations
     TEAM_PIPELINES = {
         "team-pipeline-new-project": {
@@ -274,7 +274,7 @@ class DefaultConfig:
             ]
         }
     }
-    
+
     # Quality gates
     QUALITY_GATES = {
         "test_coverage": {
@@ -307,7 +307,7 @@ class DefaultConfig:
             "min_pass_rate": 95.0
         }
     }
-    
+
     # Review tools
     REVIEW_TOOLS = {
         "sonarqube": {
@@ -333,7 +333,7 @@ class DefaultConfig:
             "timeout": Timeouts.TEST_DEFAULT.value
         }
     }
-    
+
     # Coverage thresholds
     COVERAGE_THRESHOLDS = {
         "lines": CoverageThresholds.LINES.value,
@@ -341,20 +341,20 @@ class DefaultConfig:
         "functions": CoverageThresholds.FUNCTIONS.value,
         "statements": CoverageThresholds.STATEMENTS.value
     }
-    
+
     # Commit types
     COMMIT_TYPES = {ct.value: ct.value.title() for ct in CommitTypes}
-    
+
     # Secret patterns
     SECRET_PATTERNS = [pattern.value for pattern in SecretPatterns]
-    
+
     # File size limits
     FILE_SIZE_LIMITS = {
         "max_diff_size": FileSizeLimits.MAX_DIFF_SIZE.value,
         "max_file_read": FileSizeLimits.MAX_FILE_READ.value,
         "max_log_size": FileSizeLimits.MAX_LOG_SIZE.value
     }
-    
+
     # Backup configuration
     BACKUP_CONFIG = {
         "max_backups_per_file": BackupConstants.MAX_BACKUPS_PER_FILE.value,
@@ -362,13 +362,13 @@ class DefaultConfig:
         "max_backup_size_mb": BackupConstants.MAX_BACKUP_SIZE_MB.value,
         "compression_threshold_mb": BackupConstants.COMPRESSION_THRESHOLD_MB.value
     }
-    
+
     # Cache configuration
     CACHE_CONFIG = {
         "default_ttl": CachePolicy.DEFAULT_TTL.value,
         "max_size": CachePolicy.MAX_SIZE.value
     }
-    
+
     # Logging configuration
     LOGGING_CONFIG = {
         "level": "INFO",
@@ -377,9 +377,9 @@ class DefaultConfig:
         "backup_count": 5,
         "log_retention_days": LoggingConstants.LOG_RETENTION_DAYS.value
     }
-    
+
     @classmethod
-    def get_git_flow_config(cls) -> Dict[str, Any]:
+    def get_git_flow_config(cls) -> dict[str, Any]:
         """Get default git-flow configuration."""
         return {
             "workflow": {
@@ -415,9 +415,9 @@ class DefaultConfig:
                 "protected_branches": cls.GIT_PROTECTED_BRANCHES
             }
         }
-    
+
     @classmethod
-    def get_git_manage_config(cls) -> Dict[str, Any]:
+    def get_git_manage_config(cls) -> dict[str, Any]:
         """Get default git-manage configuration."""
         return {
             "pre_commit_checks": True,
@@ -434,9 +434,9 @@ class DefaultConfig:
             "commit_types": cls.COMMIT_TYPES,
             "secret_patterns": cls.SECRET_PATTERNS
         }
-    
+
     @classmethod
-    def get_pipeline_config(cls) -> Dict[str, Any]:
+    def get_pipeline_config(cls) -> dict[str, Any]:
         """Get default pipeline configuration."""
         return {
             "max_stages": 10,
@@ -451,9 +451,9 @@ class DefaultConfig:
             "quality_gates": cls.QUALITY_GATES,
             "review_tools": cls.REVIEW_TOOLS
         }
-    
+
     @classmethod
-    def get_all_defaults(cls) -> Dict[str, Any]:
+    def get_all_defaults(cls) -> dict[str, Any]:
         """Get all default configurations."""
         return {
             "git_flow": cls.get_git_flow_config(),
@@ -471,13 +471,13 @@ class DefaultConfig:
         }
 
 
-def get_default_config(component: str) -> Dict[str, Any]:
+def get_default_config(component: str) -> dict[str, Any]:
     """
     Get default configuration for a specific component.
-    
+
     Args:
         component: Component name (git_flow, git_manage, pipeline, etc.)
-        
+
     Returns:
         Default configuration dictionary
     """
@@ -487,31 +487,31 @@ def get_default_config(component: str) -> Dict[str, Any]:
         "pipeline": DefaultConfig.get_pipeline_config,
         "all": DefaultConfig.get_all_defaults
     }
-    
+
     method = method_map.get(component)
     if method:
         return method()
-    
+
     return {}
 
 
 def merge_with_defaults(
-    user_config: Dict[str, Any],
+    user_config: dict[str, Any],
     component: str
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Merge user configuration with defaults.
-    
+
     Args:
         user_config: User-provided configuration
         component: Component name
-        
+
     Returns:
         Merged configuration
     """
     defaults = get_default_config(component)
-    
-    def deep_merge(base: Dict, override: Dict) -> Dict:
+
+    def deep_merge(base: dict, override: dict) -> dict:
         """Deep merge two dictionaries."""
         result = base.copy()
         for key, value in override.items():
@@ -520,5 +520,5 @@ def merge_with_defaults(
             else:
                 result[key] = value
         return result
-    
+
     return deep_merge(defaults, user_config)

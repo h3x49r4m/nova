@@ -5,14 +5,13 @@ Provides centralized validation functions to eliminate code duplication.
 """
 
 import re
-from typing import Tuple, Optional, List, Any, Callable
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
-from .constants import (
-    ValidationPatterns,
-    CommitTypes,
-    SecretPatterns
-)
+from .constants import CommitTypes, SecretPatterns, ValidationPatterns
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class ValidationResult:
@@ -21,9 +20,9 @@ class ValidationResult:
     def __init__(
         self,
         is_valid: bool,
-        error_message: Optional[str] = None,
-        error_code: Optional[str] = None,
-        metadata: Optional[dict] = None
+        error_message: str | None = None,
+        error_code: str | None = None,
+        metadata: dict | None = None
     ):
         self.is_valid = is_valid
         self.error_message = error_message
@@ -254,7 +253,7 @@ class SharedValidators:
         return ValidationResult(is_valid=True)
 
     @staticmethod
-    def validate_file_path(file_path: str, repo_root: Optional[Path] = None) -> ValidationResult:
+    def validate_file_path(file_path: str, repo_root: Path | None = None) -> ValidationResult:
         """
         Validate a file path for security (prevent path traversal).
 
@@ -461,7 +460,7 @@ class SharedValidators:
         return ValidationResult(is_valid=True)
 
     @staticmethod
-    def validate_all(validators: List[Tuple[Callable[[Any], ValidationResult], Any]], fail_fast: bool = True) -> List[ValidationResult]:
+    def validate_all(validators: list[tuple[Callable[[Any], ValidationResult], Any]], fail_fast: bool = True) -> list[ValidationResult]:
         """
         Run multiple validators and return results.
 
@@ -484,7 +483,7 @@ class SharedValidators:
         return results
 
     @staticmethod
-    def combine_results(results: List[ValidationResult]) -> ValidationResult:
+    def combine_results(results: list[ValidationResult]) -> ValidationResult:
         """
         Combine multiple validation results into one.
 

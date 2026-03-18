@@ -1,5 +1,5 @@
 # Product Manager skill - Feature planning and prioritization
 
-from .product_manager import ProductManager, PrioritizationMethod, INVESTCriteria
+from .product_manager import INVESTCriteria, PrioritizationMethod, ProductManager
 
-__all__ = ['ProductManager', 'PrioritizationMethod', 'INVESTCriteria']
+__all__ = ['INVESTCriteria', 'PrioritizationMethod', 'ProductManager']

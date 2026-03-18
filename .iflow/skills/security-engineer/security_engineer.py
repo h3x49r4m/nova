@@ -8,34 +8,28 @@ import argparse
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
 
 # Import shared utilities
-from utils import (
-    ErrorCode,
-    StructuredLogger,
-    LogFormat,
-    run_git_command
-)
+from utils import ErrorCode, LogFormat, StructuredLogger, run_git_command
 
 
 class SecurityEngineer:
     """Security Engineer role for security validation and scanning."""
 
-    def __init__(self, repo_root: Optional[Path] = None):
+    def __init__(self, repo_root: Path | None = None):
         """Initialize security engineer skill."""
         self.repo_root = repo_root or Path.cwd()
         self.config_dir = self.repo_root / '.iflow' / 'skills' / 'security-engineer'
         self.config_file = self.config_dir / 'config.json'
         self.state_dir = self.repo_root / '.state'
-        
+
         self.logger = StructuredLogger(
             name="security-engineer",
             log_dir=self.repo_root / ".iflow" / "logs",
             log_format=LogFormat.JSON
         )
         self.load_config()
-    
+
     def load_config(self):
         """Load configuration from config file."""
         self.config = {
@@ -44,22 +38,22 @@ class SecurityEngineer:
             'dast_tool': 'owasp-zap',
             'auto_commit': True
         }
-        
+
         if self.config_file.exists():
             try:
-                with open(self.config_file, 'r') as f:
+                with open(self.config_file) as f:
                     user_config = json.load(f)
                 self.config.update(user_config)
-            except (json.JSONDecodeError, IOError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 self.logger.warning(f"Failed to load config: {e}. Using defaults.")
-    
+
     def create_security_report(
         self,
         project_path: Path
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """Create security report document."""
         report_file = project_path / '.state' / 'security-report.md'
-        
+
         try:
             report_content = f"""# Security Report
 
@@ -431,41 +425,41 @@ No high severity alerts found.
 2. CSRF protection must be implemented
 3. Hardcoded secrets must be removed
 """
-            
+
             with open(report_file, 'w') as f:
                 f.write(report_content)
-            
+
             self.logger.info(f"Security report created: {report_file}")
             return 0, f"Security report created: {report_file}"
-            
-        except (IOError, OSError) as e:
+
+        except OSError as e:
             error_msg = f"Failed to create security report: {e}"
             self.logger.error(error_msg)
             return ErrorCode.FILE_WRITE_ERROR.value, error_msg
-    
+
     def commit_changes(
         self,
         project_path: Path,
         changes_description: str
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """Commit changes with proper metadata."""
         try:
             # Get current branch
             code, branch, _ = run_git_command(['rev-parse', '--abbrev-ref', 'HEAD'], cwd=project_path)
             if code != 0:
-                return code, f"Failed to get current branch"
-            
+                return code, "Failed to get current branch"
+
             # Stage files
             files_to_stage = [
                 project_path / '.state' / 'security-report.md'
             ]
-            
+
             for file_path in files_to_stage:
                 if file_path.exists():
                     code, _, stderr = run_git_command(['add', str(file_path)], cwd=project_path)
                     if code != 0:
                         return code, f"Failed to stage {file_path.name}: {stderr}"
-            
+
             # Create commit message
             commit_message = f"""test[security-engineer]: {changes_description}
 
@@ -487,31 +481,31 @@ Verification:
 - Tests: passed
 - Coverage: N/A
 - TDD: compliant"""
-            
+
             # Commit changes
-            code, stdout, stderr = run_git_command(['commit', '-m', commit_message], cwd=project_path)
-            
+            code, _stdout, stderr = run_git_command(['commit', '-m', commit_message], cwd=project_path)
+
             if code != 0:
                 return code, f"Failed to commit changes: {stderr}"
-            
+
             self.logger.info("Changes committed successfully")
             return 0, "Changes committed successfully"
-            
+
         except Exception as e:
             error_msg = f"Failed to commit changes: {e}"
             self.logger.error(error_msg)
             return ErrorCode.UNKNOWN_ERROR.value, error_msg
-    
+
     def run_workflow(
         self,
         project_path: Path
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """Run the complete security engineer workflow."""
         # Step 1: Create security report
         code, message = self.create_security_report(project_path)
         if code != 0:
             return code, f"Failed to create security report: {message}"
-        
+
         # Step 2: Commit changes
         if self.config.get('auto_commit', True):
             code, message = self.commit_changes(
@@ -520,43 +514,43 @@ Verification:
             )
             if code != 0:
                 return code, f"Failed to commit changes: {message}"
-        
-        return 0, f"Security engineer workflow completed successfully. Performed comprehensive security assessment with SAST, DAST, and dependency scanning. Found 11 vulnerabilities (0 critical, 2 high, 3 medium, 7 low). Overall security score: 85/100. Recommendation: APPROVED FOR RELEASE WITH CONDITIONS (fix high-severity vulnerabilities, implement CSRF protection, remove hardcoded secrets)."
+
+        return 0, "Security engineer workflow completed successfully. Performed comprehensive security assessment with SAST, DAST, and dependency scanning. Found 11 vulnerabilities (0 critical, 2 high, 3 medium, 7 low). Overall security score: 85/100. Recommendation: APPROVED FOR RELEASE WITH CONDITIONS (fix high-severity vulnerabilities, implement CSRF protection, remove hardcoded secrets)."
 
 
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(description='Security Engineer skill for security validation and scanning')
     parser.add_argument('--project-path', type=str, help='Path to the project directory')
-    
+
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
-    
+
     # Create security report command
-    report_parser = subparsers.add_parser('create-report', help='Create security report')
-    
+    subparsers.add_parser('create-report', help='Create security report')
+
     # Run workflow command
     workflow_parser = subparsers.add_parser('run', help='Run complete security engineer workflow')
     workflow_parser.add_argument('--project-path', type=str, required=True, help='Path to the project directory')
-    
+
     args = parser.parse_args()
-    
+
     if not args.command:
         parser.print_help()
         return 0
-    
+
     security = SecurityEngineer()
     project_path = Path(args.project_path) if args.project_path else Path.cwd()
-    
+
     if args.command == 'create-report':
         code, output = security.create_security_report(project_path)
         print(output)
         return code
-    
+
     elif args.command == 'run':
         code, output = security.run_workflow(project_path)
         print(output)
         return code
-    
+
     else:
         print(f"Unknown command: {args.command}", file=sys.stderr)
         return 1

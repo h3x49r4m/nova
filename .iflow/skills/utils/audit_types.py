@@ -4,10 +4,10 @@ This module contains the core data structures and enums used throughout
 the audit logging system for tracking state changes and operations.
 """
 
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any
 
 
 class AuditEventType(Enum):
@@ -43,14 +43,14 @@ class AuditEvent:
     component: str
     file_path: str
     operation: str
-    details: Dict[str, Any]
-    previous_state: Optional[Dict] = None
-    new_state: Optional[Dict] = None
-    error: Optional[str] = None
-    tags: Optional[List[str]] = None
-    metadata: Optional[Dict[str, Any]] = None
-    
-    def to_dict(self) -> Dict:
+    details: dict[str, Any]
+    previous_state: dict | None = None
+    new_state: dict | None = None
+    error: str | None = None
+    tags: list[str] | None = None
+    metadata: dict[str, Any] | None = None
+
+    def to_dict(self) -> dict:
         """Convert to dictionary with Enum values as strings."""
         data = asdict(self)
         # Convert Enum values to their string values
@@ -59,9 +59,9 @@ class AuditEvent:
         if isinstance(data.get('severity'), AuditSeverity):
             data['severity'] = data['severity'].value
         return data
-    
+
     @classmethod
-    def from_dict(cls, data: Dict) -> 'AuditEvent':
+    def from_dict(cls, data: dict) -> AuditEvent:
         """Create from dictionary."""
         # Convert string enums back to enums
         if isinstance(data.get('event_type'), str):
@@ -69,7 +69,7 @@ class AuditEvent:
         if isinstance(data.get('severity'), str):
             data['severity'] = AuditSeverity(data['severity'])
         return cls(**data)
-    
+
     @classmethod
     def create_event(
         cls,
@@ -79,17 +79,17 @@ class AuditEvent:
         component: str,
         file_path: str,
         operation: str,
-        details: Dict[str, Any],
-        previous_state: Optional[Dict] = None,
-        new_state: Optional[Dict] = None,
-        error: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        timestamp: Optional[str] = None
-    ) -> 'AuditEvent':
+        details: dict[str, Any],
+        previous_state: dict | None = None,
+        new_state: dict | None = None,
+        error: str | None = None,
+        tags: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+        timestamp: str | None = None
+    ) -> AuditEvent:
         """
         Factory method to create a new audit event.
-        
+
         Args:
             event_type: Type of the audit event
             severity: Severity level
@@ -104,13 +104,13 @@ class AuditEvent:
             tags: Optional tags for categorization
             metadata: Optional metadata
             timestamp: Optional timestamp (defaults to now)
-            
+
         Returns:
             AuditEvent instance
         """
         if timestamp is None:
             timestamp = datetime.now().isoformat()
-        
+
         return cls(
             event_id=cls._generate_event_id(),
             event_type=event_type,
@@ -127,7 +127,7 @@ class AuditEvent:
             tags=tags or [],
             metadata=metadata or {}
         )
-    
+
     @staticmethod
     def _generate_event_id() -> str:
         """Generate a unique event ID."""

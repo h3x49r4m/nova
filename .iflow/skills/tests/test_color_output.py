@@ -1,20 +1,14 @@
 """Tests for color_output module."""
 
-import pytest
-from pathlib import Path
 import sys
-from io import StringIO
+from pathlib import Path
+
+import pytest
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from utils.color_output import (
-    Color,
-    Style,
-    ColorTheme,
-    ColorFormatter,
-    ColorConsole
-)
+from utils.color_output import Color, ColorConsole, ColorFormatter, ColorTheme, Style
 
 
 class TestColor:

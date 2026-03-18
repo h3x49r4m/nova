@@ -4,8 +4,8 @@ Common Exception Classes
 Standardized exception hierarchy for the iFlow CLI skills system.
 """
 
-from typing import Optional, Dict, Any, List
 from enum import Enum
+from typing import Any
 
 
 class ErrorCategory(Enum):
@@ -104,8 +104,8 @@ class IFlowError(Exception):
         message: str,
         code: ErrorCode = ErrorCode.UNKNOWN_ERROR,
         category: ErrorCategory = ErrorCategory.PERMANENT,
-        details: Optional[Dict[str, Any]] = None,
-        cause: Optional[Exception] = None
+        details: dict[str, Any] | None = None,
+        cause: Exception | None = None
     ):
         """
         Initialize iFlow error.
@@ -121,12 +121,12 @@ class IFlowError(Exception):
         self.message = message
         self.code = code
         self.category = category
-        self.details: Dict[str, Any] = details or {}
+        self.details: dict[str, Any] = details or {}
         self.cause = cause
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert error to dictionary for serialization."""
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "message": self.message,
             "code": self.code.name,
             "code_value": self.code.value,
@@ -150,15 +150,15 @@ class IFlowError(Exception):
 class GitError(IFlowError):
     """Git-related errors."""
 
-    def __init__(self, message: str, code: ErrorCode, details: Optional[Dict[str, Any]] = None, cause: Optional[Exception] = None):
+    def __init__(self, message: str, code: ErrorCode, details: dict[str, Any] | None = None, cause: Exception | None = None):
         super().__init__(message, code, ErrorCategory.TRANSIENT, details, cause)
 
 
 class GitCommandTimeout(GitError):
     """Git command timeout errors."""
 
-    def __init__(self, message: str, command: Optional[List[str]] = None, timeout: Optional[int] = None):
-        details: Dict[str, Any] = {}
+    def __init__(self, message: str, command: list[str] | None = None, timeout: int | None = None):
+        details: dict[str, Any] = {}
         if command:
             details['command'] = ' '.join(command)
         if timeout:
@@ -169,64 +169,64 @@ class GitCommandTimeout(GitError):
 class FileError(IFlowError):
     """File operation errors."""
 
-    def __init__(self, message: str, code: ErrorCode, details: Optional[Dict[str, Any]] = None, cause: Optional[Exception] = None):
+    def __init__(self, message: str, code: ErrorCode, details: dict[str, Any] | None = None, cause: Exception | None = None):
         super().__init__(message, code, ErrorCategory.PERMANENT, details, cause)
 
 
 class ConfigError(IFlowError):
     """Configuration errors."""
 
-    def __init__(self, message: str, code: ErrorCode, details: Optional[Dict[str, Any]] = None, cause: Optional[Exception] = None):
+    def __init__(self, message: str, code: ErrorCode, details: dict[str, Any] | None = None, cause: Exception | None = None):
         super().__init__(message, code, ErrorCategory.CONFIGURATION, details, cause)
 
 
 class SkillError(IFlowError):
     """Skill-related errors."""
 
-    def __init__(self, message: str, code: ErrorCode, details: Optional[Dict[str, Any]] = None, cause: Optional[Exception] = None):
+    def __init__(self, message: str, code: ErrorCode, details: dict[str, Any] | None = None, cause: Exception | None = None):
         super().__init__(message, code, ErrorCategory.DEPENDENCY, details, cause)
 
 
 class WorkflowError(IFlowError):
     """Workflow-related errors."""
 
-    def __init__(self, message: str, code: ErrorCode, details: Optional[Dict[str, Any]] = None, cause: Optional[Exception] = None):
+    def __init__(self, message: str, code: ErrorCode, details: dict[str, Any] | None = None, cause: Exception | None = None):
         super().__init__(message, code, ErrorCategory.PERMANENT, details, cause)
 
 
 class ValidationError(IFlowError):
     """Validation errors."""
 
-    def __init__(self, message: str, code: ErrorCode, details: Optional[Dict[str, Any]] = None, cause: Optional[Exception] = None):
+    def __init__(self, message: str, code: ErrorCode, details: dict[str, Any] | None = None, cause: Exception | None = None):
         super().__init__(message, code, ErrorCategory.USER_ERROR, details, cause)
 
 
 class SecurityError(IFlowError):
     """Security-related errors."""
 
-    def __init__(self, message: str, code: ErrorCode, details: Optional[Dict[str, Any]] = None, cause: Optional[Exception] = None):
+    def __init__(self, message: str, code: ErrorCode, details: dict[str, Any] | None = None, cause: Exception | None = None):
         super().__init__(message, code, ErrorCategory.PERMANENT, details, cause)
 
 
 class BackupError(IFlowError):
     """Backup-related errors."""
 
-    def __init__(self, message: str, code: ErrorCode, details: Optional[Dict[str, Any]] = None, cause: Optional[Exception] = None):
+    def __init__(self, message: str, code: ErrorCode, details: dict[str, Any] | None = None, cause: Exception | None = None):
         super().__init__(message, code, ErrorCategory.TRANSIENT, details, cause)
 
 
 class VersionError(IFlowError):
     """Version-related errors."""
 
-    def __init__(self, message: str, code: ErrorCode, details: Optional[Dict[str, Any]] = None, cause: Optional[Exception] = None):
+    def __init__(self, message: str, code: ErrorCode, details: dict[str, Any] | None = None, cause: Exception | None = None):
         super().__init__(message, code, ErrorCategory.DEPENDENCY, details, cause)
 
 
 def wrap_error(
     original_error: Exception,
-    message: Optional[str] = None,
-    code: Optional[ErrorCode] = None,
-    category: Optional[ErrorCategory] = None
+    message: str | None = None,
+    code: ErrorCode | None = None,
+    category: ErrorCategory | None = None
 ) -> IFlowError:
     """
     Wrap an exception in an IFlowError.

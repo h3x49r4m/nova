@@ -1,23 +1,15 @@
 """Tests for backup_manager module."""
 
-import pytest
-from pathlib import Path
 import sys
-import json
-import shutil
-from datetime import datetime
-from unittest.mock import Mock, patch, MagicMock
+from pathlib import Path
+
+import pytest
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from utils.backup_manager import (
-    BackupStatus,
-    BackupMetadata,
-    BackupManager
-)
+from utils.backup_manager import BackupManager, BackupMetadata, BackupStatus
 from utils.exceptions import BackupError
-from utils.file_lock import FileLockError
 
 
 @pytest.fixture
@@ -126,12 +118,12 @@ class TestBackupManager:
         manager = BackupManager(backup_dir=tmp_backup_dir)
         backup_path = manager.create_backup(sample_file)
         assert backup_path.exists()
-        assert backup_path.parent == tmp_backup_dir
+        assert backup_path.parent.parent == tmp_backup_dir
 
     def test_create_multiple_backups(self, tmp_backup_dir, sample_file):
         """Test creating multiple backups."""
         manager = BackupManager(backup_dir=tmp_backup_dir, max_backups=3)
-        for i in range(5):
+        for _i in range(5):
             manager.create_backup(sample_file)
         # Should only keep max_backups
         backups = manager.list_backups(sample_file)
@@ -141,10 +133,10 @@ class TestBackupManager:
         """Test restoring a backup."""
         manager = BackupManager(backup_dir=tmp_backup_dir)
         backup_path = manager.create_backup(sample_file)
-        
+
         # Modify original file
         sample_file.write_text("Modified content")
-        
+
         # Restore backup
         manager.restore_backup(sample_file, backup_path)
         content = sample_file.read_text()
@@ -162,7 +154,7 @@ class TestBackupManager:
         manager = BackupManager(backup_dir=tmp_backup_dir)
         manager.create_backup(sample_file)
         manager.create_backup(sample_file)
-        
+
         backups = manager.list_backups(sample_file)
         assert len(backups) == 2
         assert all(isinstance(b, BackupMetadata) for b in backups)
@@ -177,10 +169,10 @@ class TestBackupManager:
         """Test deleting a backup."""
         manager = BackupManager(backup_dir=tmp_backup_dir)
         backup_path = manager.create_backup(sample_file)
-        
+
         manager.delete_backup(sample_file, backup_path)
         assert not backup_path.exists()
-        
+
         backups = manager.list_backups(sample_file)
         assert len(backups) == 0
 
@@ -189,7 +181,7 @@ class TestBackupManager:
         manager = BackupManager(backup_dir=tmp_backup_dir)
         manager.create_backup(sample_file)
         manager.create_backup(sample_file)
-        
+
         manager.delete_all_backups(sample_file)
         backups = manager.list_backups(sample_file)
         assert len(backups) == 0
@@ -197,9 +189,9 @@ class TestBackupManager:
     def test_cleanup_old_backups(self, tmp_backup_dir, sample_file):
         """Test cleaning up old backups beyond max_backups."""
         manager = BackupManager(backup_dir=tmp_backup_dir, max_backups=2)
-        for i in range(5):
+        for _i in range(5):
             manager.create_backup(sample_file)
-        
+
         manager.cleanup_old_backups(sample_file)
         backups = manager.list_backups(sample_file)
         assert len(backups) <= 2
@@ -208,7 +200,7 @@ class TestBackupManager:
         """Test getting backup metadata."""
         manager = BackupManager(backup_dir=tmp_backup_dir)
         backup_path = manager.create_backup(sample_file)
-        
+
         metadata = manager.get_backup_metadata(sample_file, backup_path)
         assert metadata is not None
         assert metadata.original_file == str(sample_file)
@@ -217,7 +209,7 @@ class TestBackupManager:
         """Test verifying backup integrity."""
         manager = BackupManager(backup_dir=tmp_backup_dir)
         backup_path = manager.create_backup(sample_file)
-        
+
         is_valid = manager.verify_backup_integrity(sample_file, backup_path)
         assert is_valid is True
 
@@ -225,10 +217,10 @@ class TestBackupManager:
         """Test verifying corrupted backup."""
         manager = BackupManager(backup_dir=tmp_backup_dir)
         backup_path = manager.create_backup(sample_file)
-        
+
         # Corrupt the backup
         backup_path.write_text("corrupted content")
-        
+
         is_valid = manager.verify_backup_integrity(sample_file, backup_path)
         assert is_valid is False
 
@@ -236,7 +228,7 @@ class TestBackupManager:
         """Test pruning backups by age."""
         manager = BackupManager(backup_dir=tmp_backup_dir, max_backups=10)
         manager.create_backup(sample_file)
-        
+
         # Prune backups older than 0 days (should remove all)
         manager.prune_old_backups(max_age_days=0)
         backups = manager.list_backups(sample_file)
@@ -247,7 +239,7 @@ class TestBackupManager:
         manager = BackupManager(backup_dir=tmp_backup_dir)
         manager.create_backup(sample_file)
         manager.create_backup(sample_file)
-        
+
         total_size = manager.get_total_backup_size()
         assert total_size > 0
 
@@ -261,7 +253,7 @@ class TestBackupManager:
         """Test saving backup index."""
         manager = BackupManager(backup_dir=tmp_backup_dir)
         manager.create_backup(sample_file)
-        
+
         # Force save index
         manager._save_index()
         assert manager.index_file.exists()

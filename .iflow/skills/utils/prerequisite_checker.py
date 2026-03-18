@@ -5,13 +5,15 @@ prerequisites are met before executing workflows or pipeline stages.
 """
 
 import os
-import subprocess
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Set
-from enum import Enum
 import shutil
+import subprocess
+from enum import Enum
+from typing import TYPE_CHECKING, Any
 
 from .version_check import VersionChecker
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class PrerequisiteType(Enum):
@@ -45,7 +47,7 @@ class PrerequisiteStatus(Enum):
 
 class Prerequisite:
     """Represents a single prerequisite check."""
-    
+
     def __init__(
         self,
         check_id: str,
@@ -57,7 +59,7 @@ class Prerequisite:
     ):
         """
         Initialize a prerequisite.
-        
+
         Args:
             check_id: Unique identifier for the check
             name: Human-readable name
@@ -73,33 +75,33 @@ class Prerequisite:
         self.severity = severity
         self.optional = optional
         self.status = PrerequisiteStatus.PENDING
-        self.message: Optional[str] = None
-        self.details: Optional[Dict[str, Any]] = None
-    
-    def mark_passed(self, message: Optional[str] = None, details: Optional[Dict] = None):
+        self.message: str | None = None
+        self.details: dict[str, Any] | None = None
+
+    def mark_passed(self, message: str | None = None, details: dict | None = None):
         """Mark the prerequisite as passed."""
         self.status = PrerequisiteStatus.PASSED
         self.message = message
         self.details = details
-    
-    def mark_failed(self, message: str, details: Optional[Dict] = None):
+
+    def mark_failed(self, message: str, details: dict | None = None):
         """Mark the prerequisite as failed."""
         self.status = PrerequisiteStatus.FAILED
         self.message = message
         self.details = details
-    
-    def mark_warning(self, message: str, details: Optional[Dict] = None):
+
+    def mark_warning(self, message: str, details: dict | None = None):
         """Mark the prerequisite as warning."""
         self.status = PrerequisiteStatus.WARNING
         self.message = message
         self.details = details
-    
-    def mark_skipped(self, message: Optional[str] = None):
+
+    def mark_skipped(self, message: str | None = None):
         """Mark the prerequisite as skipped."""
         self.status = PrerequisiteStatus.SKIPPED
         self.message = message
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert prerequisite to dictionary."""
         return {
             "check_id": self.check_id,
@@ -116,49 +118,49 @@ class Prerequisite:
 
 class PrerequisiteChecker:
     """Checks and validates prerequisites for workflows."""
-    
+
     def __init__(self, repo_root: Path):
         """
         Initialize the prerequisite checker.
-        
+
         Args:
             repo_root: Repository root directory
         """
         self.repo_root = repo_root
         self.version_checker = VersionChecker()
-        self.prerequisites: List[Prerequisite] = []
-        self.checked: Set[str] = set()
-    
+        self.prerequisites: list[Prerequisite] = []
+        self.checked: set[str] = set()
+
     def add_prerequisite(self, prerequisite: Prerequisite):
         """
         Add a prerequisite to check.
-        
+
         Args:
             prerequisite: Prerequisite to add
         """
         self.prerequisites.append(prerequisite)
-    
-    def add_prerequisites(self, prerequisites: List[Prerequisite]):
+
+    def add_prerequisites(self, prerequisites: list[Prerequisite]):
         """
         Add multiple prerequisites.
-        
+
         Args:
             prerequisites: List of prerequisites to add
         """
         self.prerequisites.extend(prerequisites)
-    
+
     def clear(self):
         """Clear all prerequisites."""
         self.prerequisites.clear()
         self.checked.clear()
-    
+
     def check_tool_available(self, tool_name: str) -> Prerequisite:
         """
         Check if a tool is available on the system.
-        
+
         Args:
             tool_name: Name of the tool to check
-            
+
         Returns:
             Prerequisite with check result
         """
@@ -168,7 +170,7 @@ class PrerequisiteChecker:
             prerequisite_type=PrerequisiteType.TOOL_AVAILABLE,
             description=f"Check if {tool_name} is installed and available"
         )
-        
+
         path = shutil.which(tool_name)
         if path:
             prerequisite.mark_passed(
@@ -179,23 +181,23 @@ class PrerequisiteChecker:
             prerequisite.mark_failed(
                 message=f"{tool_name} is not installed or not in PATH"
             )
-        
+
         return prerequisite
-    
+
     def check_tool_version(
         self,
         tool_name: str,
-        min_version: Optional[str] = None,
-        max_version: Optional[str] = None
+        min_version: str | None = None,
+        max_version: str | None = None
     ) -> Prerequisite:
         """
         Check if a tool meets version requirements.
-        
+
         Args:
             tool_name: Name of the tool
             min_version: Minimum required version
             max_version: Maximum allowed version
-            
+
         Returns:
             Prerequisite with check result
         """
@@ -205,7 +207,7 @@ class PrerequisiteChecker:
             prerequisite_type=PrerequisiteType.TOOL_VERSION,
             description=f"Check {tool_name} version meets requirements"
         )
-        
+
         try:
             result = subprocess.run(
                 [tool_name, "--version"],
@@ -213,7 +215,7 @@ class PrerequisiteChecker:
                 text=True,
                 timeout=10
             )
-            
+
             if result.returncode == 0:
                 version = self.version_checker._parse_version(result.stdout or result.stderr)
                 prerequisite.mark_passed(
@@ -228,16 +230,16 @@ class PrerequisiteChecker:
             prerequisite.mark_failed(
                 message=f"{tool_name} not found or version check timed out"
             )
-        
+
         return prerequisite
-    
+
     def check_file_exists(self, file_path: Path) -> Prerequisite:
         """
         Check if a file exists.
-        
+
         Args:
             file_path: Path to the file
-            
+
         Returns:
             Prerequisite with check result
         """
@@ -247,7 +249,7 @@ class PrerequisiteChecker:
             prerequisite_type=PrerequisiteType.FILE_EXISTS,
             description=f"Check if {file_path} exists"
         )
-        
+
         if file_path.exists():
             if file_path.is_file():
                 prerequisite.mark_passed(
@@ -262,16 +264,16 @@ class PrerequisiteChecker:
             prerequisite.mark_failed(
                 message=f"File not found: {file_path}"
             )
-        
+
         return prerequisite
-    
+
     def check_directory_exists(self, dir_path: Path) -> Prerequisite:
         """
         Check if a directory exists.
-        
+
         Args:
             dir_path: Path to the directory
-            
+
         Returns:
             Prerequisite with check result
         """
@@ -281,7 +283,7 @@ class PrerequisiteChecker:
             prerequisite_type=PrerequisiteType.DIRECTORY_EXISTS,
             description=f"Check if {dir_path} exists and is a directory"
         )
-        
+
         if dir_path.exists():
             if dir_path.is_dir():
                 prerequisite.mark_passed(
@@ -296,9 +298,9 @@ class PrerequisiteChecker:
             prerequisite.mark_failed(
                 message=f"Directory not found: {dir_path}"
             )
-        
+
         return prerequisite
-    
+
     def check_environment_variable(
         self,
         var_name: str,
@@ -306,11 +308,11 @@ class PrerequisiteChecker:
     ) -> Prerequisite:
         """
         Check if an environment variable is set.
-        
+
         Args:
             var_name: Name of the environment variable
             required: Whether the variable is required
-            
+
         Returns:
             Prerequisite with check result
         """
@@ -321,7 +323,7 @@ class PrerequisiteChecker:
             description=f"Check if {var_name} environment variable is set",
             optional=not required
         )
-        
+
         value = os.environ.get(var_name)
         if value:
             prerequisite.mark_passed(
@@ -337,13 +339,13 @@ class PrerequisiteChecker:
                 prerequisite.mark_warning(
                     message=f"{var_name} environment variable is not set (optional)"
                 )
-        
+
         return prerequisite
-    
+
     def check_git_repository(self) -> Prerequisite:
         """
         Check if current directory is a git repository.
-        
+
         Returns:
             Prerequisite with check result
         """
@@ -353,7 +355,7 @@ class PrerequisiteChecker:
             prerequisite_type=PrerequisiteType.GIT_REPOSITORY,
             description="Check if current directory is a git repository"
         )
-        
+
         git_dir = self.repo_root / ".git"
         if git_dir.exists():
             prerequisite.mark_passed(
@@ -364,16 +366,16 @@ class PrerequisiteChecker:
             prerequisite.mark_failed(
                 message="Not a git repository"
             )
-        
+
         return prerequisite
-    
+
     def check_git_branch_exists(self, branch_name: str) -> Prerequisite:
         """
         Check if a git branch exists.
-        
+
         Args:
             branch_name: Name of the branch
-            
+
         Returns:
             Prerequisite with check result
         """
@@ -383,7 +385,7 @@ class PrerequisiteChecker:
             prerequisite_type=PrerequisiteType.GIT_BRANCH_EXISTS,
             description=f"Check if git branch {branch_name} exists"
         )
-        
+
         try:
             result = subprocess.run(
                 ["git", "branch", "--list", branch_name],
@@ -392,7 +394,7 @@ class PrerequisiteChecker:
                 cwd=self.repo_root,
                 timeout=10
             )
-            
+
             if result.returncode == 0 and branch_name in result.stdout:
                 prerequisite.mark_passed(
                     message=f"Branch {branch_name} exists"
@@ -405,16 +407,16 @@ class PrerequisiteChecker:
             prerequisite.mark_failed(
                 message="Git branch check timed out"
             )
-        
+
         return prerequisite
-    
+
     def check_disk_space(self, min_space_mb: int = 100) -> Prerequisite:
         """
         Check if sufficient disk space is available.
-        
+
         Args:
             min_space_mb: Minimum required disk space in MB
-            
+
         Returns:
             Prerequisite with check result
         """
@@ -424,11 +426,11 @@ class PrerequisiteChecker:
             prerequisite_type=PrerequisiteType.DISK_SPACE,
             description=f"Check if at least {min_space_mb}MB disk space is available"
         )
-        
+
         try:
             usage = shutil.disk_usage(self.repo_root)
             available_mb = usage.free / (1024 * 1024)
-            
+
             if available_mb >= min_space_mb:
                 prerequisite.mark_passed(
                     message=f"Sufficient disk space: {available_mb:.0f}MB available",
@@ -440,19 +442,19 @@ class PrerequisiteChecker:
                 )
         except Exception as e:
             prerequisite.mark_failed(
-                message=f"Failed to check disk space: {str(e)}"
+                message=f"Failed to check disk space: {e!s}"
             )
-        
+
         return prerequisite
-    
+
     def check_permissions(self, file_path: Path, required_permission: str = "read") -> Prerequisite:
         """
         Check file permissions.
-        
+
         Args:
             file_path: Path to check
             required_permission: Type of permission required (read, write, execute)
-            
+
         Returns:
             Prerequisite with check result
         """
@@ -462,41 +464,41 @@ class PrerequisiteChecker:
             prerequisite_type=PrerequisiteType.PERMISSIONS,
             description=f"Check if {required_permission} permission on {file_path}"
         )
-        
+
         try:
             if required_permission == "read":
                 if os.access(file_path, os.R_OK):
-                    prerequisite.mark_passed(message=f"Read permission granted")
+                    prerequisite.mark_passed(message="Read permission granted")
                 else:
-                    prerequisite.mark_failed(message=f"Read permission denied")
+                    prerequisite.mark_failed(message="Read permission denied")
             elif required_permission == "write":
                 if os.access(file_path, os.W_OK):
-                    prerequisite.mark_passed(message=f"Write permission granted")
+                    prerequisite.mark_passed(message="Write permission granted")
                 else:
-                    prerequisite.mark_failed(message=f"Write permission denied")
+                    prerequisite.mark_failed(message="Write permission denied")
             elif required_permission == "execute":
                 if os.access(file_path, os.X_OK):
-                    prerequisite.mark_passed(message=f"Execute permission granted")
+                    prerequisite.mark_passed(message="Execute permission granted")
                 else:
-                    prerequisite.mark_failed(message=f"Execute permission denied")
+                    prerequisite.mark_failed(message="Execute permission denied")
         except Exception as e:
-            prerequisite.mark_failed(message=f"Failed to check permissions: {str(e)}")
-        
+            prerequisite.mark_failed(message=f"Failed to check permissions: {e!s}")
+
         return prerequisite
-    
-    def check_all(self) -> Tuple[bool, List[Prerequisite]]:
+
+    def check_all(self) -> tuple[bool, list[Prerequisite]]:
         """
         Check all prerequisites.
-        
+
         Returns:
             Tuple of (all_passed, list_of_prerequisites)
         """
         results = []
-        
+
         for prereq in self.prerequisites:
             if prereq.check_id not in self.checked:
                 prereq.status = PrerequisiteStatus.CHECKING
-                
+
                 # Execute the appropriate check
                 if prereq.prerequisite_type == PrerequisiteType.TOOL_AVAILABLE:
                     tool_name = prereq.name.split(":")[1].strip()
@@ -504,24 +506,24 @@ class PrerequisiteChecker:
                     prereq.status = result.status
                     prereq.message = result.message
                     prereq.details = result.details
-                
+
                 self.checked.add(prereq.check_id)
-            
+
             results.append(prereq)
-        
+
         # Determine if all required checks passed
         required_passed = all(
             pr.status in [PrerequisiteStatus.PASSED, PrerequisiteStatus.SKIPPED]
             for pr in results
             if not pr.optional and pr.severity == "error"
         )
-        
+
         return required_passed, results
-    
-    def get_summary(self) -> Dict[str, Any]:
+
+    def get_summary(self) -> dict[str, Any]:
         """
         Get a summary of prerequisite checks.
-        
+
         Returns:
             Dictionary with summary statistics
         """
@@ -530,14 +532,14 @@ class PrerequisiteChecker:
         failed = sum(1 for pr in self.prerequisites if pr.status == PrerequisiteStatus.FAILED)
         warnings = sum(1 for pr in self.prerequisites if pr.status == PrerequisiteStatus.WARNING)
         skipped = sum(1 for pr in self.prerequisites if pr.status == PrerequisiteStatus.SKIPPED)
-        
+
         required_failed = sum(
             1 for pr in self.prerequisites
             if pr.status == PrerequisiteStatus.FAILED
             and not pr.optional
             and pr.severity == "error"
         )
-        
+
         return {
             "total_checks": total,
             "passed": passed,
@@ -556,41 +558,41 @@ def create_prerequisite_checker(repo_root: Path) -> PrerequisiteChecker:
 
 def validate_workflow_prerequisites(
     repo_root: Path,
-    required_tools: Optional[List[str]] = None,
-    required_env_vars: Optional[List[str]] = None,
+    required_tools: list[str] | None = None,
+    required_env_vars: list[str] | None = None,
     min_disk_space_mb: int = 100
-) -> Tuple[bool, Dict[str, Any]]:
+) -> tuple[bool, dict[str, Any]]:
     """
     Validate common workflow prerequisites.
-    
+
     Args:
         repo_root: Repository root directory
         required_tools: List of required tools
         required_env_vars: List of required environment variables
         min_disk_space_mb: Minimum required disk space
-        
+
     Returns:
         Tuple of (all_passed, summary_dict)
     """
     checker = create_prerequisite_checker(repo_root)
-    
+
     # Add standard checks
     checker.add_prerequisite(checker.check_git_repository())
     checker.add_prerequisite(checker.check_disk_space(min_disk_space_mb))
-    
+
     # Add tool checks
     if required_tools:
         for tool in required_tools:
             checker.add_prerequisite(checker.check_tool_available(tool))
-    
+
     # Add environment variable checks
     if required_env_vars:
         for var in required_env_vars:
             checker.add_prerequisite(checker.check_environment_variable(var, required=True))
-    
+
     # Run all checks
     all_passed, results = checker.check_all()
-    
+
     return all_passed, {
         "summary": checker.get_summary(),
         "prerequisites": [pr.to_dict() for pr in results]

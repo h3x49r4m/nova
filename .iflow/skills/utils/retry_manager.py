@@ -8,9 +8,12 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any
 
-from .exceptions import IFlowError, ErrorCode, ErrorCategory
+from .exceptions import ErrorCategory, ErrorCode, IFlowError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class BackoffStrategy(Enum):
@@ -39,24 +42,24 @@ class RetryPolicy:
     max_delay: float = 60.0
     backoff_multiplier: float = 2.0
     jitter: float = 0.1
-    retryable_errors: Optional[List[Type[Exception]]] = None
-    retryable_error_codes: Optional[List[ErrorCode]] = None
-    custom_backoff_fn: Optional[Callable[[int, float], float]] = None
-    
+    retryable_errors: list[type[Exception]] | None = None
+    retryable_error_codes: list[ErrorCode] | None = None
+    custom_backoff_fn: Callable[[int, float], float] | None = None
+
     def __post_init__(self):
         """Initialize defaults."""
         if self.retryable_errors is None:
             self.retryable_errors = []
         if self.retryable_error_codes is None:
             self.retryable_error_codes = []
-    
+
     def should_retry(self, error: Exception) -> bool:
         """
         Determine if an error should be retried.
-        
+
         Args:
             error: The error that occurred
-            
+
         Returns:
             True if the error should be retried
         """
@@ -65,30 +68,28 @@ class RetryPolicy:
             if error.category == ErrorCategory.TRANSIENT:
                 return True
             # Check specific error codes
-            if error.code in self.retryable_error_codes:
-                return True
-            return False
-        
+            return error.code in self.retryable_error_codes
+
         # Check exception types
         for error_type in self.retryable_errors:
             if isinstance(error, error_type):
                 return True
-        
+
         return False
-    
+
     def calculate_delay(self, attempt: int) -> float:
         """
         Calculate delay before next retry attempt.
-        
+
         Args:
             attempt: Current attempt number (1-indexed)
-            
+
         Returns:
             Delay in seconds
         """
         if self.custom_backoff_fn:
             return min(self.custom_backoff_fn(attempt, self.base_delay), self.max_delay)
-        
+
         if self.backoff_strategy == BackoffStrategy.FIXED:
             delay = self.base_delay
         elif self.backoff_strategy == BackoffStrategy.LINEAR:
@@ -102,7 +103,7 @@ class RetryPolicy:
             delay = base_delay + jitter_amount
         else:
             delay = self.base_delay
-        
+
         return min(max(0, delay), self.max_delay)
 
 
@@ -111,11 +112,11 @@ class RetryAttempt:
     """Record of a single retry attempt."""
     attempt_number: int
     timestamp: str
-    error: Optional[Exception] = None
+    error: Exception | None = None
     delay_before: float = 0.0
     success: bool = False
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert attempt to dictionary."""
         return {
             "attempt_number": self.attempt_number,
@@ -131,12 +132,12 @@ class RetryResult:
     """Result of a retry operation."""
     outcome: RetryOutcome
     total_attempts: int
-    attempts: List[RetryAttempt] = field(default_factory=list)
-    result: Optional[Any] = None
-    final_error: Optional[Exception] = None
+    attempts: list[RetryAttempt] = field(default_factory=list)
+    result: Any | None = None
+    final_error: Exception | None = None
     total_duration: float = 0.0
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert result to dictionary."""
         return {
             "outcome": self.outcome.value,
@@ -150,33 +151,33 @@ class RetryResult:
 
 class RetryManager:
     """Manages retry logic for operations."""
-    
-    def __init__(self, default_policy: Optional[RetryPolicy] = None):
+
+    def __init__(self, default_policy: RetryPolicy | None = None):
         """
         Initialize retry manager.
-        
+
         Args:
             default_policy: Default retry policy to use
         """
         self.default_policy = default_policy or RetryPolicy()
-        self.retry_history: List[RetryResult] = []
-    
+        self.retry_history: list[RetryResult] = []
+
     def execute(
         self,
         fn: Callable,
         *args,
-        policy: Optional[RetryPolicy] = None,
+        policy: RetryPolicy | None = None,
         **kwargs
     ) -> RetryResult:
         """
         Execute a function with retry logic.
-        
+
         Args:
             fn: Function to execute
             *args: Positional arguments for the function
             policy: Retry policy to use (uses default if None)
             **kwargs: Keyword arguments for the function
-            
+
         Returns:
             RetryResult with outcome and data
         """
@@ -184,20 +185,20 @@ class RetryManager:
         attempts = []
         start_time = time.time()
         last_error = None
-        
+
         for attempt_num in range(1, policy.max_attempts + 1):
-            attempt_start = time.time()
+            time.time()
             delay_before = 0.0
-            
+
             if attempt_num > 1:
                 # Calculate delay before this attempt
                 delay_before = policy.calculate_delay(attempt_num - 1)
                 time.sleep(delay_before)
-            
+
             try:
                 # Execute the function
                 result = fn(*args, **kwargs)
-                
+
                 # Record successful attempt
                 attempt = RetryAttempt(
                     attempt_number=attempt_num,
@@ -206,10 +207,10 @@ class RetryManager:
                     success=True
                 )
                 attempts.append(attempt)
-                
+
                 # Calculate total duration
                 total_duration = time.time() - start_time
-                
+
                 # Return successful result
                 retry_result = RetryResult(
                     outcome=RetryOutcome.SUCCESS,
@@ -218,13 +219,13 @@ class RetryManager:
                     result=result,
                     total_duration=total_duration
                 )
-                
+
                 self.retry_history.append(retry_result)
                 return retry_result
-                
+
             except Exception as e:
                 last_error = e
-                
+
                 # Record failed attempt
                 attempt = RetryAttempt(
                     attempt_number=attempt_num,
@@ -234,7 +235,7 @@ class RetryManager:
                     success=False
                 )
                 attempts.append(attempt)
-                
+
                 # Check if we should retry
                 if not policy.should_retry(e):
                     # Non-retryable error
@@ -248,7 +249,7 @@ class RetryManager:
                     )
                     self.retry_history.append(retry_result)
                     return retry_result
-                
+
                 # Check if we've exhausted max attempts
                 if attempt_num >= policy.max_attempts:
                     total_duration = time.time() - start_time
@@ -261,10 +262,10 @@ class RetryManager:
                     )
                     self.retry_history.append(retry_result)
                     return retry_result
-                
+
                 # Otherwise, continue to next attempt
                 continue
-        
+
         # This should never be reached, but just in case
         total_duration = time.time() - start_time
         retry_result = RetryResult(
@@ -276,36 +277,36 @@ class RetryManager:
         )
         self.retry_history.append(retry_result)
         return retry_result
-    
+
     def execute_with_timeout(
         self,
         fn: Callable,
         *args,
         timeout: float = 30.0,
-        policy: Optional[RetryPolicy] = None,
+        policy: RetryPolicy | None = None,
         **kwargs
     ) -> RetryResult:
         """
         Execute a function with retry logic and timeout.
-        
+
         Args:
             fn: Function to execute
             *args: Positional arguments for the function
             timeout: Maximum time for each attempt in seconds
             policy: Retry policy to use
             **kwargs: Keyword arguments for the function
-            
+
         Returns:
             RetryResult with outcome and data
         """
         import signal
-        
+
         def timeout_handler(signum, frame):
             raise TimeoutError(f"Operation timed out after {timeout} seconds")
-        
+
         # Set signal handler for timeout
         old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-        
+
         try:
             # Execute with timeout wrapper
             def timeout_wrapper(*inner_args, **inner_kwargs):
@@ -314,28 +315,28 @@ class RetryManager:
                     return fn(*inner_args, **inner_kwargs)
                 finally:
                     signal.alarm(0)
-            
+
             return self.execute(timeout_wrapper, *args, policy=policy, **kwargs)
         finally:
             # Restore old handler
             signal.signal(signal.SIGALRM, old_handler)
-    
-    def get_retry_history(self, limit: int = 100) -> List[RetryResult]:
+
+    def get_retry_history(self, limit: int = 100) -> list[RetryResult]:
         """
         Get retry history.
-        
+
         Args:
             limit: Maximum number of results to return
-            
+
         Returns:
             List of retry results
         """
         return self.retry_history[-limit:]
-    
-    def get_retry_statistics(self) -> Dict[str, Any]:
+
+    def get_retry_statistics(self) -> dict[str, Any]:
         """
         Get statistics about retry operations.
-        
+
         Returns:
             Dictionary with retry statistics
         """
@@ -348,12 +349,12 @@ class RetryManager:
                 "avg_attempts": 0.0,
                 "max_attempts": 0
             }
-        
+
         successful = sum(1 for result in self.retry_history if result.outcome == RetryOutcome.SUCCESS)
         failed = len(self.retry_history) - successful
         avg_attempts = sum(result.total_attempts for result in self.retry_history) / len(self.retry_history)
         max_attempts = max(result.total_attempts for result in self.retry_history)
-        
+
         return {
             "total_operations": len(self.retry_history),
             "successful": successful,
@@ -362,7 +363,7 @@ class RetryManager:
             "avg_attempts": avg_attempts,
             "max_attempts": max_attempts
         }
-    
+
     def clear_history(self) -> None:
         """Clear retry history."""
         self.retry_history = []
@@ -373,12 +374,12 @@ def retry(
     backoff_strategy: BackoffStrategy = BackoffStrategy.EXPONENTIAL,
     base_delay: float = 1.0,
     max_delay: float = 60.0,
-    retryable_errors: Optional[List[Type[Exception]]] = None,
-    retryable_error_codes: Optional[List[ErrorCode]] = None
+    retryable_errors: list[type[Exception]] | None = None,
+    retryable_error_codes: list[ErrorCode] | None = None
 ):
     """
     Decorator for automatic retry logic.
-    
+
     Args:
         max_attempts: Maximum number of retry attempts
         backoff_strategy: Backoff strategy to use
@@ -386,10 +387,10 @@ def retry(
         max_delay: Maximum delay in seconds
         retryable_errors: List of exception types to retry
         retryable_error_codes: List of error codes to retry
-        
+
     Returns:
         Decorator function
-        
+
     Example:
         @retry(max_attempts=3, backoff_strategy=BackoffStrategy.EXPONENTIAL)
         def fetch_data(url):
@@ -406,10 +407,10 @@ def retry(
                 retryable_errors=retryable_errors,
                 retryable_error_codes=retryable_error_codes
             )
-            
+
             manager = RetryManager(policy)
             result = manager.execute(func, *args, policy=policy, **kwargs)
-            
+
             if result.outcome == RetryOutcome.SUCCESS:
                 return result.result
             else:
@@ -421,7 +422,7 @@ def retry(
                         "Operation failed after retry attempts",
                         ErrorCode.OPERATION_FAILED
                     )
-        
+
         return wrapper
     return decorator
 

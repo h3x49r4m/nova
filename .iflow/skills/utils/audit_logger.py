@@ -5,27 +5,26 @@ Tracks all modifications to state files for compliance and debugging.
 """
 
 import json
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union
-from copy import deepcopy
-
-from .file_lock import FileLock, FileLockError
-from .exceptions import IFlowError
-from .constants import AuditConstants
-from .structured_logger import StructuredLogger, LogFormat
+from typing import Any
 
 # Import audit types from separate module
-from .audit_types import AuditEventType, AuditSeverity, AuditEvent
+from .audit_types import AuditEvent, AuditEventType, AuditSeverity
+from .constants import AuditConstants
+from .exceptions import IFlowError
+from .file_lock import FileLock, FileLockError
+from .structured_logger import LogFormat, StructuredLogger
 
 
 class AuditLogger:
     """Manages audit logging for state changes."""
-    
+
     def __init__(self, log_dir: Path, component: str = "iflow-skills"):
         """
         Initialize audit logger.
-        
+
         Args:
             log_dir: Directory to store audit logs
             component: Component name for log identification
@@ -33,37 +32,37 @@ class AuditLogger:
         self.log_dir = Path(log_dir)
         self.component = component
         self.log_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Initialize logger for system messages
         self.logger = StructuredLogger(
             name="audit_logger",
             log_dir=self.log_dir / ".logs",
             log_format=LogFormat.JSON
         )
-        
+
         # Create log file
         self.log_file = self.log_dir / f"{component}_audit.log"
-        
+
         # Create index file for quick lookups
         self.index_file = self.log_dir / f"{component}_audit_index.json"
-        
+
         # Load existing index
         self.index = self._load_index()
-        
+
         # Initialize counter
         self._event_counter = 0
-    
-    def _load_index(self) -> Dict[str, List[str]]:
+
+    def _load_index(self) -> dict[str, list[str]]:
         """Load audit index from file."""
         if not self.index_file.exists():
             return {}
-        
+
         try:
-            with open(self.index_file, 'r') as f:
+            with open(self.index_file) as f:
                 data = json.load(f)
                 # Validate and cast the loaded data
                 if isinstance(data, dict):
-                    result: Dict[str, List[str]] = {}
+                    result: dict[str, list[str]] = {}
                     for key, value in data.items():
                         if isinstance(key, str) and isinstance(value, list):
                             # Ensure all items in the list are strings
@@ -71,9 +70,9 @@ class AuditLogger:
                             result[key] = str_list
                     return result
                 return {}
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             return {}
-    
+
     def _save_index(self):
         """Save audit index to file."""
         try:
@@ -84,19 +83,19 @@ class AuditLogger:
                     json.dump(self.index, f, indent=2)
         except FileLockError as e:
             self.logger.warning(f"Could not save audit index: {e}")
-    
+
     def _generate_event_id(self) -> str:
         """Generate a unique event ID."""
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
         self._event_counter += 1
         return f"{timestamp}_{self._event_counter:06d}"
-    
+
     def _format_log_entry(self, event: AuditEvent) -> str:
         """Format audit event as log entry."""
         timestamp = event.timestamp
         event_type = event.event_type.value.upper()
         severity = event.severity.value.upper()
-        
+
         entry = (
             f"[{timestamp}] [{severity}] [{event_type}] "
             f"Component: {event.component} | "
@@ -104,36 +103,36 @@ class AuditLogger:
             f"File: {event.file_path} | "
             f"Operation: {event.operation}"
         )
-        
+
         if event.error:
             entry += f" | Error: {event.error}"
-        
+
         if event.tags:
             entry += f" | Tags: {', '.join(event.tags)}"
-        
+
         if event.details:
             details_str = json.dumps(event.details, separators=(',', ':'))
             entry += f" | Details: {details_str}"
-        
+
         return entry
-    
+
     def log_event(
         self,
         event_type: AuditEventType,
         operation: str,
-        file_path: Union[str, Path],
+        file_path: str | Path,
         actor: str = "system",
         severity: AuditSeverity = AuditSeverity.INFO,
-        details: Optional[Dict] = None,
-        previous_state: Optional[Dict] = None,
-        new_state: Optional[Dict] = None,
-        error: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        metadata: Optional[Dict] = None
+        details: dict | None = None,
+        previous_state: dict | None = None,
+        new_state: dict | None = None,
+        error: str | None = None,
+        tags: list[str] | None = None,
+        metadata: dict | None = None
     ) -> str:
         """
         Log an audit event.
-        
+
         Args:
             event_type: Type of event
             operation: Operation being performed
@@ -146,14 +145,14 @@ class AuditLogger:
             error: Error message if operation failed
             tags: Tags for categorization
             metadata: Additional metadata
-        
+
         Returns:
             Event ID of logged event
         """
         # Convert file_path to string
         if isinstance(file_path, Path):
             file_path = str(file_path)
-        
+
         # Create event
         event = AuditEvent(
             event_id=self._generate_event_id(),
@@ -171,7 +170,7 @@ class AuditLogger:
             tags=tags,
             metadata=metadata
         )
-        
+
         # Write to log file
         try:
             # Use a separate lock file for the log file
@@ -181,34 +180,34 @@ class AuditLogger:
                     f.write(self._format_log_entry(event) + '\n')
         except FileLockError as e:
             self.logger.warning(f"Could not write to audit log: {e}")
-        
+
         # Update index
         file_key = file_path
         if file_key not in self.index:
             self.index[file_key] = []
-        
+
         self.index[file_key].insert(0, event.event_id)
-        
+
         # Keep only recent events in index
         if len(self.index[file_key]) > AuditConstants.MAX_INDEX_EVENTS.value:
             self.index[file_key] = self.index[file_key][:AuditConstants.MAX_INDEX_EVENTS.value]
-        
+
         self._save_index()
-        
+
         return event.event_id
-    
+
     def log_state_change(
         self,
-        file_path: Union[str, Path],
+        file_path: str | Path,
         operation: str,
-        previous_state: Optional[Dict],
-        new_state: Dict,
+        previous_state: dict | None,
+        new_state: dict,
         actor: str = "system",
-        tags: Optional[List[str]] = None
+        tags: list[str] | None = None
     ) -> str:
         """
         Log a state change event.
-        
+
         Args:
             file_path: Path to state file
             operation: Operation being performed
@@ -216,7 +215,7 @@ class AuditLogger:
             new_state: State after change
             actor: Who performed the change
             tags: Tags for categorization
-        
+
         Returns:
             Event ID of logged event
         """
@@ -234,25 +233,25 @@ class AuditLogger:
             },
             tags=tags
         )
-    
+
     def log_error(
         self,
         error: Exception,
-        file_path: Optional[Union[str, Path]] = None,
-        operation: Optional[str] = None,
+        file_path: str | Path | None = None,
+        operation: str | None = None,
         actor: str = "system",
-        tags: Optional[List[str]] = None
+        tags: list[str] | None = None
     ) -> str:
         """
         Log an error event.
-        
+
         Args:
             error: The exception that occurred
             file_path: Path to file being operated on (if applicable)
             operation: Operation being performed (if applicable)
             actor: Who was performing the operation
             tags: Tags for categorization
-        
+
         Returns:
             Event ID of logged event
         """
@@ -265,7 +264,7 @@ class AuditLogger:
             }
         else:
             error_details = {'type': type(error).__name__}
-        
+
         return self.log_event(
             event_type=AuditEventType.ERROR,
             operation=operation or "unknown",
@@ -276,59 +275,59 @@ class AuditLogger:
             details=error_details,
             tags=tags
         )
-    
+
     def get_events(
         self,
-        file_path: Optional[Union[str, Path]] = None,
-        event_type: Optional[AuditEventType] = None,
-        severity: Optional[AuditSeverity] = None,
-        limit: Optional[int] = None,
-        tags: Optional[List[str]] = None
-    ) -> List[AuditEvent]:
+        file_path: str | Path | None = None,
+        event_type: AuditEventType | None = None,
+        severity: AuditSeverity | None = None,
+        limit: int | None = None,
+        tags: list[str] | None = None
+    ) -> list[AuditEvent]:
         """
         Query audit events with optional filters.
-        
+
         Args:
             file_path: Filter by file path
             event_type: Filter by event type
             severity: Filter by severity
             limit: Maximum number of events to return
             tags: Filter by tags
-        
+
         Returns:
             List of audit events matching filters
         """
         events = []
-        
+
         try:
-            with open(self.log_file, 'r') as f:
+            with open(self.log_file) as f:
                 for line in f:
                     if not line.strip():
                         continue
-                    
+
                     # Parse log line (simplified parsing)
                     # Format: [timestamp] [severity] [type] Component: ... | ...
                     parts = line.split(' | ')
                     if len(parts) < 5:
                         continue
-                    
+
                     # Extract basic info from parts[0]
                     header = parts[0]
                     if not header.startswith('[') or not header.endswith(']'):
                         continue
-                    
+
                     # Parse timestamp, severity, type
                     inner_parts = header[1:-1].split('] [')
                     if len(inner_parts) < 3:
                         continue
-                    
+
                     timestamp = inner_parts[0]
                     severity_str = inner_parts[1]
                     type_str = inner_parts[2]
-                    
+
                     # Parse rest of the line
-                    details_str = ' | '.join(parts[1:])
-                    
+                    ' | '.join(parts[1:])
+
                     # Create minimal event (full parsing would be more complex)
                     # For now, just store the raw log line
                     try:
@@ -339,7 +338,7 @@ class AuditLogger:
                         # If conversion fails, use default values
                         event_type_enum = AuditEventType.SYSTEM
                         severity_enum = AuditSeverity.INFO
-                    
+
                     event = AuditEvent(
                         event_id="",
                         event_type=event_type_enum,
@@ -351,74 +350,74 @@ class AuditLogger:
                         operation="",
                         details={'raw_line': line}
                     )
-                    
+
                     # Apply filters
                     if file_path:
                         # Convert file_path to string for comparison
                         file_path_str = str(file_path)
                         if file_path_str not in line:
                             continue
-                    
+
                     if event_type and event.event_type != event_type:
                         continue
-                    
+
                     if severity and event.severity != severity:
                         continue
-                    
+
                     if tags and event.tags:
                         if not any(tag in line for tag in tags):
                             continue
-                    
+
                     events.append(event)
                     if limit and len(events) >= limit:
                         break
-        
-        except IOError:
+
+        except OSError:
             pass
-        
+
         return events
-    
+
     def get_file_history(
         self,
-        file_path: Union[str, Path],
-        limit: Optional[int] = None
-    ) -> List[Dict]:
+        file_path: str | Path,
+        limit: int | None = None
+    ) -> list[dict]:
         """
         Get history of changes for a specific file.
-        
+
         Args:
             file_path: Path to file
             limit: Maximum number of events to return
-        
+
         Returns:
             List of event dictionaries
         """
         file_key = str(file_path)
         event_ids = self.index.get(file_key, [])
-        
+
         if limit:
             event_ids = event_ids[:limit]
-        
+
         history = []
         for event_id in event_ids:
             event = self._get_event_by_id(event_id)
             if event:
                 history.append(event.to_dict())
-        
+
         return history
-    
-    def _get_event_by_id(self, event_id: str) -> Optional[AuditEvent]:
+
+    def _get_event_by_id(self, event_id: str) -> AuditEvent | None:
         """
         Find an event by ID in the log file.
-        
+
         Args:
             event_id: ID of event to find
-        
+
         Returns:
             AuditEvent if found, None otherwise
         """
         try:
-            with open(self.log_file, 'r') as f:
+            with open(self.log_file) as f:
                 for line in f:
                     if event_id in line:
                         # Parse and return event
@@ -434,19 +433,19 @@ class AuditLogger:
                             operation="",
                             details={'raw_line': line}
                         )
-        except IOError:
+        except OSError:
             pass
-        
+
         return None
-    
-    def get_statistics(self) -> Dict[str, Any]:
+
+    def get_statistics(self) -> dict[str, Any]:
         """
         Get audit log statistics.
-        
+
         Returns:
             Dictionary with statistics
         """
-        stats: Dict[str, Any] = {
+        stats: dict[str, Any] = {
             'total_events': 0,
             'by_type': {},
             'by_severity': {},
@@ -454,83 +453,83 @@ class AuditLogger:
             'by_actor': {},
             'recent_errors': []
         }
-        
+
         try:
-            with open(self.log_file, 'r') as f:
+            with open(self.log_file) as f:
                 for line in f:
                     if not line.strip():
                         continue
-                    
+
                     stats['total_events'] += 1
-                    
+
                     # Count by type
                     for event_type in AuditEventType:
                         if event_type.value.upper() in line:
                             by_type = stats['by_type']
                             if isinstance(by_type, dict):
                                 by_type[event_type.value] = by_type.get(event_type.value, 0) + 1
-                    
+
                     # Count by severity
                     for severity in AuditSeverity:
                         if severity.value.upper() in line:
                             by_severity = stats['by_severity']
                             if isinstance(by_severity, dict):
                                 by_severity[severity.value] = by_severity.get(severity.value, 0) + 1
-                    
+
                     # Count by file
                     if '| File:' in line:
                         file_part = line.split('| File: ')[1].split(' |')[0]
                         by_file = stats['by_file']
                         if isinstance(by_file, dict):
                             by_file[file_part] = by_file.get(file_part, 0) + 1
-                    
+
                     # Count by actor
                     if '| Actor:' in line:
                         actor_part = line.split('| Actor: ')[1].split(' |')[0]
                         by_actor = stats['by_actor']
                         if isinstance(by_actor, dict):
                             by_actor[actor_part] = by_actor.get(actor_part, 0) + 1
-                    
+
                     # Track recent errors
                     if '[ERROR]' in line:
                         recent_errors = stats['recent_errors']
                         if isinstance(recent_errors, list) and len(recent_errors) < 10:
                             recent_errors.append(line.strip())
-        except IOError:
+        except OSError:
             pass
-        
+
         return stats
-    
-    def prune_old_logs(self, max_age_days: Optional[int] = None) -> int:
+
+    def prune_old_logs(self, max_age_days: int | None = None) -> int:
         """
         Remove old log entries based on age.
-        
+
         Args:
             max_age_days: Maximum age of logs to keep in days
-        
+
         Returns:
             Number of log entries removed
         """
         if max_age_days is None:
             max_age_days = AuditConstants.LOG_RETENTION_DAYS.value
-        
+
         cutoff_date = datetime.now().timestamp() - (max_age_days * 24 * 60 * 60)
-        
+
         try:
             # Use a separate lock file for the log file
             lock_file = self.log_file.with_suffix('.lock')
             temp_file = self.log_file.with_suffix('.tmp')
             removed_count = 0
-            
+
             with FileLock(lock_file, timeout=10):
                 if not self.log_file.exists():
                     return 0
-                    
-                with open(self.log_file, 'r') as f, open(temp_file, 'w') as tmp:
+
+                with open(self.log_file) as f, open(temp_file, 'w') as tmp:
                     for line in f:
                         if not line.strip():
                             continue
-                        
+
                         # Parse timestamp
                         if line.startswith('['):
                             timestamp_str = line[1:].split(']')[0]
@@ -545,42 +544,42 @@ class AuditLogger:
                                 tmp.write(line + '\n')
                         else:
                             tmp.write(line + '\n')
-                
+
                 # Replace original file
                 temp_file.replace(self.log_file)
-            
+
             # Rebuild index
             self._rebuild_index()
-            
+
             return removed_count
-            
-        except (IOError, FileLockError):
+
+        except (OSError, FileLockError):
             return 0
-    
+
     def _rebuild_index(self):
         """Rebuild the index from current log file."""
         self.index = {}
-        
+
         try:
-            with open(self.log_file, 'r') as f:
+            with open(self.log_file) as f:
                 for line in f:
                     if '| File:' in line:
                         file_part = line.split('| File: ')[1].split(' |')[0]
                         event_id = line.split('] [')[0][1:]
-                        
+
                         if file_part not in self.index:
                             self.index[file_part] = []
-                        
+
                         if event_id not in self.index[file_part]:
                             self.index[file_part].append(event_id)
-            
+
             # Trim index
             for file_key in self.index:
                 if len(self.index[file_key]) > AuditConstants.MAX_INDEX_EVENTS.value:
                     self.index[file_key] = self.index[file_key][:AuditConstants.MAX_INDEX_EVENTS.value]
-            
+
             self._save_index()
-        except IOError:
+        except OSError:
             pass
 
 
@@ -589,36 +588,36 @@ class StateAuditor:
     High-level auditor for state operations.
     Wraps AuditLogger for state-specific auditing.
     """
-    
+
     def __init__(self, audit_dir: Path):
         """
         Initialize state auditor.
-        
+
         Args:
             audit_dir: Directory for audit logs
         """
         self.audit_dir = audit_dir
         self.audit_dir.mkdir(parents=True, exist_ok=True)
         self.logger = AuditLogger(audit_dir, component="state")
-    
+
     def audit_state_update(
         self,
         state_file: Path,
         operation: str,
-        previous_state: Optional[Dict],
-        new_state: Dict,
+        previous_state: dict | None,
+        new_state: dict,
         actor: str = "system"
     ) -> str:
         """
         Audit a state update operation.
-        
+
         Args:
             state_file: Path to state file
             operation: Operation being performed
             previous_state: State before update
             new_state: State after update
             actor: Who performed the update
-        
+
         Returns:
             Event ID of logged event
         """
@@ -630,7 +629,7 @@ class StateAuditor:
             actor=actor,
             tags=['state', 'update']
         )
-    
+
     def audit_state_read(
         self,
         state_file: Path,
@@ -638,11 +637,11 @@ class StateAuditor:
     ) -> str:
         """
         Audit a state read operation.
-        
+
         Args:
             state_file: Path to state file
             actor: Who is reading the state
-        
+
         Returns:
             Event ID of logged event
         """
@@ -654,7 +653,7 @@ class StateAuditor:
             severity=AuditSeverity.INFO,
             tags=['state', 'read']
         )
-    
+
     def audit_state_backup(
         self,
         state_file: Path,
@@ -663,12 +662,12 @@ class StateAuditor:
     ) -> str:
         """
         Audit a state backup operation.
-        
+
         Args:
             state_file: Path to state file
             backup_id: ID of the backup
             actor: Who performed the backup
-        
+
         Returns:
             Event ID of logged event
         """
@@ -681,7 +680,7 @@ class StateAuditor:
             details={'backup_id': backup_id},
             tags=['state', 'backup']
         )
-    
+
     def audit_state_restore(
         self,
         state_file: Path,
@@ -690,12 +689,12 @@ class StateAuditor:
     ) -> str:
         """
         Audit a state restore operation.
-        
+
         Args:
             state_file: Path to state file
             backup_id: ID of the backup being restored
             actor: Who performed the restore
-        
+
         Returns:
             Event ID of logged event
         """
@@ -708,23 +707,23 @@ class StateAuditor:
             details={'backup_id': backup_id},
             tags=['state', 'restore']
         )
-    
+
     def audit_validation(
         self,
         state_file: Path,
         validation_result: bool,
-        errors: List[str],
+        errors: list[str],
         actor: str = "system"
     ) -> str:
         """
         Audit a state validation operation.
-        
+
         Args:
             state_file: Path to state file being validated
             validation_result: Whether validation passed
             errors: List of validation errors
             actor: Who performed the validation
-        
+
         Returns:
             Event ID of logged event
         """
@@ -741,19 +740,19 @@ class StateAuditor:
             },
             tags=['state', 'validation']
         )
-    
+
     def get_state_history(
         self,
         state_file: Path,
-        limit: Optional[int] = None
-    ) -> List[Dict]:
+        limit: int | None = None
+    ) -> list[dict]:
         """
         Get audit history for a state file.
-        
+
         Args:
             state_file: Path to state file
             limit: Maximum number of events to return
-        
+
         Returns:
             List of audit event dictionaries
         """

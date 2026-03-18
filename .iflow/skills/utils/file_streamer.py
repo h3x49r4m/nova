@@ -6,11 +6,14 @@ including chunked reading, line-by-line processing, and memory-efficient operati
 
 import asyncio
 import hashlib
-from pathlib import Path
-from typing import AsyncIterator, Iterator, Optional, Callable, Any, Tuple
+import json
 from dataclasses import dataclass
 from enum import Enum
-import json
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Callable, Iterator
+    from pathlib import Path
 
 
 class StreamMode(Enum):
@@ -33,7 +36,7 @@ class StreamConfig:
 class FileStreamer:
     """Efficient file streaming for large files."""
 
-    def __init__(self, config: Optional[StreamConfig] = None):
+    def __init__(self, config: StreamConfig | None = None):
         """
         Initialize file streamer.
 
@@ -45,7 +48,7 @@ class FileStreamer:
     def stream_chunks(
         self,
         file_path: Path,
-        chunk_size: Optional[int] = None
+        chunk_size: int | None = None
     ) -> Iterator[bytes]:
         """
         Stream file in chunks (synchronous).
@@ -69,8 +72,8 @@ class FileStreamer:
     def stream_lines(
         self,
         file_path: Path,
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None
+        encoding: str | None = None,
+        errors: str | None = None
     ) -> Iterator[str]:
         """
         Stream file line by line (synchronous).
@@ -86,15 +89,15 @@ class FileStreamer:
         encoding = encoding or self.config.encoding
         errors = errors or self.config.errors
 
-        with open(file_path, 'r', encoding=encoding, errors=errors) as f:
+        with open(file_path, encoding=encoding, errors=errors) as f:
             for line in f:
                 yield line.rstrip('\n\r')
 
     def stream_json_objects(
         self,
         file_path: Path,
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None
+        encoding: str | None = None,
+        errors: str | None = None
     ) -> Iterator[dict]:
         """
         Stream JSON objects from a file (one per line).
@@ -114,7 +117,7 @@ class FileStreamer:
     async def stream_chunks_async(
         self,
         file_path: Path,
-        chunk_size: Optional[int] = None
+        chunk_size: int | None = None
     ) -> AsyncIterator[bytes]:
         """
         Stream file in chunks (asynchronous).
@@ -139,8 +142,8 @@ class FileStreamer:
     async def stream_lines_async(
         self,
         file_path: Path,
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None
+        encoding: str | None = None,
+        errors: str | None = None
     ) -> AsyncIterator[str]:
         """
         Stream file line by line (asynchronous).
@@ -164,8 +167,8 @@ class FileStreamer:
     async def stream_json_objects_async(
         self,
         file_path: Path,
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None
+        encoding: str | None = None,
+        errors: str | None = None
     ) -> AsyncIterator[dict]:
         """
         Stream JSON objects from a file (asynchronous).
@@ -186,7 +189,7 @@ class FileStreamer:
         self,
         file_path: Path,
         algorithm: str = 'sha256',
-        chunk_size: Optional[int] = None
+        chunk_size: int | None = None
     ) -> str:
         """
         Calculate file hash with streaming (synchronous).
@@ -211,7 +214,7 @@ class FileStreamer:
         self,
         file_path: Path,
         algorithm: str = 'sha256',
-        chunk_size: Optional[int] = None
+        chunk_size: int | None = None
     ) -> str:
         """
         Calculate file hash with streaming (asynchronous).
@@ -235,8 +238,8 @@ class FileStreamer:
     def count_lines(
         self,
         file_path: Path,
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None
+        encoding: str | None = None,
+        errors: str | None = None
     ) -> int:
         """
         Count lines in a file with streaming (synchronous).
@@ -257,8 +260,8 @@ class FileStreamer:
     async def count_lines_async(
         self,
         file_path: Path,
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None
+        encoding: str | None = None,
+        errors: str | None = None
     ) -> int:
         """
         Count lines in a file with streaming (asynchronous).
@@ -280,8 +283,8 @@ class FileStreamer:
         self,
         file_path: Path,
         processor: Callable[[str], Any],
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None
+        encoding: str | None = None,
+        errors: str | None = None
     ) -> list:
         """
         Process each line in a file with a function (synchronous).
@@ -304,8 +307,8 @@ class FileStreamer:
         self,
         file_path: Path,
         processor: Callable[[str], Any],
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None,
+        encoding: str | None = None,
+        errors: str | None = None,
         batch_size: int = 100
     ) -> list:
         """
@@ -348,8 +351,8 @@ class FileStreamer:
         self,
         file_path: Path,
         predicate: Callable[[str], bool],
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None
+        encoding: str | None = None,
+        errors: str | None = None
     ) -> list:
         """
         Filter lines in a file based on a predicate (synchronous).
@@ -372,8 +375,8 @@ class FileStreamer:
         self,
         file_path: Path,
         predicate: Callable[[str], bool],
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None
+        encoding: str | None = None,
+        errors: str | None = None
     ) -> list:
         """
         Filter lines in a file based on a predicate (asynchronous).
@@ -408,7 +411,7 @@ class FileStreamer:
     def is_large_file(
         self,
         file_path: Path,
-        threshold_mb: Optional[int] = None
+        threshold_mb: int | None = None
     ) -> bool:
         """
         Check if file is larger than threshold.

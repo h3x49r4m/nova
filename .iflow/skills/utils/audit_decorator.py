@@ -6,10 +6,13 @@ Provides decorator for automatically logging sensitive operations.
 
 import functools
 import traceback
-from typing import Callable, Any, Optional
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
-from audit_logger import AuditLogger, AuditEventType, AuditSeverity
+from audit_logger import AuditEventType, AuditLogger, AuditSeverity
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class AuditDecorator:
@@ -19,7 +22,7 @@ class AuditDecorator:
     def audit_sensitive_operation(
         event_type: AuditEventType,
         category: str = "operation",
-        description: Optional[str] = None
+        description: str | None = None
     ):
         """
         Decorator to audit sensitive operations.

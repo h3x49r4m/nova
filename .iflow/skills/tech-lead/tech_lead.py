@@ -982,7 +982,7 @@ Verification:
 - TDD: compliant"""
 
             # Commit changes
-            code, stdout, stderr = run_git_command(
+            code, _stdout, stderr = run_git_command(
                 ["commit", "-m", commit_message], cwd=project_path
             )
 
@@ -1142,23 +1142,23 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Design architecture command
-    arch_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "design-architecture", help="Design system architecture"
     )
 
     # Select tech stack command
-    stack_parser = subparsers.add_parser("select-stack", help="Select technology stack")
+    subparsers.add_parser("select-stack", help="Select technology stack")
 
     # Define patterns command
-    patterns_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "define-patterns", help="Define design patterns"
     )
 
     # Design API command
-    api_parser = subparsers.add_parser("design-api", help="Design API specifications")
+    subparsers.add_parser("design-api", help="Design API specifications")
 
     # Design database command
-    db_parser = subparsers.add_parser("design-database", help="Design database schema")
+    subparsers.add_parser("design-database", help="Design database schema")
 
     # Run workflow command
     workflow_parser = subparsers.add_parser(

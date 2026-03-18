@@ -4,7 +4,8 @@ Configuration Templates
 Standardized configuration templates for different skill types.
 """
 
-from typing import Dict, List, Optional, Any
+from typing import Any
+
 from .config_manager import SkillType
 
 
@@ -15,11 +16,11 @@ class ConfigTemplates:
     def role_config(
         name: str,
         description: str,
-        capabilities: List[str],
-        dependencies: Optional[List[Dict[str, str]]] = None,
-        domains: Optional[Dict[str, Any]] = None,
-        compatible_pipelines: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        capabilities: list[str],
+        dependencies: list[dict[str, str]] | None = None,
+        domains: dict[str, Any] | None = None,
+        compatible_pipelines: list[str] | None = None
+    ) -> dict[str, Any]:
         """
         Create a standard role skill configuration.
 
@@ -52,9 +53,9 @@ class ConfigTemplates:
     def pipeline_config(
         name: str,
         description: str,
-        stages: List[Dict[str, Any]],
-        capabilities: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        stages: list[dict[str, Any]],
+        capabilities: list[str] | None = None
+    ) -> dict[str, Any]:
         """
         Create a standard pipeline configuration.
 
@@ -84,9 +85,9 @@ class ConfigTemplates:
     @staticmethod
     def domain_config(
         enabled: bool,
-        technologies: Optional[List[str]] = None,
-        reason: Optional[str] = None
-    ) -> Dict[str, Any]:
+        technologies: list[str] | None = None,
+        reason: str | None = None
+    ) -> dict[str, Any]:
         """
         Create a domain configuration entry.
 
@@ -98,7 +99,7 @@ class ConfigTemplates:
         Returns:
             Domain configuration dictionary
         """
-        config: Dict[str, Any] = {"supported": enabled}
+        config: dict[str, Any] = {"supported": enabled}
 
         if technologies:
             config["technologies"] = technologies
@@ -111,9 +112,9 @@ class ConfigTemplates:
     @staticmethod
     def dependency_config(
         name: str,
-        min_version: Optional[str] = None,
-        max_version: Optional[str] = None
-    ) -> Dict[str, str]:
+        min_version: str | None = None,
+        max_version: str | None = None
+    ) -> dict[str, str]:
         """
         Create a dependency configuration entry.
 
@@ -125,7 +126,7 @@ class ConfigTemplates:
         Returns:
             Dependency configuration dictionary
         """
-        dep: Dict[str, str] = {"name": name}
+        dep: dict[str, str] = {"name": name}
 
         if min_version:
             dep["min_version"] = min_version
@@ -141,9 +142,9 @@ class ConfigTemplates:
         role: str,
         order: int,
         required: bool,
-        dependencies: Optional[List[int]] = None,
-        skill: Optional[str] = None
-    ) -> Dict[str, Any]:
+        dependencies: list[int] | None = None,
+        skill: str | None = None
+    ) -> dict[str, Any]:
         """
         Create a pipeline stage configuration.
 
@@ -158,7 +159,7 @@ class ConfigTemplates:
         Returns:
             Stage configuration dictionary
         """
-        stage: Dict[str, Any] = {
+        stage: dict[str, Any] = {
             "name": name,
             "role": role,
             "order": order,

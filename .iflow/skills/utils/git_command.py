@@ -4,35 +4,35 @@ Shared Git Command Utility
 Provides centralized git command execution with timeout handling and error management.
 """
 
-import subprocess
 import os
 import re
+import subprocess
 import time
 from pathlib import Path
-from typing import Tuple, Optional, List, Union, Dict
-from .exceptions import GitError, ErrorCode, GitCommandTimeout
-from .constants import RetryPolicy, Timeouts, SecretPatterns
+
+from .constants import RetryPolicy, SecretPatterns, Timeouts
+from .exceptions import ErrorCode, GitCommandTimeout, GitError
 from .shared_validators import SharedValidators
 
 # Global metrics collector for git operations
 try:
     from .metrics_collector import MetricsCollector
-    _metrics: Optional[MetricsCollector] = MetricsCollector()
+    _metrics: MetricsCollector | None = MetricsCollector()
 except ImportError:
     _metrics = None
 
 
 def run_git_command(
-    command: List[str],
-    cwd: Optional[Union[str, Path]] = None,
-    timeout: Optional[int] = None,
-    env: Optional[Dict[str, str]] = None,
+    command: list[str],
+    cwd: str | Path | None = None,
+    timeout: int | None = None,
+    env: dict[str, str] | None = None,
     check_secrets: bool = True,
     retry_on_failure: bool = False
-) -> Tuple[int, str, str]:
+) -> tuple[int, str, str]:
     """
     Run a git command with error handling and optional retry logic.
-    
+
     Args:
         command: Git command as a list of strings
         cwd: Working directory for the command
@@ -40,10 +40,10 @@ def run_git_command(
         env: Environment variables for the command
         check_secrets: Whether to check output for secrets
         retry_on_failure: Whether to retry on transient failures
-        
+
     Returns:
         Tuple of (return_code, stdout, stderr)
-        
+
     Raises:
         GitError: If command fails
         GitCommandTimeout: If command times out
@@ -51,13 +51,13 @@ def run_git_command(
     """
     if cwd is None:
         cwd = os.getcwd()
-    
+
     if timeout is None:
         timeout = Timeouts.GIT_DEFAULT.value
-    
+
     if env is None:
         env = os.environ.copy()
-    
+
     # Validate working directory
     cwd_path = Path(cwd)
     is_valid, error_msg = validate_file_path(str(cwd_path))
@@ -66,26 +66,26 @@ def run_git_command(
             f"Invalid working directory: {error_msg}",
             code=ErrorCode.VALIDATION_ERROR
         )
-    
+
     if not cwd_path.exists():
         raise GitError(
             f"Working directory does not exist: {cwd}",
             code=ErrorCode.FILE_NOT_FOUND
         )
-    
+
     if not cwd_path.is_dir():
         raise GitError(
             f"Working directory is not a directory: {cwd}",
             code=ErrorCode.INVALID_ARGUMENT
         )
-    
+
     # Retry logic
     max_retries = RetryPolicy.MAX_ATTEMPTS.value if retry_on_failure else 1
     base_delay = RetryPolicy.INITIAL_DELAY.value
-    
+
     # Convert command items to strings
     command_strings = ['git'] + [str(c) for c in command]
-    
+
     for attempt in range(max_retries):
         try:
             start_time = time.time()
@@ -99,11 +99,11 @@ def run_git_command(
                 shell=False  # Security: always use shell=False
             )
             execution_time = time.time() - start_time
-            
+
             stdout = result.stdout
             stderr = result.stderr
             returncode = result.returncode
-            
+
             # Track metrics if available
             if _metrics:
                 command_name = command[0] if command else "unknown"
@@ -113,23 +113,23 @@ def run_git_command(
                     _metrics.increment_counter("git_commands_success")
                 else:
                     _metrics.increment_counter("git_commands_failed")
-            
+
             # Normalize line endings for cross-platform consistency
             stdout = stdout.replace('\r\n', '\n')
             stderr = stderr.replace('\r\n', '\n')
-            
+
             # Check for secrets in output
             if check_secrets:
                 secret_found = check_for_secrets(stdout, stderr)
                 if secret_found:
                     raise GitError(
-                        f"Secret detected in git command output",
+                        "Secret detected in git command output",
                         code=ErrorCode.SECURITY_VIOLATION
                     )
-            
+
             return returncode, stdout, stderr
-            
-        except subprocess.TimeoutExpired as e:
+
+        except subprocess.TimeoutExpired:
             if attempt < max_retries - 1:
                 delay = base_delay * (2 ** attempt)
                 time.sleep(delay)
@@ -156,11 +156,11 @@ def run_git_command(
                 time.sleep(delay)
                 continue
             raise GitError(
-                f"Unexpected error running git command: {str(e)}",
+                f"Unexpected error running git command: {e!s}",
                 code=ErrorCode.UNKNOWN_ERROR,
                 cause=e
             )
-    
+
     # Should never reach here
     raise GitError(
         "Git command failed after all retry attempts",
@@ -171,30 +171,30 @@ def run_git_command(
 def check_for_secrets(stdout: str, stderr: str) -> bool:
     """
     Check git command output for potential secrets using regex patterns.
-    
+
     Args:
         stdout: Standard output from git command
         stderr: Standard error from git command
-        
+
     Returns:
         True if a potential secret is detected, False otherwise
     """
     combined_output = stdout + stderr
-    
+
     for pattern in SecretPatterns:
         if re.search(pattern.value, combined_output, re.IGNORECASE):
             return True
-    
+
     return False
 
 
-def validate_git_repo(cwd: Optional[Path] = None) -> bool:
+def validate_git_repo(cwd: Path | None = None) -> bool:
     """
     Check if current directory is a valid git repository.
-    
+
     Args:
         cwd: Working directory to check
-    
+
     Returns:
         True if valid git repo, False otherwise
     """
@@ -205,13 +205,13 @@ def validate_git_repo(cwd: Optional[Path] = None) -> bool:
         return False
 
 
-def get_current_branch(cwd: Optional[Path] = None) -> str:
+def get_current_branch(cwd: Path | None = None) -> str:
     """
     Get the current branch name.
-    
+
     Args:
         cwd: Working directory
-    
+
     Returns:
         Current branch name or 'unknown' if error
     """
@@ -222,13 +222,13 @@ def get_current_branch(cwd: Optional[Path] = None) -> str:
         return 'unknown'
 
 
-def get_repo_root(cwd: Optional[Path] = None) -> Optional[Path]:
+def get_repo_root(cwd: Path | None = None) -> Path | None:
     """
     Get the git repository root directory.
-    
+
     Args:
         cwd: Working directory
-    
+
     Returns:
         Path to repo root or None if not in a git repo
     """
@@ -241,7 +241,7 @@ def get_repo_root(cwd: Optional[Path] = None) -> Optional[Path]:
         return None
 
 
-def validate_branch_name(branch_name: str) -> Tuple[bool, Optional[str]]:
+def validate_branch_name(branch_name: str) -> tuple[bool, str | None]:
     """
     Validate a git branch name according to git naming rules.
 
@@ -258,7 +258,7 @@ def validate_branch_name(branch_name: str) -> Tuple[bool, Optional[str]]:
     return (result.is_valid, result.error_message)
 
 
-def validate_file_path(file_path: str, repo_root: Optional[Path] = None) -> Tuple[bool, Optional[str]]:
+def validate_file_path(file_path: str, repo_root: Path | None = None) -> tuple[bool, str | None]:
     """
     Validate a file path for security (prevent path traversal).
 
@@ -276,7 +276,7 @@ def validate_file_path(file_path: str, repo_root: Optional[Path] = None) -> Tupl
     return (result.is_valid, result.error_message)
 
 
-def get_git_metrics() -> Optional[Dict[str, Any]]:
+def get_git_metrics() -> dict[str, Any] | None:
     """
     Get git operation metrics statistics.
 
@@ -297,11 +297,11 @@ def reset_git_metrics() -> None:
 def commit_changes(
     project_path: Path,
     changes_description: str,
-    files: Optional[List[str]] = None,
+    files: list[str] | None = None,
     commit_type: str = "docs",
     commit_scope: str = "general",
-    verification: Optional[Dict[str, str]] = None
-) -> Tuple[int, str]:
+    verification: dict[str, str] | None = None
+) -> tuple[int, str]:
     """
     Standardized commit function with proper metadata and error handling.
 
@@ -324,11 +324,11 @@ def commit_changes(
         code, branch, stderr = run_git_command(['rev-parse', '--abbrev-ref', 'HEAD'], cwd=project_path)
         if code != 0:
             return code, f"Failed to get current branch: {stderr}"
-        
+
         # Default files to commit
         if files is None:
             files = []
-        
+
         # Stage files
         staged_files = []
         for file in files:
@@ -338,10 +338,10 @@ def commit_changes(
                 if code != 0:
                     return code, f"Failed to stage {file}: {stderr}"
                 staged_files.append(file)
-        
+
         if not staged_files:
             return 1, "No files to commit"
-        
+
         # Create structured commit message
         commit_message = f"""{commit_type}[{commit_scope}]: {changes_description}
 
@@ -349,7 +349,7 @@ Changes:
 """
         for file in staged_files:
             commit_message += f"- Updated {file}\n"
-        
+
         commit_message += f"""
 ---
 Branch: {branch}
@@ -358,23 +358,23 @@ Files changed:
 """
         for file in staged_files:
             commit_message += f"- {project_path}/.iflow/skills/.shared-state/{file}\n"
-        
+
         # Add verification section if provided
         if verification:
             commit_message += "\nVerification:\n"
             for key, value in verification.items():
                 commit_message += f"- {key}: {value}\n"
-        
+
         # Commit changes
-        code, stdout, stderr = run_git_command(['commit', '-m', commit_message], cwd=project_path)
-        
+        code, _stdout, stderr = run_git_command(['commit', '-m', commit_message], cwd=project_path)
+
         if code != 0:
             # Check if it's a "nothing to commit" error (not actually an error)
             if "nothing to commit" in stderr.lower() or "no changes added to commit" in stderr.lower():
                 return 0, "No changes to commit"
             return code, f"Failed to commit changes: {stderr}"
-        
+
         return 0, f"Committed {len(staged_files)} file(s) successfully"
-        
+
     except Exception as e:
-        return 1, f"Error during commit: {str(e)}"
+        return 1, f"Error during commit: {e!s}"

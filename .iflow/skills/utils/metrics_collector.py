@@ -5,16 +5,19 @@ and other operational metrics for monitoring and analysis.
 """
 
 import json
-import time
 import threading
+import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
-from .exceptions import IFlowError, ErrorCode
+from .exceptions import ErrorCode, IFlowError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class MetricType(Enum):
@@ -43,10 +46,10 @@ class Metric:
     category: MetricCategory
     value: float
     timestamp: float = field(default_factory=time.time)
-    labels: Dict[str, str] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    
-    def to_dict(self) -> Dict[str, Any]:
+    labels: dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "name": self.name,
@@ -70,32 +73,32 @@ class HistogramBucket:
 class Histogram:
     """Histogram metric for value distribution."""
     name: str
-    buckets: List[HistogramBucket] = field(default_factory=list)
+    buckets: list[HistogramBucket] = field(default_factory=list)
     sum: float = 0.0
     count: int = 0
-    
+
     def observe(self, value: float):
         """Observe a value."""
         self.count += 1
         self.sum += value
-        
+
         for bucket in self.buckets:
             if value <= bucket.upper_bound:
                 bucket.count += 1
-    
+
     def get_percentile(self, percentile: float) -> float:
         """Get approximate percentile value."""
         if self.count == 0:
             return 0.0
-        
+
         target_count = int(self.count * percentile / 100)
         cumulative = 0
-        
+
         for bucket in self.buckets:
             cumulative += bucket.count
             if cumulative >= target_count:
                 return bucket.upper_bound
-        
+
         return self.buckets[-1].upper_bound
 
 
@@ -107,30 +110,30 @@ class Timer:
     max: float = 0.0
     sum: float = 0.0
     count: int = 0
-    values: List[float] = field(default_factory=list)
+    values: list[float] = field(default_factory=list)
     max_values: int = 1000
-    
+
     def record(self, duration: float):
         """Record a duration."""
         self.count += 1
         self.sum += duration
         self.min = min(self.min, duration)
         self.max = max(self.max, duration)
-        
+
         # Keep only last N values
         self.values.append(duration)
         if len(self.values) > self.max_values:
             self.values.pop(0)
-    
+
     def get_average(self) -> float:
         """Get average duration."""
         return self.sum / self.count if self.count > 0 else 0.0
-    
+
     def get_percentile(self, percentile: float) -> float:
         """Get percentile duration."""
         if not self.values:
             return 0.0
-        
+
         sorted_values = sorted(self.values)
         index = int(len(sorted_values) * percentile / 100)
         return sorted_values[min(index, len(sorted_values) - 1)]
@@ -138,43 +141,43 @@ class Timer:
 
 class MetricsCollector:
     """Collects and manages operational metrics."""
-    
+
     def __init__(
         self,
-        metrics_file: Optional[Path] = None,
+        metrics_file: Path | None = None,
         enable_persistence: bool = True
     ):
         """
         Initialize metrics collector.
-        
+
         Args:
             metrics_file: File to persist metrics
             enable_persistence: Whether to persist metrics to file
         """
         self.metrics_file = metrics_file or (Path.cwd() / ".iflow" / "metrics" / "metrics.json")
         self.enable_persistence = enable_persistence
-        
-        self.counters: Dict[str, float] = defaultdict(float)
-        self.gauges: Dict[str, float] = defaultdict(float)
-        self.histograms: Dict[str, Histogram] = {}
-        self.timers: Dict[str, Timer] = {}
-        self.custom_metrics: List[Metric] = []
-        
+
+        self.counters: dict[str, float] = defaultdict(float)
+        self.gauges: dict[str, float] = defaultdict(float)
+        self.histograms: dict[str, Histogram] = {}
+        self.timers: dict[str, Timer] = {}
+        self.custom_metrics: list[Metric] = []
+
         self._lock = threading.RLock()
-        
+
         if enable_persistence:
             self._load_metrics()
-    
+
     def _load_metrics(self):
         """Load metrics from file."""
         if self.metrics_file.exists():
             try:
-                with open(self.metrics_file, 'r') as f:
+                with open(self.metrics_file) as f:
                     data = json.load(f)
-                
+
                 self.counters.update(data.get("counters", {}))
                 self.gauges.update(data.get("gauges", {}))
-                
+
                 # Load histograms
                 for name, hist_data in data.get("histograms", {}).items():
                     hist = Histogram(name)
@@ -185,7 +188,7 @@ class MetricsCollector:
                         bucket.count = bucket_data["count"]
                         hist.buckets.append(bucket)
                     self.histograms[name] = hist
-                
+
                 # Load timers
                 for name, timer_data in data.get("timers", {}).items():
                     timer = Timer(name)
@@ -195,18 +198,18 @@ class MetricsCollector:
                     timer.count = timer_data.get("count", 0)
                     timer.values = timer_data.get("values", [])
                     self.timers[name] = timer
-                
-            except (json.JSONDecodeError, IOError):
+
+            except (OSError, json.JSONDecodeError):
                 pass
-    
+
     def _save_metrics(self):
         """Save metrics to file."""
         if not self.enable_persistence:
             return
-        
+
         try:
             self.metrics_file.parent.mkdir(parents=True, exist_ok=True)
-            
+
             data = {
                 "counters": dict(self.counters),
                 "gauges": dict(self.gauges),
@@ -233,25 +236,25 @@ class MetricsCollector:
                 },
                 "last_updated": datetime.now().isoformat()
             }
-            
+
             with open(self.metrics_file, 'w') as f:
                 json.dump(data, f, indent=2)
-        
-        except IOError as e:
+
+        except OSError as e:
             raise IFlowError(
-                f"Failed to save metrics: {str(e)}",
+                f"Failed to save metrics: {e!s}",
                 ErrorCode.FILE_WRITE_ERROR
             )
-    
+
     def increment_counter(
         self,
         name: str,
         value: float = 1.0,
-        labels: Optional[Dict[str, str]] = None
+        labels: dict[str, str] | None = None
     ):
         """
         Increment a counter metric.
-        
+
         Args:
             name: Counter name
             value: Value to increment by
@@ -262,18 +265,18 @@ class MetricsCollector:
                 full_name = f"{name}.{self._labels_to_string(labels)}"
             else:
                 full_name = name
-            
+
             self.counters[full_name] += value
-    
+
     def set_gauge(
         self,
         name: str,
         value: float,
-        labels: Optional[Dict[str, str]] = None
+        labels: dict[str, str] | None = None
     ):
         """
         Set a gauge metric.
-        
+
         Args:
             name: Gauge name
             value: Gauge value
@@ -284,19 +287,19 @@ class MetricsCollector:
                 full_name = f"{name}.{self._labels_to_string(labels)}"
             else:
                 full_name = name
-            
+
             self.gauges[full_name] = value
-    
+
     def record_histogram(
         self,
         name: str,
         value: float,
-        buckets: Optional[List[float]] = None,
-        labels: Optional[Dict[str, str]] = None
+        buckets: list[float] | None = None,
+        labels: dict[str, str] | None = None
     ):
         """
         Record a value in a histogram.
-        
+
         Args:
             name: Histogram name
             value: Value to record
@@ -308,27 +311,27 @@ class MetricsCollector:
                 full_name = f"{name}.{self._labels_to_string(labels)}"
             else:
                 full_name = name
-            
+
             if full_name not in self.histograms:
                 if buckets is None:
                     buckets = [0.1, 1.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1000.0]
-                
+
                 self.histograms[full_name] = Histogram(
                     full_name,
                     [HistogramBucket(b) for b in buckets]
                 )
-            
+
             self.histograms[full_name].observe(value)
-    
+
     def record_timer(
         self,
         name: str,
         duration: float,
-        labels: Optional[Dict[str, str]] = None
+        labels: dict[str, str] | None = None
     ):
         """
         Record a duration in a timer.
-        
+
         Args:
             name: Timer name
             duration: Duration in seconds
@@ -339,23 +342,23 @@ class MetricsCollector:
                 full_name = f"{name}.{self._labels_to_string(labels)}"
             else:
                 full_name = name
-            
+
             if full_name not in self.timers:
                 self.timers[full_name] = Timer(full_name)
-            
+
             self.timers[full_name].record(duration)
-    
+
     def record_custom_metric(
         self,
         name: str,
         value: float,
         category: MetricCategory = MetricCategory.CUSTOM,
-        labels: Optional[Dict[str, str]] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        labels: dict[str, str] | None = None,
+        metadata: dict[str, Any] | None = None
     ):
         """
         Record a custom metric.
-        
+
         Args:
             name: Metric name
             value: Metric value
@@ -373,59 +376,59 @@ class MetricsCollector:
                 metadata=metadata or {}
             )
             self.custom_metrics.append(metric)
-    
+
     def get_counter(self, name: str) -> float:
         """
         Get counter value.
-        
+
         Args:
             name: Counter name
-            
+
         Returns:
             Counter value
         """
         return self.counters.get(name, 0.0)
-    
+
     def get_gauge(self, name: str) -> float:
         """
         Get gauge value.
-        
+
         Args:
             name: Gauge name
-            
+
         Returns:
             Gauge value
         """
         return self.gauges.get(name, 0.0)
-    
-    def get_histogram(self, name: str) -> Optional[Histogram]:
+
+    def get_histogram(self, name: str) -> Histogram | None:
         """
         Get histogram.
-        
+
         Args:
             name: Histogram name
-            
+
         Returns:
             Histogram or None
         """
         return self.histograms.get(name)
-    
-    def get_timer(self, name: str) -> Optional[Timer]:
+
+    def get_timer(self, name: str) -> Timer | None:
         """
         Get timer.
-        
+
         Args:
             name: Timer name
-            
+
         Returns:
             Timer or None
         """
         return self.timers.get(name)
-    
-    def get_all_metrics(self) -> Dict[str, Any]:
+
+    def get_all_metrics(self) -> dict[str, Any]:
         """
         Get all metrics.
-        
+
         Returns:
             Dictionary of all metrics
         """
@@ -459,11 +462,11 @@ class MetricsCollector:
                 },
                 "custom": [m.to_dict() for m in self.custom_metrics]
             }
-    
-    def get_summary(self) -> Dict[str, Any]:
+
+    def get_summary(self) -> dict[str, Any]:
         """
         Get metrics summary.
-        
+
         Returns:
             Summary statistics
         """
@@ -487,7 +490,7 @@ class MetricsCollector:
                     sum(self.histograms[h].count for h in self.histograms)
                 )
             }
-    
+
     def reset_metrics(self):
         """Reset all metrics."""
         with self._lock:
@@ -496,55 +499,55 @@ class MetricsCollector:
             self.histograms.clear()
             self.timers.clear()
             self.custom_metrics.clear()
-    
+
     def export_metrics(self, format: str = "json") -> str:
         """
         Export metrics.
-        
+
         Args:
             format: Export format (json, prometheus)
-            
+
         Returns:
             Exported metrics string
         """
         metrics = self.get_all_metrics()
-        
+
         if format == "json":
             return json.dumps(metrics, indent=2)
-        
+
         elif format == "prometheus":
             lines = []
-            
+
             # Counters
             for name, value in self.counters.items():
                 lines.append(f"iflow_counter_{name} {value}")
-            
+
             # Gauges
             for name, value in self.gauges.items():
                 lines.append(f"iflow_gauge_{name} {value}")
-            
+
             # Timers
             for name, timer in self.timers.items():
                 lines.append(f"iflow_timer_{name}_sum {timer.sum}")
                 lines.append(f"iflow_timer_{name}_count {timer.count}")
                 lines.append(f"iflow_timer_{name}_avg {timer.get_average()}")
-            
+
             return "\n".join(lines)
-        
+
         else:
             raise ValueError(f"Unknown format: {format}")
-    
+
     def save(self):
         """Save metrics to file."""
         self._save_metrics()
-    
-    def _labels_to_string(self, labels: Dict[str, str]) -> str:
+
+    def _labels_to_string(self, labels: dict[str, str]) -> str:
         """
         Convert labels to string.
-        
+
         Args:
             labels: Labels dictionary
-            
+
         Returns:
             String representation
         """
@@ -553,16 +556,16 @@ class MetricsCollector:
 
 class MetricsTimer:
     """Context manager for timing operations."""
-    
+
     def __init__(
         self,
         collector: MetricsCollector,
         name: str,
-        labels: Optional[Dict[str, str]] = None
+        labels: dict[str, str] | None = None
     ):
         """
         Initialize timer context manager.
-        
+
         Args:
             collector: Metrics collector
             name: Timer name
@@ -571,13 +574,13 @@ class MetricsTimer:
         self.collector = collector
         self.name = name
         self.labels = labels
-        self.start_time: Optional[float] = None
-    
-    def __enter__(self) -> 'MetricsTimer':
+        self.start_time: float | None = None
+
+    def __enter__(self) -> MetricsTimer:
         """Enter context."""
         self.start_time = time.time()
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exit context."""
         if self.start_time is not None:
@@ -586,50 +589,50 @@ class MetricsTimer:
 
 
 # Global metrics collector
-_global_collector: Optional[MetricsCollector] = None
+_global_collector: MetricsCollector | None = None
 
 
 def get_metrics_collector(
-    metrics_file: Optional[Path] = None,
+    metrics_file: Path | None = None,
     enable_persistence: bool = True
 ) -> MetricsCollector:
     """
     Get or create global metrics collector.
-    
+
     Args:
         metrics_file: File to persist metrics
         enable_persistence: Whether to persist metrics
-        
+
     Returns:
         MetricsCollector instance
     """
     global _global_collector
-    
+
     if _global_collector is None:
         _global_collector = MetricsCollector(metrics_file, enable_persistence)
-    
+
     return _global_collector
 
 
 def measure_time(
     name: str,
-    labels: Optional[Dict[str, str]] = None,
-    collector: Optional[MetricsCollector] = None
+    labels: dict[str, str] | None = None,
+    collector: MetricsCollector | None = None
 ):
     """
     Decorator for measuring function execution time.
-    
+
     Args:
         name: Timer name
         labels: Optional labels
         collector: Optional metrics collector
-        
+
     Returns:
         Decorator function
     """
     if collector is None:
         collector = get_metrics_collector()
-    
+
     def decorator(func: Callable) -> Callable:
         def wrapper(*args, **kwargs):
             with MetricsTimer(collector, name, labels):
@@ -640,23 +643,23 @@ def measure_time(
 
 def count_calls(
     name: str,
-    labels: Optional[Dict[str, str]] = None,
-    collector: Optional[MetricsCollector] = None
+    labels: dict[str, str] | None = None,
+    collector: MetricsCollector | None = None
 ):
     """
     Decorator for counting function calls.
-    
+
     Args:
         name: Counter name
         labels: Optional labels
         collector: Optional metrics collector
-        
+
     Returns:
         Decorator function
     """
     if collector is None:
         collector = get_metrics_collector()
-    
+
     def decorator(func: Callable) -> Callable:
         def wrapper(*args, **kwargs):
             collector.increment_counter(name, labels=labels)
@@ -667,30 +670,30 @@ def count_calls(
 
 def track_success_rate(
     name: str,
-    labels: Optional[Dict[str, str]] = None,
-    collector: Optional[MetricsCollector] = None
+    labels: dict[str, str] | None = None,
+    collector: MetricsCollector | None = None
 ):
     """
     Decorator for tracking function success rate.
-    
+
     Args:
         name: Metric name prefix
         labels: Optional labels
         collector: Optional metrics collector
-        
+
     Returns:
         Decorator function
     """
     if collector is None:
         collector = get_metrics_collector()
-    
+
     def decorator(func: Callable) -> Callable:
         def wrapper(*args, **kwargs):
             try:
                 result = func(*args, **kwargs)
                 collector.increment_counter(f"{name}_success", labels=labels)
                 return result
-            except Exception as e:
+            except Exception:
                 collector.increment_counter(f"{name}_error", labels=labels)
                 raise
         return wrapper

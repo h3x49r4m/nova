@@ -8,56 +8,50 @@ import argparse
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
 
 # Import shared utilities
-from utils import (
-    ErrorCode,
-    StructuredLogger,
-    LogFormat,
-    run_git_command
-)
+from utils import ErrorCode, LogFormat, StructuredLogger, run_git_command
 
 
 class DocumentationSpecialist:
     """Documentation Specialist role for documentation creation."""
 
-    def __init__(self, repo_root: Optional[Path] = None):
+    def __init__(self, repo_root: Path | None = None):
         """Initialize documentation specialist skill."""
         self.repo_root = repo_root or Path.cwd()
         self.config_dir = self.repo_root / '.iflow' / 'skills' / 'documentation-specialist'
         self.config_file = self.config_dir / 'config.json'
         self.state_dir = self.repo_root / '.state'
-        
+
         self.logger = StructuredLogger(
             name="documentation-specialist",
             log_dir=self.repo_root / ".iflow" / "logs",
             log_format=LogFormat.JSON
         )
         self.load_config()
-    
+
     def load_config(self) -> None:
         """Load configuration from config file."""
         self.config = {
             'version': '1.0.0',
             'auto_commit': True
         }
-        
+
         if self.config_file.exists():
             try:
-                with open(self.config_file, 'r') as f:
+                with open(self.config_file) as f:
                     user_config = json.load(f)
                 self.config.update(user_config)
-            except (json.JSONDecodeError, IOError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 self.logger.warning(f"Failed to load config: {e}. Using defaults.")
-    
+
     def create_api_docs(
         self,
         project_path: Path
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """Create API documentation."""
         docs_file = project_path / '.state' / 'api-docs.md'
-        
+
         try:
             docs_content = f"""# API Documentation
 
@@ -574,25 +568,25 @@ See the [SDK Documentation](https://docs.example.com/sdk) for more information.
 
 See [changelog.md](./changelog.md) for API version history and changes.
 """
-            
+
             with open(docs_file, 'w') as f:
                 f.write(docs_content)
-            
+
             self.logger.info(f"API documentation created: {docs_file}")
             return 0, f"API documentation created: {docs_file}"
-            
-        except (IOError, OSError) as e:
+
+        except OSError as e:
             error_msg = f"Failed to create API documentation: {e}"
             self.logger.error(error_msg)
             return ErrorCode.FILE_WRITE_ERROR.value, error_msg
-    
+
     def create_user_guide(
         self,
         project_path: Path
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """Create user guide documentation."""
         guide_file = project_path / '.state' / 'user-guide.md'
-        
+
         try:
             guide_content = f"""# User Guide
 
@@ -934,25 +928,25 @@ Stay updated with the latest features and improvements:
 
 Check the [changelog](./changelog.md) for detailed release notes.
 """
-            
+
             with open(guide_file, 'w') as f:
                 f.write(guide_content)
-            
+
             self.logger.info(f"User guide created: {guide_file}")
             return 0, f"User guide created: {guide_file}"
-            
-        except (IOError, OSError) as e:
+
+        except OSError as e:
             error_msg = f"Failed to create user guide: {e}"
             self.logger.error(error_msg)
             return ErrorCode.FILE_WRITE_ERROR.value, error_msg
-    
+
     def create_changelog(
         self,
         project_path: Path
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """Create changelog documentation."""
         changelog_file = project_path / '.state' / 'changelog.md'
-        
+
         try:
             changelog_content = f"""# Changelog
 
@@ -1138,43 +1132,43 @@ For questions or issues related to a specific release, please:
 
 **Last Updated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 """
-            
+
             with open(changelog_file, 'w') as f:
                 f.write(changelog_content)
-            
+
             self.logger.info(f"Changelog created: {changelog_file}")
             return 0, f"Changelog created: {changelog_file}"
-            
-        except (IOError, OSError) as e:
+
+        except OSError as e:
             error_msg = f"Failed to create changelog: {e}"
             self.logger.error(error_msg)
             return ErrorCode.FILE_WRITE_ERROR.value, error_msg
-    
+
     def commit_changes(
         self,
         project_path: Path,
         changes_description: str
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """Commit changes with proper metadata."""
         try:
             # Get current branch
             code, branch, _ = run_git_command(['rev-parse', '--abbrev-ref', 'HEAD'], cwd=project_path)
             if code != 0:
-                return code, f"Failed to get current branch"
-            
+                return code, "Failed to get current branch"
+
             # Stage files
             files_to_stage = [
                 project_path / '.state' / 'api-docs.md',
                 project_path / '.state' / 'user-guide.md',
                 project_path / '.state' / 'changelog.md'
             ]
-            
+
             for file_path in files_to_stage:
                 if file_path.exists():
                     code, _, stderr = run_git_command(['add', str(file_path)], cwd=project_path)
                     if code != 0:
                         return code, f"Failed to stage {file_path.name}: {stderr}"
-            
+
             # Create commit message
             commit_message = f"""docs[documentation-specialist]: {changes_description}
 
@@ -1197,41 +1191,41 @@ Verification:
 - Tests: passed
 - Coverage: N/A
 - TDD: compliant"""
-            
+
             # Commit changes
-            code, stdout, stderr = run_git_command(['commit', '-m', commit_message], cwd=project_path)
-            
+            code, _stdout, stderr = run_git_command(['commit', '-m', commit_message], cwd=project_path)
+
             if code != 0:
                 return code, f"Failed to commit changes: {stderr}"
-            
+
             self.logger.info("Changes committed successfully")
             return 0, "Changes committed successfully"
-            
+
         except Exception as e:
             error_msg = f"Failed to commit changes: {e}"
             self.logger.error(error_msg)
             return ErrorCode.UNKNOWN_ERROR.value, error_msg
-    
+
     def run_workflow(
         self,
         project_path: Path
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """Run the complete documentation specialist workflow."""
         # Step 1: Create API documentation
         code, message = self.create_api_docs(project_path)
         if code != 0:
             return code, f"Failed to create API documentation: {message}"
-        
+
         # Step 2: Create user guide
         code, message = self.create_user_guide(project_path)
         if code != 0:
             return code, f"Failed to create user guide: {message}"
-        
+
         # Step 3: Create changelog
         code, message = self.create_changelog(project_path)
         if code != 0:
             return code, f"Failed to create changelog: {message}"
-        
+
         # Step 4: Commit changes
         if self.config.get('auto_commit', True):
             code, message = self.commit_changes(
@@ -1240,59 +1234,59 @@ Verification:
             )
             if code != 0:
                 return code, f"Failed to commit changes: {message}"
-        
-        return 0, f"Documentation specialist workflow completed successfully. Created comprehensive API documentation (12 endpoints documented), user guide (7 main sections with FAQ and keyboard shortcuts), and changelog (Semantic Versioning format with detailed release history). All documentation follows technical writing best practices and is ready for stakeholder review."
+
+        return 0, "Documentation specialist workflow completed successfully. Created comprehensive API documentation (12 endpoints documented), user guide (7 main sections with FAQ and keyboard shortcuts), and changelog (Semantic Versioning format with detailed release history). All documentation follows technical writing best practices and is ready for stakeholder review."
 
 
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(description='Documentation Specialist skill for documentation creation')
     parser.add_argument('--project-path', type=str, help='Path to the project directory')
-    
+
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
-    
+
     # Create API docs command
-    api_parser = subparsers.add_parser('create-api-docs', help='Create API documentation')
-    
+    subparsers.add_parser('create-api-docs', help='Create API documentation')
+
     # Create user guide command
-    guide_parser = subparsers.add_parser('create-user-guide', help='Create user guide')
-    
+    subparsers.add_parser('create-user-guide', help='Create user guide')
+
     # Create changelog command
-    changelog_parser = subparsers.add_parser('create-changelog', help='Create changelog')
-    
+    subparsers.add_parser('create-changelog', help='Create changelog')
+
     # Run workflow command
     workflow_parser = subparsers.add_parser('run', help='Run complete documentation specialist workflow')
     workflow_parser.add_argument('--project-path', type=str, required=True, help='Path to the project directory')
-    
+
     args = parser.parse_args()
-    
+
     if not args.command:
         parser.print_help()
         return 0
-    
+
     docs = DocumentationSpecialist()
     project_path = Path(args.project_path) if args.project_path else Path.cwd()
-    
+
     if args.command == 'create-api-docs':
         code, output = docs.create_api_docs(project_path)
         print(output)
         return code
-    
+
     elif args.command == 'create-user-guide':
         code, output = docs.create_user_guide(project_path)
         print(output)
         return code
-    
+
     elif args.command == 'create-changelog':
         code, output = docs.create_changelog(project_path)
         print(output)
         return code
-    
+
     elif args.command == 'run':
         code, output = docs.run_workflow(project_path)
         print(output)
         return code
-    
+
     else:
         print(f"Unknown command: {args.command}", file=sys.stderr)
         return 1

@@ -4,13 +4,13 @@ Unit tests for CheckpointManager module.
 """
 
 import json
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
 
-from utils.checkpoint_manager import CheckpointManager, Checkpoint, CheckpointStatus
-from utils.exceptions import IFlowError, ErrorCode
+import pytest
+from utils.checkpoint_manager import Checkpoint, CheckpointManager, CheckpointStatus
+from utils.exceptions import ErrorCode, IFlowError
 
 
 class TestCheckpoint:
@@ -130,7 +130,7 @@ class TestCheckpointManager:
         checkpoint_file = checkpoint_manager.checkpoint_dir / f"{checkpoint.checkpoint_id}.json"
         assert checkpoint_file.exists()
 
-        with open(checkpoint_file, 'r') as f:
+        with open(checkpoint_file) as f:
             loaded_data = json.load(f)
 
         assert loaded_data == state_data
@@ -144,7 +144,7 @@ class TestCheckpointManager:
 
         assert checkpoint_manager.index_file.exists()
 
-        with open(checkpoint_manager.index_file, 'r') as f:
+        with open(checkpoint_manager.index_file) as f:
             index_data = json.load(f)
 
         assert index_data["total_checkpoints"] == 1
@@ -271,9 +271,9 @@ class TestCheckpointManager:
 
     def test_get_checkpoint_by_name(self, checkpoint_manager):
         """Test getting checkpoints by name."""
-        cp1 = checkpoint_manager.create_checkpoint("Unique Name", {"id": 1})
-        cp2 = checkpoint_manager.create_checkpoint("Duplicate Name", {"id": 2})
-        cp3 = checkpoint_manager.create_checkpoint("Duplicate Name", {"id": 3})
+        checkpoint_manager.create_checkpoint("Unique Name", {"id": 1})
+        checkpoint_manager.create_checkpoint("Duplicate Name", {"id": 2})
+        checkpoint_manager.create_checkpoint("Duplicate Name", {"id": 3})
 
         # Should return only checkpoints with "Duplicate Name"
         checkpoints = checkpoint_manager.get_checkpoint_by_name("Duplicate Name")

@@ -5,18 +5,15 @@ security scanning tools such as SonarQube, Snyk, ESLint, Pylint, etc.
 """
 
 import json
+import re
+import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-import subprocess
-import re
+from typing import Any
 
-from .exceptions import (
-    IFlowError,
-    ErrorCode
-)
 from .constants import Timeouts
-from .structured_logger import StructuredLogger, LogFormat
+from .exceptions import ErrorCode, IFlowError
+from .structured_logger import LogFormat, StructuredLogger
 
 # Module-level logger for logging
 _logger = StructuredLogger(
@@ -28,11 +25,11 @@ _logger = StructuredLogger(
 
 class ReviewTool:
     """Base class for review tools."""
-    
-    def __init__(self, name: str, version: Optional[str] = None):
+
+    def __init__(self, name: str, version: str | None = None):
         """
         Initialize a review tool.
-        
+
         Args:
             name: Name of the tool
             version: Optional version requirement
@@ -42,7 +39,7 @@ class ReviewTool:
         self.installed = False
         self.tool_version = None
         self.tool_name = name  # For backward compatibility
-    
+
     def check_installed(self) -> bool:
         """Check if the tool is installed."""
         try:
@@ -63,19 +60,19 @@ class ReviewTool:
             _logger.warning(f"Failed to check if {self.tool_name} is installed: {e}")
             self.installed = False
             return False
-    
-    def run_scan(self, path: Path, **kwargs) -> Dict[str, Any]:
+
+    def run_scan(self, path: Path, **kwargs) -> dict[str, Any]:
         """Run a scan. Override in subclass."""
         raise NotImplementedError(f"{self.__class__.__name__}.run_scan() must be implemented by subclass")
 
 
 class SonarQubeScanner(ReviewTool):
     """SonarQube code quality scanner."""
-    
+
     def __init__(self, host_url: str, token: str):
         """
         Initialize SonarQube scanner.
-        
+
         Args:
             host_url: SonarQube server URL
             token: SonarQube authentication token
@@ -84,23 +81,23 @@ class SonarQubeScanner(ReviewTool):
         self.host_url = host_url
         self.token = token
         self.check_installed()
-    
+
     def run_scan(
         self,
         project_path: Path,
         project_key: str,
         sources: str = ".",
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Run SonarQube scan.
-        
+
         Args:
             project_path: Path to project directory
             project_key: SonarQube project key
             sources: Source directory to scan
             **kwargs: Additional sonar-scanner parameters
-            
+
         Returns:
             Scan results dictionary
         """
@@ -110,7 +107,7 @@ class SonarQubeScanner(ReviewTool):
                 "error": f"{self.name} is not installed",
                 "issues": []
             }
-        
+
         try:
             # Build sonar-scanner command
             cmd = [
@@ -121,11 +118,11 @@ class SonarQubeScanner(ReviewTool):
                 f"-Dsonar.sources={sources}",
                 f"-Dsonar.projectBaseDir={project_path}"
             ]
-            
+
             # Add additional parameters
             for key, value in kwargs.items():
                 cmd.append(f"-Dsonar.{key}={value}")
-            
+
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -133,14 +130,14 @@ class SonarQubeScanner(ReviewTool):
                 timeout=Timeouts.SCAN_TIMEOUT.value,
                 cwd=project_path
             )
-            
+
             return {
                 "success": result.returncode == 0,
                 "output": result.stdout,
                 "error": result.stderr if result.returncode != 0 else None,
                 "issues": self._parse_issues(result.stdout)
             }
-        
+
         except subprocess.TimeoutExpired:
             return {
                 "success": False,
@@ -153,21 +150,21 @@ class SonarQubeScanner(ReviewTool):
                 "error": str(e),
                 "issues": []
             }
-    
-    def _parse_issues(self, output: str) -> List[Dict[str, Any]]:
+
+    def _parse_issues(self, output: str) -> list[dict[str, Any]]:
         """Parse issues from SonarQube output."""
         issues = []
         # SonarQube issues are typically retrieved via API
         # This is a simplified parser for command output
         return issues
-    
-    def get_quality_gate(self, project_key: str) -> Dict[str, Any]:
+
+    def get_quality_gate(self, project_key: str) -> dict[str, Any]:
         """
         Get quality gate status from SonarQube API.
-        
+
         Args:
             project_key: SonarQube project key
-            
+
         Returns:
             Quality gate status
         """
@@ -181,34 +178,34 @@ class SonarQubeScanner(ReviewTool):
 
 class SnykScanner(ReviewTool):
     """Snyk security scanner."""
-    
-    def __init__(self, token: Optional[str] = None):
+
+    def __init__(self, token: str | None = None):
         """
         Initialize Snyk scanner.
-        
+
         Args:
             token: Snyk API token (optional)
         """
         super().__init__("snyk")
         self.token = token
         self.check_installed()
-    
+
     def run_scan(
         self,
         target_path: Path,
         scan_type: str = "code",
-        severity: Optional[str] = None,
+        severity: str | None = None,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Run Snyk scan.
-        
+
         Args:
             target_path: Path to scan
             scan_type: Type of scan ('code', 'dependency', 'container', 'iac')
             severity: Minimum severity level
             **kwargs: Additional Snyk parameters
-            
+
         Returns:
             Scan results dictionary
         """
@@ -218,11 +215,11 @@ class SnykScanner(ReviewTool):
                 "error": f"{self.name} is not installed",
                 "vulnerabilities": []
             }
-        
+
         try:
             # Build snyk command
             cmd = [self.name]
-            
+
             if scan_type == "code":
                 cmd.extend(["code", "test"])
             elif scan_type == "dependency":
@@ -231,18 +228,18 @@ class SnykScanner(ReviewTool):
                 cmd.extend(["container", "test"])
             elif scan_type == "iac":
                 cmd.extend(["iac", "test"])
-            
+
             cmd.append(str(target_path))
-            
+
             # Add options
             if severity:
                 cmd.extend(["--severity-threshold", severity])
-            
+
             if self.token:
                 cmd.extend(["--auth", self.token])
-            
+
             cmd.append("--json")
-            
+
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -250,7 +247,7 @@ class SnykScanner(ReviewTool):
                 timeout=Timeouts.SCAN_TIMEOUT.value,
                 cwd=target_path.parent
             )
-            
+
             if result.returncode == 0:
                 # Parse JSON output
                 try:
@@ -272,7 +269,7 @@ class SnykScanner(ReviewTool):
                     "error": result.stderr,
                     "vulnerabilities": []
                 }
-        
+
         except subprocess.TimeoutExpired:
             return {
                 "success": False,
@@ -285,11 +282,11 @@ class SnykScanner(ReviewTool):
                 "error": str(e),
                 "vulnerabilities": []
             }
-    
-    def _parse_vulnerabilities(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+
+    def _parse_vulnerabilities(self, data: dict[str, Any]) -> list[dict[str, Any]]:
         """Parse vulnerabilities from Snyk output."""
         vulnerabilities = []
-        
+
         if "vulnerabilities" in data:
             for vuln in data["vulnerabilities"]:
                 vulnerabilities.append({
@@ -302,16 +299,16 @@ class SnykScanner(ReviewTool):
                     "references": vuln.get("references", []),
                     "fixedIn": vuln.get("fixedIn", [])
                 })
-        
+
         return vulnerabilities
-    
-    def get_license_compliance(self, target_path: Path) -> Dict[str, Any]:
+
+    def get_license_compliance(self, target_path: Path) -> dict[str, Any]:
         """
         Check license compliance.
-        
+
         Args:
             target_path: Path to check
-            
+
         Returns:
             License compliance results
         """
@@ -321,17 +318,17 @@ class SnykScanner(ReviewTool):
                 "error": f"{self.name} is not installed",
                 "licenses": []
             }
-        
+
         try:
             cmd = [self.name, "test", str(target_path), "--json", "--license"]
-            
+
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=Timeouts.SCAN_TIMEOUT.value
             )
-            
+
             if result.returncode == 0:
                 data = json.loads(result.stdout)
                 return {
@@ -343,7 +340,7 @@ class SnykScanner(ReviewTool):
                     "success": False,
                     "error": result.stderr
                 }
-        
+
         except Exception as e:
             return {
                 "success": False,
@@ -353,28 +350,28 @@ class SnykScanner(ReviewTool):
 
 class ESLintScanner(ReviewTool):
     """ESLint JavaScript/TypeScript linter."""
-    
+
     def __init__(self):
         """Initialize ESLint scanner."""
         super().__init__("eslint")
         self.check_installed()
-    
+
     def run_scan(
         self,
         target_path: Path,
-        config_file: Optional[Path] = None,
+        config_file: Path | None = None,
         format: str = "json",
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Run ESLint scan.
-        
+
         Args:
             target_path: Path to scan
             config_file: Path to ESLint config file
             format: Output format ('json', 'stylish', 'compact')
             **kwargs: Additional ESLint parameters
-            
+
         Returns:
             Scan results dictionary
         """
@@ -384,22 +381,22 @@ class ESLintScanner(ReviewTool):
                 "error": f"{self.name} is not installed",
                 "issues": []
             }
-        
+
         try:
             cmd = [self.name]
-            
+
             if config_file:
                 cmd.extend(["--config", str(config_file)])
-            
+
             cmd.extend(["--format", format, str(target_path)])
-            
+
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=Timeouts.LINT_TIMEOUT.value
             )
-            
+
             if format == "json":
                 try:
                     issues = json.loads(result.stdout)
@@ -419,7 +416,7 @@ class ESLintScanner(ReviewTool):
                     "output": result.stdout,
                     "error": result.stderr if result.returncode != 0 else None
                 }
-        
+
         except subprocess.TimeoutExpired:
             return {
                 "success": False,
@@ -430,8 +427,8 @@ class ESLintScanner(ReviewTool):
                 "success": False,
                 "error": str(e)
             }
-    
-    def _generate_summary(self, issues: List[Dict[str, Any]]) -> Dict[str, int]:
+
+    def _generate_summary(self, issues: list[dict[str, Any]]) -> dict[str, int]:
         """Generate summary of issues."""
         summary = {"error": 0, "warning": 0}
         for issue in issues:
@@ -445,28 +442,28 @@ class ESLintScanner(ReviewTool):
 
 class PylintScanner(ReviewTool):
     """Pylint Python linter."""
-    
+
     def __init__(self):
         """Initialize Pylint scanner."""
         super().__init__("pylint")
         self.check_installed()
-    
+
     def run_scan(
         self,
         target_path: Path,
-        config_file: Optional[Path] = None,
+        config_file: Path | None = None,
         output_format: str = "json",
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Run Pylint scan.
-        
+
         Args:
             target_path: Path to scan
             config_file: Path to Pylint config file
             output_format: Output format ('json', 'text')
             **kwargs: Additional Pylint parameters
-            
+
         Returns:
             Scan results dictionary
         """
@@ -476,22 +473,22 @@ class PylintScanner(ReviewTool):
                 "error": f"{self.name} is not installed",
                 "issues": []
             }
-        
+
         try:
             cmd = [self.name]
-            
+
             if config_file:
                 cmd.extend(["--rcfile", str(config_file)])
-            
+
             cmd.extend(["--output-format", output_format, str(target_path)])
-            
+
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=Timeouts.LINT_TIMEOUT.value
             )
-            
+
             if output_format == "json":
                 try:
                     issues = json.loads(result.stdout)
@@ -511,7 +508,7 @@ class PylintScanner(ReviewTool):
                     "output": result.stdout,
                     "error": result.stderr if result.returncode != 0 else None
                 }
-        
+
         except subprocess.TimeoutExpired:
             return {
                 "success": False,
@@ -522,8 +519,8 @@ class PylintScanner(ReviewTool):
                 "success": False,
                 "error": str(e)
             }
-    
-    def _generate_summary(self, issues: List[Dict[str, Any]]) -> Dict[str, int]:
+
+    def _generate_summary(self, issues: list[dict[str, Any]]) -> dict[str, int]:
         """Generate summary of issues."""
         summary = {
             "fatal": 0,
@@ -542,18 +539,18 @@ class PylintScanner(ReviewTool):
 
 class ReviewToolIntegration:
     """Manages integration with multiple review tools."""
-    
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+
+    def __init__(self, config: dict[str, Any] | None = None):
         """
         Initialize review tool integration.
-        
+
         Args:
             config: Configuration dictionary for tools
         """
         self.config = config or {}
-        self.tools: Dict[str, ReviewTool] = {}
+        self.tools: dict[str, ReviewTool] = {}
         self._initialize_tools()
-    
+
     def _initialize_tools(self):
         """Initialize configured review tools."""
         # Initialize SonarQube if configured
@@ -564,7 +561,7 @@ class ReviewToolIntegration:
                     host_url=sq_config.get("host_url", ""),
                     token=sq_config.get("token", "")
                 )
-        
+
         # Initialize Snyk if configured
         if "snyk" in self.config:
             snyk_config = self.config["snyk"]
@@ -572,33 +569,33 @@ class ReviewToolIntegration:
                 self.tools["snyk"] = SnykScanner(
                     token=snyk_config.get("token")
                 )
-        
+
         # Initialize ESLint if enabled
         if "eslint" in self.config and self.config["eslint"].get("enabled", False):
             self.tools["eslint"] = ESLintScanner()
-        
+
         # Initialize Pylint if enabled
         if "pylint" in self.config and self.config["pylint"].get("enabled", False):
             self.tools["pylint"] = PylintScanner()
-    
+
     def run_all_scans(
         self,
         project_path: Path,
-        tool_names: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        tool_names: list[str] | None = None
+    ) -> dict[str, Any]:
         """
         Run scans with all configured tools.
-        
+
         Args:
             project_path: Path to project
             tool_names: Optional list of specific tools to run
-            
+
         Returns:
             Combined results from all scans
         """
         results = {}
         tools_to_run = tool_names if tool_names else list(self.tools.keys())
-        
+
         for tool_name in tools_to_run:
             if tool_name in self.tools:
                 tool = self.tools[tool_name]
@@ -609,15 +606,15 @@ class ReviewToolIntegration:
                         "success": False,
                         "error": f"{tool_name} is not installed"
                     }
-        
+
         return {
             "timestamp": datetime.now().isoformat(),
             "project_path": str(project_path),
             "results": results,
             "summary": self._generate_summary(results)
         }
-    
-    def _generate_summary(self, results: Dict[str, Any]) -> Dict[str, Any]:
+
+    def _generate_summary(self, results: dict[str, Any]) -> dict[str, Any]:
         """Generate summary of all scan results."""
         summary = {
             "total_tools": len(results),
@@ -627,26 +624,26 @@ class ReviewToolIntegration:
             "critical_issues": 0,
             "high_severity_issues": 0
         }
-        
-        for tool_name, result in results.items():
+
+        for _tool_name, result in results.items():
             if result.get("success", False):
                 summary["successful_scans"] += 1
             else:
                 summary["failed_scans"] += 1
-            
+
             # Count issues
             if "issues" in result:
                 summary["total_issues"] += len(result["issues"])
-            
+
             if "vulnerabilities" in result:
                 for vuln in result["vulnerabilities"]:
                     severity = vuln.get("severity", "").lower()
                     if severity in ["critical", "high"]:
                         summary["high_severity_issues"] += 1
-        
+
         return summary
-    
-    def get_tool_status(self) -> Dict[str, Any]:
+
+    def get_tool_status(self) -> dict[str, Any]:
         """Get status of all configured tools."""
         status = {}
         for name, tool in self.tools.items():
@@ -655,11 +652,11 @@ class ReviewToolIntegration:
                 "version": tool.tool_version
             }
         return status
-    
-    def save_results(self, results: Dict[str, Any], output_file: Path):
+
+    def save_results(self, results: dict[str, Any], output_file: Path):
         """
         Save scan results to file.
-        
+
         Args:
             results: Scan results dictionary
             output_file: Path to output file
@@ -669,11 +666,11 @@ class ReviewToolIntegration:
                 json.dump(results, f, indent=2)
         except Exception as e:
             raise IFlowError(
-                f"Failed to save results: {str(e)}",
+                f"Failed to save results: {e!s}",
                 ErrorCode.FILE_WRITE_ERROR
             )
 
 
-def create_review_integration(config: Optional[Dict[str, Any]] = None) -> ReviewToolIntegration:
+def create_review_integration(config: dict[str, Any] | None = None) -> ReviewToolIntegration:
     """Create a review tool integration instance."""
     return ReviewToolIntegration(config=config)

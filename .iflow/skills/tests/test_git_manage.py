@@ -11,13 +11,14 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from git_manage.git_manage import GitManage
+
 # Import exceptions and constants from utils
 from utils import (
-    ErrorCode,
+    DEFAULT_PROTECTED_BRANCHES,
     CommitTypes,
     CoverageThresholds,
-    DEFAULT_PROTECTED_BRANCHES,
-    SecretPatterns
+    ErrorCode,
+    SecretPatterns,
 )
 
 
@@ -53,13 +54,13 @@ class TestGitManage(unittest.TestCase):
         subprocess.run(['git', 'init'], cwd=self.repo_root, capture_output=True)
         subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=self.repo_root, capture_output=True)
         subprocess.run(['git', 'config', 'user.name', 'Test User'], cwd=self.repo_root, capture_output=True)
-        
+
         # Create and commit initial file to ensure HEAD is properly initialized
         initial_file = self.repo_root / 'initial.txt'
         initial_file.write_text('initial content')
         subprocess.run(['git', 'add', 'initial.txt'], cwd=self.repo_root, capture_output=True)
         subprocess.run(['git', 'commit', '-m', 'Initial commit'], cwd=self.repo_root, capture_output=True)
-        
+
         # Now checkout main branch
         subprocess.run(['git', 'checkout', '-b', 'main'], cwd=self.repo_root, capture_output=True)
 
@@ -595,8 +596,8 @@ class TestGitManageConstants(unittest.TestCase):
 
     def test_commit_types_from_constants(self):
         """Test that commit types come from constants."""
-        import tempfile
         import shutil
+        import tempfile
 
         temp_dir = tempfile.mkdtemp()
         try:
@@ -616,8 +617,8 @@ class TestGitManageConstants(unittest.TestCase):
 
     def test_secret_patterns_from_constants(self):
         """Test that secret patterns come from constants."""
-        import tempfile
         import shutil
+        import tempfile
 
         temp_dir = tempfile.mkdtemp()
         try:

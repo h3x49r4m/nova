@@ -5,10 +5,10 @@ detailed context, suggestions, and actionable information.
 """
 
 import traceback
-from typing import Any, Dict, List, Optional, Tuple
 from enum import Enum
+from typing import Any
 
-from .exceptions import ErrorCode, ErrorCategory
+from .exceptions import ErrorCategory, ErrorCode
 
 
 class ErrorSeverity(Enum):
@@ -21,7 +21,7 @@ class ErrorSeverity(Enum):
 
 class ErrorMessageFormatter:
     """Formats error messages with context and suggestions."""
-    
+
     # Error templates with placeholders
     ERROR_TEMPLATES = {
         ErrorCode.GIT_ERROR: (
@@ -170,7 +170,7 @@ class ErrorMessageFormatter:
             "- Review version requirements"
         ),
     }
-    
+
     def __init__(
         self,
         include_traceback: bool = False,
@@ -180,7 +180,7 @@ class ErrorMessageFormatter:
     ):
         """
         Initialize the error message formatter.
-        
+
         Args:
             include_traceback: Whether to include stack traces
             include_context: Whether to include context information
@@ -191,19 +191,19 @@ class ErrorMessageFormatter:
         self.include_context = include_context
         self.include_suggestions = include_suggestions
         self.max_context_lines = max_context_lines
-    
+
     def format_error(
         self,
         error: Exception,
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> str:
         """
         Format an error with context and suggestions.
-        
+
         Args:
             error: The exception to format
             context: Additional context information
-            
+
         Returns:
             Formatted error message
         """
@@ -212,27 +212,27 @@ class ErrorMessageFormatter:
         error_message = str(error)
         error_code = getattr(error, 'code', None)
         error_category = getattr(error, 'category', None)
-        
+
         # Build the error message
         lines = []
-        
+
         # Error header
         lines.append(f"❌ {error_type}")
         lines.append("=" * 50)
         lines.append("")
-        
+
         # Error message
         lines.append(f"Message: {error_message}")
-        
+
         # Error code and category
         if error_code:
             lines.append(f"Error Code: {error_code.name} ({error_code.value})")
-        
+
         if error_category:
             lines.append(f"Category: {error_category.value}")
-        
+
         lines.append("")
-        
+
         # Add context information
         if self.include_context and context:
             lines.append("Context:")
@@ -240,7 +240,7 @@ class ErrorMessageFormatter:
             for key, value in context.items():
                 lines.append(f"  {key}: {value}")
             lines.append("")
-        
+
         # Add template-based suggestions
         if self.include_suggestions and error_code:
             template = self.ERROR_TEMPLATES.get(error_code)
@@ -251,7 +251,7 @@ class ErrorMessageFormatter:
                 lines.append("-" * 30)
                 lines.append(formatted)
                 lines.append("")
-        
+
         # Add traceback
         if self.include_traceback:
             lines.append("Stack Trace:")
@@ -259,7 +259,7 @@ class ErrorMessageFormatter:
             tb_lines = traceback.format_exc().split("\n")
             lines.extend(tb_lines[:self.max_context_lines + 2])
             lines.append("")
-        
+
         # Add recovery information
         lines.append("Recovery:")
         lines.append("-" * 30)
@@ -267,17 +267,17 @@ class ErrorMessageFormatter:
         lines.append("  - Fix the underlying issue")
         lines.append("  - Retry the operation")
         lines.append("  - Contact support if the issue persists")
-        
+
         return "\n".join(lines)
-    
-    def _format_template(self, template: str, context: Dict[str, Any]) -> str:
+
+    def _format_template(self, template: str, context: dict[str, Any]) -> str:
         """
         Format a template with context values.
-        
+
         Args:
             template: Template string with placeholders
             context: Context values
-            
+
         Returns:
             Formatted template
         """
@@ -286,64 +286,64 @@ class ErrorMessageFormatter:
         except KeyError:
             # Missing placeholder, return template as-is
             return template
-    
+
     def format_error_summary(
         self,
         error: Exception,
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> str:
         """
         Format a brief error summary.
-        
+
         Args:
             error: The exception to format
             context: Additional context information
-            
+
         Returns:
             Brief error summary
         """
         error_type = type(error).__name__
         error_message = str(error)
         error_code = getattr(error, 'code', None)
-        
+
         parts = [error_type]
-        
+
         if error_code:
             parts.append(f"[{error_code.name}]")
-        
+
         parts.append(f": {error_message}")
-        
+
         return " ".join(parts)
-    
+
     def format_error_json(
         self,
         error: Exception,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Format an error as a JSON-compatible dictionary.
-        
+
         Args:
             error: The exception to format
             context: Additional context information
-            
+
         Returns:
             Dictionary with error information
         """
-        
+
         error_data = {
             "error": type(error).__name__,
             "message": str(error),
             "code": getattr(error, 'code', None),
             "category": getattr(error, 'category', None),
         }
-        
+
         if context:
             error_data["context"] = context
-        
+
         if self.include_traceback:
             error_data["traceback"] = traceback.format_exc()
-        
+
         if self.include_suggestions and getattr(error, 'code', None):
             template = self.ERROR_TEMPLATES.get(error.code)
             if template:
@@ -351,19 +351,19 @@ class ErrorMessageFormatter:
                     template,
                     context or {}
                 )
-        
+
         return error_data
-    
+
     def format_multiple_errors(
         self,
-        errors: List[Tuple[Exception, Optional[Dict[str, Any]]]]
+        errors: list[tuple[Exception, dict[str, Any] | None]]
     ) -> str:
         """
         Format multiple errors.
-        
+
         Args:
             errors: List of (error, context) tuples
-            
+
         Returns:
             Formatted multi-error message
         """
@@ -371,71 +371,71 @@ class ErrorMessageFormatter:
         lines.append(f"❌ {len(errors)} Error(s) Detected")
         lines.append("=" * 50)
         lines.append("")
-        
+
         for i, (error, context) in enumerate(errors, 1):
             lines.append(f"Error #{i}:")
             lines.append("-" * 30)
             lines.append(self.format_error(error, context))
             lines.append("")
-        
+
         return "\n".join(lines)
-    
+
     def get_severity(
         self,
         error: Exception
     ) -> ErrorSeverity:
         """
         Determine the severity of an error.
-        
+
         Args:
             error: The exception to evaluate
-            
+
         Returns:
             Error severity level
         """
         error_code = getattr(error, 'code', None)
         error_category = getattr(error, 'category', None)
-        
+
         # Critical errors
         if error_code in [
             ErrorCode.SECURITY_ERROR,
             ErrorCode.VERSION_ERROR
         ]:
             return ErrorSeverity.CRITICAL
-        
+
         if error_category == ErrorCategory.SYSTEM_ERROR:
             return ErrorSeverity.CRITICAL
-        
+
         # Regular errors
         if error_code or error_category == ErrorCategory.PERMANENT:
             return ErrorSeverity.ERROR
-        
+
         # Warnings
         if error_category == ErrorCategory.TRANSIENT:
             return ErrorSeverity.WARNING
-        
+
         # Default
         return ErrorSeverity.ERROR
-    
+
     def format_for_log(
         self,
         error: Exception,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Format an error for logging.
-        
+
         Args:
             error: The exception to format
             context: Additional context information
-            
+
         Returns:
             Dictionary suitable for structured logging
         """
         severity = self.get_severity(error)
         error_code = getattr(error, 'code', None)
         error_category = getattr(error, 'category', None)
-        
+
         return {
             "severity": severity.value,
             "error_type": type(error).__name__,
@@ -449,17 +449,17 @@ class ErrorMessageFormatter:
 
 def format_error(
     error: Exception,
-    context: Optional[Dict[str, Any]] = None,
+    context: dict[str, Any] | None = None,
     include_traceback: bool = False
 ) -> str:
     """
     Format an error with context and suggestions.
-    
+
     Args:
         error: The exception to format
         context: Additional context information
         include_traceback: Whether to include stack traces
-        
+
     Returns:
         Formatted error message
     """
@@ -469,13 +469,13 @@ def format_error(
 
 def create_error_context(
     **kwargs: Any
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create an error context dictionary.
-    
+
     Args:
         **kwargs: Context key-value pairs
-        
+
     Returns:
         Context dictionary
     """

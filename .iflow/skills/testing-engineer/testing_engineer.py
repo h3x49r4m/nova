@@ -9,21 +9,15 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
 
 # Import shared utilities
-from utils import (
-    ErrorCode,
-    StructuredLogger,
-    LogFormat,
-    run_git_command
-)
+from utils import ErrorCode, LogFormat, StructuredLogger, run_git_command
 
 
 class TestingEngineerSkill:
     """Testing Engineer role for test automation and frameworks."""
 
-    def __init__(self, repo_root: Optional[Path] = None):
+    def __init__(self, repo_root: Path | None = None):
         """Initialize testing engineer skill."""
         self.repo_root = repo_root or Path.cwd()
         self.config_dir = self.repo_root / '.iflow' / 'skills' / 'testing-engineer'
@@ -36,7 +30,7 @@ class TestingEngineerSkill:
             log_format=LogFormat.JSON
         )
         self.load_config()
-    
+
     def load_config(self) -> None:
         """Load configuration from config file."""
         self.config = {
@@ -47,22 +41,22 @@ class TestingEngineerSkill:
             'coverage_threshold': 80,
             'auto_commit': True
         }
-        
+
         if self.config_file.exists():
             try:
-                with open(self.config_file, 'r') as f:
+                with open(self.config_file) as f:
                     user_config = json.load(f)
                 self.config.update(user_config)
-            except (json.JSONDecodeError, IOError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 self.logger.warning(f"Failed to load config: {e}. Using defaults.")
-    
+
     def create_test_plan(
         self,
         project_path: Path
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """Create test plan document."""
         plan_file = project_path / '.state' / 'test-plan.md'
-        
+
         try:
             plan_content = f"""# Test Plan
 
@@ -147,7 +141,7 @@ async def test_get_users_success(client, db_session):
     users = [create_test_user() for _ in range(5)]
     db_session.add_all(users)
     db_session.commit()
-    
+
     response = client.get('/api/v1/users')
     assert response.status_code == 200
     assert len(response.json()['data']['users']) == 5
@@ -174,16 +168,16 @@ describe('LoginForm', () => {{
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
     expect(screen.getByLabelText('Password')).toBeInTheDocument();
   }});
-  
+
   it('submits login credentials', async () => {{
     const mockLogin = vi.fn();
     render(<LoginForm onLogin={{mockLogin}} />);
-    
+
     fireEvent.change(screen.getByLabelText('Email'), {{
       target: {{ value: 'test@example.com' }}
     }});
     fireEvent.click(screen.getByRole('button', {{ name: 'Login' }}));
-    
+
     await waitFor(() => expect(mockLogin).toHaveBeenCalled());
   }});
 }});
@@ -217,7 +211,7 @@ test('user login flow', async ({{ page }}) => {{
   await page.fill('[name="email"]', 'test@example.com');
   await page.fill('[name="password"]', 'password123');
   await page.click('button[type="submit"]');
-  
+
   await expect(page).toHaveURL('/dashboard');
   await expect(page.locator('text=Welcome')).toBeVisible();
 }});
@@ -307,25 +301,25 @@ jobs:
 - No test failures allowed
 - Performance tests within SLA
 """
-            
+
             with open(plan_file, 'w') as f:
                 f.write(plan_content)
-            
+
             self.logger.info(f"Test plan created: {plan_file}")
             return 0, f"Test plan created: {plan_file}"
-            
-        except (IOError, OSError) as e:
+
+        except OSError as e:
             error_msg = f"Failed to create test plan: {e}"
             self.logger.error(error_msg)
             return ErrorCode.FILE_WRITE_ERROR.value, error_msg
-    
+
     def create_test_results(
         self,
         project_path: Path
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """Create test results document."""
         results_file = project_path / '.state' / 'test-results.md'
-        
+
         try:
             results_content = f"""# Test Results
 
@@ -491,42 +485,42 @@ src/integration/UserCRUD.test.tsx PASSED
 3. Implement performance monitoring in production
 4. Set up automated test scheduling
 """
-            
+
             with open(results_file, 'w') as f:
                 f.write(results_content)
-            
+
             self.logger.info(f"Test results created: {results_file}")
             return 0, f"Test results created: {results_file}"
-            
-        except (IOError, OSError) as e:
+
+        except OSError as e:
             error_msg = f"Failed to create test results: {e}"
             self.logger.error(error_msg)
             return ErrorCode.FILE_WRITE_ERROR.value, error_msg
-    
+
     def commit_changes(
         self,
         project_path: Path,
         changes_description: str
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """Commit changes with proper metadata."""
         try:
             # Get current branch
             code, branch, _ = run_git_command(['rev-parse', '--abbrev-ref', 'HEAD'], cwd=project_path)
             if code != 0:
-                return code, f"Failed to get current branch"
-            
+                return code, "Failed to get current branch"
+
             # Stage files
             files_to_stage = [
                 project_path / '.state' / 'test-plan.md',
                 project_path / '.state' / 'test-results.md'
             ]
-            
+
             for file_path in files_to_stage:
                 if file_path.exists():
                     code, _, stderr = run_git_command(['add', str(file_path)], cwd=project_path)
                     if code != 0:
                         return code, f"Failed to stage {file_path.name}: {stderr}"
-            
+
             # Create commit message
             commit_message = f"""test[testing-engineer]: {changes_description}
 
@@ -548,102 +542,102 @@ Verification:
 - Tests: passed
 - Coverage: ≥{self.config.get('coverage_threshold', 80)}%
 - TDD: compliant"""
-            
+
             # Commit changes
-            code, stdout, stderr = run_git_command(['commit', '-m', commit_message], cwd=project_path)
-            
+            code, _stdout, stderr = run_git_command(['commit', '-m', commit_message], cwd=project_path)
+
             if code != 0:
                 return code, f"Failed to commit changes: {stderr}"
-            
+
             self.logger.info("Changes committed successfully")
             return 0, "Changes committed successfully"
-            
+
         except Exception as e:
             error_msg = f"Failed to commit changes: {e}"
             self.logger.error(error_msg)
             return ErrorCode.UNKNOWN_ERROR.value, error_msg
-    
+
     def update_pipeline_status(
         self,
         project_path: Path,
         phase_name: str,
         status: str = "in_progress"
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """Update pipeline status with completion status."""
         pipeline_file = project_path / '.state' / 'pipeline-status.md'
-        
+
         try:
             if not pipeline_file.exists():
                 return ErrorCode.FILE_NOT_FOUND.value, f"Pipeline status not found: {pipeline_file}"
-            
-            with open(pipeline_file, 'r') as f:
+
+            with open(pipeline_file) as f:
                 content = f.read()
-            
+
             # Update current phase and status
             content = re.sub(
                 r'\*\*Phase:\*\* \d+/\d+ - (.+)',
                 f'**Phase:** 4/5 - {phase_name}',
                 content
             )
-            
+
             content = re.sub(
                 r'\*\*Status:\*\* (.+)',
                 f'**Status:** {status}',
                 content
             )
-            
+
             content = re.sub(
                 r'\*\*Progress:\*\* \d+%',
                 '**Progress:** 80%',
                 content
             )
-            
+
             # Update phase progress
             content = re.sub(
                 r'- \[ \] Phase 3: Implementation',
                 '- [x] Phase 3: Implementation (Software Engineer)',
                 content
             )
-            
+
             content = re.sub(
                 r'- \[ \] Phase 4: Testing',
                 '- [ ] Phase 4: Testing (Testing Engineer, QA Engineer)',
                 content
             )
-            
+
             # Update last updated timestamp
             content = re.sub(
                 r'\*\*Last Updated:\*\* .+',
                 f'**Last Updated:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}',
                 content
             )
-            
+
             with open(pipeline_file, 'w') as f:
                 f.write(content)
-            
+
             self.logger.info(f"Pipeline status updated: {pipeline_file}")
             return 0, f"Pipeline status updated: {pipeline_file}"
-            
-        except (IOError, OSError) as e:
+
+        except OSError as e:
             error_msg = f"Failed to update pipeline status: {e}"
             self.logger.error(error_msg)
             return ErrorCode.FILE_WRITE_ERROR.value, error_msg
-    
+
     def run_workflow(
         self,
         project_path: Path
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """Run the complete testing engineer workflow."""
         # Step 1: Create test plan
         code, message = self.create_test_plan(project_path)
         if code != 0:
             return code, f"Failed to create test plan: {message}"
-        
+
         # Step 2: Create test results
         code, message = self.create_test_results(project_path)
         if code != 0:
             return code, f"Failed to create test results: {message}"
-        
+
         # Step 3: Commit changes
         if self.config.get('auto_commit', True):
             code, message = self.commit_changes(
@@ -652,7 +646,7 @@ Verification:
             )
             if code != 0:
                 return code, f"Failed to commit changes: {message}"
-        
+
         # Step 4: Update pipeline status
         code, message = self.update_pipeline_status(
             project_path,
@@ -661,7 +655,7 @@ Verification:
         )
         if code != 0:
             self.logger.warning(f"Failed to update pipeline status: {message}")
-        
+
         return 0, f"Testing engineer workflow completed successfully. Created comprehensive test plan with unit, integration, and E2E tests, achieving {self.config.get('coverage_threshold', 80)}% coverage threshold."
 
 
@@ -669,43 +663,43 @@ def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(description='Testing Engineer skill for test automation and frameworks')
     parser.add_argument('--project-path', type=str, help='Path to the project directory')
-    
+
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
-    
+
     # Create test plan command
-    plan_parser = subparsers.add_parser('create-plan', help='Create test plan')
-    
+    subparsers.add_parser('create-plan', help='Create test plan')
+
     # Create test results command
-    results_parser = subparsers.add_parser('create-results', help='Create test results')
-    
+    subparsers.add_parser('create-results', help='Create test results')
+
     # Run workflow command
     workflow_parser = subparsers.add_parser('run', help='Run complete testing engineer workflow')
     workflow_parser.add_argument('--project-path', type=str, required=True, help='Path to the project directory')
-    
+
     args = parser.parse_args()
-    
+
     if not args.command:
         parser.print_help()
         return 0
 
     engineer = TestingEngineerSkill()
     project_path = Path(args.project_path) if args.project_path else Path.cwd()
-    
+
     if args.command == 'create-plan':
         code, output = engineer.create_test_plan(project_path)
         print(output)
         return code
-    
+
     elif args.command == 'create-results':
         code, output = engineer.create_test_results(project_path)
         print(output)
         return code
-    
+
     elif args.command == 'run':
         code, output = engineer.run_workflow(project_path)
         print(output)
         return code
-    
+
     else:
         print(f"Unknown command: {args.command}", file=sys.stderr)
         return 1

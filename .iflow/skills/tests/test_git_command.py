@@ -4,14 +4,14 @@ Test suite for git_command.py
 Tests git command execution with secret detection and error handling.
 """
 
-import unittest
-import tempfile
 import subprocess
+import tempfile
+import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from utils.git_command import run_git_command, check_for_secrets
-from utils.exceptions import GitError, GitCommandTimeout, ErrorCode
+from utils.exceptions import ErrorCode, GitCommandTimeout, GitError
+from utils.git_command import check_for_secrets, run_git_command
 
 
 class TestRunGitCommand(unittest.TestCase):
@@ -52,7 +52,7 @@ class TestRunGitCommand(unittest.TestCase):
             returncode=128
         )
 
-        code, stdout, stderr = run_git_command(['status'], cwd=self.repo_path)
+        code, _stdout, stderr = run_git_command(['status'], cwd=self.repo_path)
 
         self.assertEqual(code, 128)
         self.assertEqual(stderr, "fatal: not a git repository\n")
@@ -76,7 +76,7 @@ class TestRunGitCommand(unittest.TestCase):
             returncode=0
         )
 
-        code, stdout, stderr = run_git_command(['log'], cwd=self.repo_path, check_secrets=True)
+        _code, stdout, _stderr = run_git_command(['log'], cwd=self.repo_path, check_secrets=True)
 
         # The function should detect the secret and either warn or fail
         self.assertIn("sk_live_1234567890abcdef", stdout)
@@ -107,7 +107,7 @@ class TestCheckForSecrets(unittest.TestCase):
         """Test AWS access key detection."""
         # AWS access key format: AKIAIOSFODNN7EXAMPLE (20 chars)
         output = "AKIAIOSFODNN7EXAMPLE"
-        detected = check_for_secrets(output, "")
+        check_for_secrets(output, "")
         # This might not be detected depending on the secret patterns
         # Let's check if there's an AWS_ACCESS_KEY pattern
 

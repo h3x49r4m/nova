@@ -9,15 +9,15 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Any
 
 # Import shared utilities
 from utils import (
     ErrorCode,
-    StructuredLogger,
-    LogFormat,
     InputSanitizer,
-    run_git_command
+    LogFormat,
+    StructuredLogger,
+    run_git_command,
 )
 
 
@@ -39,20 +39,20 @@ class AccessibilityStandard:
 class UxDesigner:
     """UI/UX Designer role for design creation and user experience."""
 
-    def __init__(self, repo_root: Optional[Path] = None):
+    def __init__(self, repo_root: Path | None = None):
         """Initialize UI/UX designer skill."""
         self.repo_root = repo_root or Path.cwd()
         self.config_dir = self.repo_root / '.iflow' / 'skills' / 'ui-ux-designer'
         self.config_file = self.config_dir / 'config.json'
         self.state_dir = self.repo_root / '.state'
-        
+
         self.logger = StructuredLogger(
             name="ui-ux-designer",
             log_dir=self.repo_root / ".iflow" / "logs",
             log_format=LogFormat.JSON
         )
         self.load_config()
-    
+
     def load_config(self) -> None:
         """Load configuration from config file."""
         self.config = {
@@ -64,57 +64,57 @@ class UxDesigner:
             'font_family': 'Roboto',
             'auto_commit': True
         }
-        
+
         if self.config_file.exists():
             try:
-                with open(self.config_file, 'r') as f:
+                with open(self.config_file) as f:
                     user_config = json.load(f)
                 self.config.update(user_config)
-            except (json.JSONDecodeError, IOError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 self.logger.warning(f"Failed to load config: {e}. Using defaults.")
-    
-    def read_project_spec(self, project_path: Path) -> Tuple[int, str]:
+
+    def read_project_spec(self, project_path: Path) -> tuple[int, str]:
         """
         Read project specification.
-        
+
         Args:
             project_path: Path to the project directory
-            
+
         Returns:
             Tuple of (exit_code, content or error message)
         """
         spec_file = project_path / '.state' / 'project-spec.md'
-        
+
         try:
             if not spec_file.exists():
                 return ErrorCode.FILE_NOT_FOUND.value, f"Project spec not found: {spec_file}"
-            
-            with open(spec_file, 'r') as f:
+
+            with open(spec_file) as f:
                 content = f.read()
-            
+
             return 0, content
-            
-        except (IOError, OSError) as e:
+
+        except OSError as e:
             error_msg = f"Failed to read project spec: {e}"
             self.logger.error(error_msg)
             return ErrorCode.FILE_READ_ERROR.value, error_msg
-    
-    def extract_user_stories(self, content: str) -> List[Dict[str, Any]]:
+
+    def extract_user_stories(self, content: str) -> list[dict[str, Any]]:
         """
         Extract user stories from project spec content.
-        
+
         Args:
             content: Project spec content
-            
+
         Returns:
             List of user stories
         """
         user_stories = []
-        
+
         # Extract user stories
         us_pattern = r'\*\*US(\d+):\*\*\s*As a (.+?), I want to (.+?), so that (.+?)\.'
         us_matches = re.findall(us_pattern, content)
-        
+
         for idx, (role, action, benefit) in enumerate(us_matches, 1):
             user_stories.append({
                 'id': f'US{idx}',
@@ -122,24 +122,24 @@ class UxDesigner:
                 'action': action.strip(),
                 'benefit': benefit.strip()
             })
-        
+
         return user_stories
-    
+
     def create_wireframes(
         self,
-        user_stories: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        user_stories: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         Create wireframes for user stories.
-        
+
         Args:
             user_stories: List of user stories
-            
+
         Returns:
             List of wireframe specifications
         """
         wireframes = []
-        
+
         # Create wireframes based on user stories
         for story in user_stories:
             wireframe = {
@@ -152,15 +152,15 @@ class UxDesigner:
                 'layout': 'responsive'
             }
             wireframes.append(wireframe)
-        
+
         return wireframes
-    
-    def _generate_screens(self, story: Dict[str, Any]) -> List[Dict[str, Any]]:
+
+    def _generate_screens(self, story: dict[str, Any]) -> list[dict[str, Any]]:
         """Generate screen specifications for a user story."""
         action = story.get('action', '').lower()
-        
+
         screens = []
-        
+
         # Common screens
         if 'login' in action or 'sign in' in action:
             screens.append({
@@ -193,10 +193,10 @@ class UxDesigner:
                 'name': 'Main Screen',
                 'components': ['Header', 'Content area', 'Navigation', 'Action buttons']
             })
-        
+
         return screens
-    
-    def _generate_interactions(self, story: Dict[str, Any]) -> List[Dict[str, Any]]:
+
+    def _generate_interactions(self, story: dict[str, Any]) -> list[dict[str, Any]]:
         """Generate interaction specifications for a user story."""
         return [
             {
@@ -215,22 +215,22 @@ class UxDesigner:
                 'feedback': 'Haptic feedback + menu display'
             }
         ]
-    
+
     def create_prototypes(
         self,
-        wireframes: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        wireframes: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         Create interactive prototypes from wireframes.
-        
+
         Args:
             wireframes: List of wireframes
-            
+
         Returns:
             List of prototype specifications
         """
         prototypes = []
-        
+
         for wireframe in wireframes:
             prototype = {
                 'id': f'PROTO-{wireframe["id"]}',
@@ -243,10 +243,10 @@ class UxDesigner:
                 'states': self._generate_states(wireframe)
             }
             prototypes.append(prototype)
-        
+
         return prototypes
-    
-    def _generate_user_flows(self, wireframe: Dict[str, Any]) -> List[Dict[str, Any]]:
+
+    def _generate_user_flows(self, wireframe: dict[str, Any]) -> list[dict[str, Any]]:
         """Generate user flow specifications."""
         return [
             {
@@ -266,8 +266,8 @@ class UxDesigner:
                 ]
             }
         ]
-    
-    def _generate_animations(self) -> List[Dict[str, Any]]:
+
+    def _generate_animations(self) -> list[dict[str, Any]]:
         """Generate animation specifications."""
         return [
             {
@@ -289,8 +289,8 @@ class UxDesigner:
                 'easing': 'linear'
             }
         ]
-    
-    def _generate_states(self, wireframe: Dict[str, Any]) -> List[Dict[str, Any]]:
+
+    def _generate_states(self, wireframe: dict[str, Any]) -> list[dict[str, Any]]:
         """Generate component state specifications."""
         return [
             {
@@ -306,11 +306,11 @@ class UxDesigner:
                 'states': ['default', 'hover', 'selected']
             }
         ]
-    
-    def define_design_system(self) -> Dict[str, Any]:
+
+    def define_design_system(self) -> dict[str, Any]:
         """
         Define the design system.
-        
+
         Returns:
             Design system specification
         """
@@ -325,10 +325,10 @@ class UxDesigner:
             'breakpoints': self._define_breakpoints(),
             'icons': self._define_icons()
         }
-        
+
         return design_system
-    
-    def _define_color_palette(self) -> Dict[str, Any]:
+
+    def _define_color_palette(self) -> dict[str, Any]:
         """Define color palette."""
         return {
             'primary': {
@@ -362,11 +362,11 @@ class UxDesigner:
                 'info': '#2196F3'
             }
         }
-    
-    def _define_typography(self) -> Dict[str, Any]:
+
+    def _define_typography(self) -> dict[str, Any]:
         """Define typography system."""
         font_family = self.config.get('font_family', 'Roboto')
-        
+
         return {
             'font_family': font_family,
             'font_weights': {
@@ -394,8 +394,8 @@ class UxDesigner:
                 'relaxed': 1.75
             }
         }
-    
-    def _define_components(self) -> List[Dict[str, Any]]:
+
+    def _define_components(self) -> list[dict[str, Any]]:
         """Define component specifications."""
         return [
             {
@@ -423,8 +423,8 @@ class UxDesigner:
                 'variants': ['topbar', 'sidebar', 'bottombar', 'drawer']
             }
         ]
-    
-    def _define_spacing(self) -> Dict[str, str]:
+
+    def _define_spacing(self) -> dict[str, str]:
         """Define spacing system."""
         return {
             'xs': '4px',
@@ -435,8 +435,8 @@ class UxDesigner:
             '2xl': '48px',
             '3xl': '64px'
         }
-    
-    def _define_breakpoints(self) -> Dict[str, str]:
+
+    def _define_breakpoints(self) -> dict[str, str]:
         """Define responsive breakpoints."""
         return {
             'xs': '0px',
@@ -445,8 +445,8 @@ class UxDesigner:
             'lg': '1280px',
             'xl': '1920px'
         }
-    
-    def _define_icons(self) -> Dict[str, Any]:
+
+    def _define_icons(self) -> dict[str, Any]:
         """Define icon system."""
         return {
             'library': 'Material Icons',
@@ -466,16 +466,16 @@ class UxDesigner:
                 'toggle'
             ]
         }
-    
-    def ensure_accessibility_compliance(self) -> Dict[str, Any]:
+
+    def ensure_accessibility_compliance(self) -> dict[str, Any]:
         """
         Ensure accessibility compliance.
-        
+
         Returns:
             Accessibility specification
         """
         standard = self.config.get('accessibility_standard', AccessibilityStandard.WCAG_2_1_AA)
-        
+
         accessibility = {
             'standard': standard,
             'guidelines': self._get_accessibility_guidelines(standard),
@@ -485,10 +485,10 @@ class UxDesigner:
             'text_alternatives': self._define_text_alternatives(),
             'focus_indicators': self._define_focus_indicators()
         }
-        
+
         return accessibility
-    
-    def _get_accessibility_guidelines(self, standard: str) -> List[str]:
+
+    def _get_accessibility_guidelines(self, standard: str) -> list[str]:
         """Get accessibility guidelines based on standard."""
         if standard == AccessibilityStandard.WCAG_2_1_AA:
             return [
@@ -510,8 +510,8 @@ class UxDesigner:
                 'Section 508 Compliance',
                 'Electronic and information technology must be accessible to people with disabilities'
             ]
-    
-    def _define_color_contrast_requirements(self) -> Dict[str, str]:
+
+    def _define_color_contrast_requirements(self) -> dict[str, str]:
         """Define color contrast requirements."""
         return {
             'normal_text': '4.5:1',
@@ -519,8 +519,8 @@ class UxDesigner:
             'ui_components': '3:1',
             'graphics': '3:1'
         }
-    
-    def _define_keyboard_navigation(self) -> List[str]:
+
+    def _define_keyboard_navigation(self) -> list[str]:
         """Define keyboard navigation requirements."""
         return [
             'All interactive elements must be keyboard accessible',
@@ -529,8 +529,8 @@ class UxDesigner:
             'Keyboard traps must be avoided',
             'Skip links must be provided for content navigation'
         ]
-    
-    def _define_screen_reader_support(self) -> List[str]:
+
+    def _define_screen_reader_support(self) -> list[str]:
         """Define screen reader support requirements."""
         return [
             'ARIA labels must be provided for interactive elements',
@@ -539,8 +539,8 @@ class UxDesigner:
             'Form fields must have associated labels',
             'Images must have alt text or decorative attribute'
         ]
-    
-    def _define_text_alternatives(self) -> List[str]:
+
+    def _define_text_alternatives(self) -> list[str]:
         """Define text alternative requirements."""
         return [
             'All images must have alt text describing their purpose',
@@ -549,8 +549,8 @@ class UxDesigner:
             'Icons must have text labels or aria-labels',
             'Charts and graphs must have data table alternatives'
         ]
-    
-    def _define_focus_indicators(self) -> List[str]:
+
+    def _define_focus_indicators(self) -> list[str]:
         """Define focus indicator requirements."""
         return [
             'Focus must be clearly visible',
@@ -558,19 +558,19 @@ class UxDesigner:
             'Focus must not be obscured by other elements',
             'Focus must move in logical order'
         ]
-    
+
     def create_design_spec(
         self,
         project_path: Path,
-        user_stories: List[Dict[str, Any]],
-        wireframes: List[Dict[str, Any]],
-        prototypes: List[Dict[str, Any]],
-        design_system: Dict[str, Any],
-        accessibility: Dict[str, Any]
-    ) -> Tuple[int, str]:
+        user_stories: list[dict[str, Any]],
+        wireframes: list[dict[str, Any]],
+        prototypes: list[dict[str, Any]],
+        design_system: dict[str, Any],
+        accessibility: dict[str, Any]
+    ) -> tuple[int, str]:
         """
         Create or update design specification.
-        
+
         Args:
             project_path: Path to the project directory
             user_stories: List of user stories
@@ -578,12 +578,12 @@ class UxDesigner:
             prototypes: List of prototypes
             design_system: Design system specification
             accessibility: Accessibility specification
-            
+
         Returns:
             Tuple of (exit_code, message)
         """
         spec_file = project_path / '.state' / 'design-spec.md'
-        
+
         try:
             # Create design spec content
             spec_content = f"""# Design Specification
@@ -602,55 +602,55 @@ This document outlines the UI/UX design specifications for the project, includin
 **Total User Stories:** {len(user_stories)}
 
 """
-            
+
             for story in user_stories:
                 spec_content += f"### {InputSanitizer.sanitize_html(story.get('id', 'Unknown'))}\n\n"
                 spec_content += f"**Role:** {InputSanitizer.sanitize_html(story.get('role', 'User'))}\n"
                 spec_content += f"**Action:** {InputSanitizer.sanitize_html(story.get('action', 'do something'))}\n"
                 spec_content += f"**Benefit:** {InputSanitizer.sanitize_html(story.get('benefit', 'achieve a goal'))}\n\n"
-            
+
             spec_content += "## Wireframes\n\n"
             spec_content += f"**Total Wireframes:** {len(wireframes)}\n\n"
-            
+
             for wireframe in wireframes:
                 spec_content += f"### {InputSanitizer.sanitize_html(wireframe.get('id', 'Unknown'))}\n\n"
                 spec_content += f"**Story:** {wireframe.get('story_id', 'Unknown')}\n"
                 spec_content += f"**Description:** {InputSanitizer.sanitize_html(wireframe.get('description', ''))}\n"
                 spec_content += f"**Layout:** {wireframe.get('layout', 'responsive')}\n\n"
-                
+
                 spec_content += "**Screens:**\n"
                 for screen in wireframe.get('screens', []):
                     spec_content += f"- {InputSanitizer.sanitize_html(screen.get('name', 'Unknown'))}\n"
                     for component in screen.get('components', []):
                         spec_content += f"  - {InputSanitizer.sanitize_html(component)}\n"
                 spec_content += "\n"
-                
+
                 spec_content += "**Interactions:**\n"
                 for interaction in wireframe.get('interactions', []):
                     spec_content += f"- {interaction.get('type', 'unknown')}: {InputSanitizer.sanitize_html(interaction.get('description', ''))}\n"
                     spec_content += f"  Feedback: {InputSanitizer.sanitize_html(interaction.get('feedback', ''))}\n"
                 spec_content += "\n"
-            
+
             spec_content += "## Prototypes\n\n"
             spec_content += f"**Total Prototypes:** {len(prototypes)}\n\n"
-            
+
             for prototype in prototypes:
                 spec_content += f"### {InputSanitizer.sanitize_html(prototype.get('id', 'Unknown'))}\n\n"
                 spec_content += f"**Wireframe:** {prototype.get('wireframe_id', 'Unknown')}\n"
                 spec_content += f"**Type:** {prototype.get('type', 'interactive')}\n"
                 spec_content += f"**Platforms:** {', '.join(prototype.get('platforms', []))}\n\n"
-                
+
                 spec_content += "**User Flows:**\n"
                 for flow in prototype.get('flows', []):
                     spec_content += f"- {InputSanitizer.sanitize_html(flow.get('name', 'Unknown'))}\n"
                     for step in flow.get('steps', []):
                         spec_content += f"  1. {InputSanitizer.sanitize_html(step.get('screen', 'Unknown'))}: {InputSanitizer.sanitize_html(step.get('action', 'unknown'))}\n"
                 spec_content += "\n"
-            
+
             spec_content += "## Design System\n\n"
             spec_content += f"**Name:** {design_system.get('name', 'custom')}\n"
             spec_content += f"**Version:** {design_system.get('version', '1.0.0')}\n\n"
-            
+
             spec_content += "### Color Palette\n\n"
             colors = design_system.get('colors', {})
             for color_type, color_values in colors.items():
@@ -658,7 +658,7 @@ This document outlines the UI/UX design specifications for the project, includin
                 for shade, hex_value in color_values.items():
                     spec_content += f"- {shade}: `{hex_value}`\n"
                 spec_content += "\n"
-            
+
             spec_content += "### Typography\n\n"
             typography = design_system.get('typography', {})
             spec_content += f"**Font Family:** {typography.get('font_family', 'Roboto')}\n\n"
@@ -666,53 +666,53 @@ This document outlines the UI/UX design specifications for the project, includin
             for size_name, size_value in typography.get('font_sizes', {}).items():
                 spec_content += f"- {size_name}: {size_value}\n"
             spec_content += "\n"
-            
+
             spec_content += "### Components\n\n"
             for component in design_system.get('components', []):
                 spec_content += f"#### {InputSanitizer.sanitize_html(component.get('name', 'Unknown'))}\n\n"
                 spec_content += f"**Variants:** {', '.join(component.get('variants', []))}\n"
                 spec_content += f"**Sizes:** {', '.join(component.get('sizes', []))}\n\n"
-            
+
             spec_content += "### Spacing\n\n"
             for spacing_name, spacing_value in design_system.get('spacing', {}).items():
                 spec_content += f"- {spacing_name}: {spacing_value}\n"
             spec_content += "\n"
-            
+
             spec_content += "### Breakpoints\n\n"
             for breakpoint_name, breakpoint_value in design_system.get('breakpoints', {}).items():
                 spec_content += f"- {breakpoint_name}: {breakpoint_value}\n"
             spec_content += "\n"
-            
+
             spec_content += "## Accessibility\n\n"
             spec_content += f"**Standard:** {accessibility.get('standard', 'wcag_2_1_aa')}\n\n"
-            
+
             spec_content += "### Guidelines\n\n"
             for guideline in accessibility.get('guidelines', []):
                 spec_content += f"- {InputSanitizer.sanitize_html(guideline)}\n"
             spec_content += "\n"
-            
+
             spec_content += "### Color Contrast Requirements\n\n"
             for requirement_name, requirement_value in accessibility.get('color_contrast', {}).items():
                 spec_content += f"- {requirement_name}: {requirement_value}\n"
             spec_content += "\n"
-            
+
             spec_content += "### Keyboard Navigation\n\n"
             for requirement in accessibility.get('keyboard_navigation', []):
                 spec_content += f"- {InputSanitizer.sanitize_html(requirement)}\n"
             spec_content += "\n"
-            
+
             spec_content += "### Screen Reader Support\n\n"
             for requirement in accessibility.get('screen_reader_support', []):
                 spec_content += f"- {InputSanitizer.sanitize_html(requirement)}\n"
             spec_content += "\n"
-            
+
             spec_content += "## Responsive Design\n\n"
             spec_content += "The design is fully responsive and adapts to different screen sizes:\n\n"
             spec_content += "- Mobile (sm): 0px - 600px\n"
             spec_content += "- Tablet (md): 600px - 960px\n"
             spec_content += "- Desktop (lg): 960px - 1280px\n"
             spec_content += "- Large Desktop (xl): 1280px+\n\n"
-            
+
             spec_content += "## Design Deliverables\n\n"
             spec_content += "### Files\n\n"
             spec_content += "- Wireframes (Figma/Sketch)\n"
@@ -720,37 +720,37 @@ This document outlines the UI/UX design specifications for the project, includin
             spec_content += "- Design System Documentation\n"
             spec_content += "- Component Library\n"
             spec_content += "- Asset Export (SVG, PNG, @2x, @3x)\n\n"
-            
+
             spec_content += "### Handoff\n\n"
             spec_content += "- Design specifications in Zeplin/Figma Inspect\n"
             spec_content += "- Redline specifications\n"
             spec_content += "- Interaction specifications\n"
             spec_content += "- Animation specifications\n"
             spec_content += "- Accessibility checklist\n"
-            
+
             with open(spec_file, 'w') as f:
                 f.write(spec_content)
-            
+
             self.logger.info(f"Design specification created: {spec_file}")
             return 0, f"Design specification created: {spec_file}"
-            
-        except (IOError, OSError) as e:
+
+        except OSError as e:
             error_msg = f"Failed to create design specification: {e}"
             self.logger.error(error_msg)
             return ErrorCode.FILE_WRITE_ERROR.value, error_msg
-    
+
     def commit_changes(
         self,
         project_path: Path,
         changes_description: str
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """
         Commit changes with proper metadata.
-        
+
         Args:
             project_path: Path to the project directory
             changes_description: Description of changes
-            
+
         Returns:
             Tuple of (exit_code, message)
         """
@@ -758,14 +758,14 @@ This document outlines the UI/UX design specifications for the project, includin
             # Get current branch
             code, branch, _ = run_git_command(['rev-parse', '--abbrev-ref', 'HEAD'], cwd=project_path)
             if code != 0:
-                return code, f"Failed to get current branch"
-            
+                return code, "Failed to get current branch"
+
             # Stage design spec file
             spec_file = project_path / '.state' / 'design-spec.md'
             code, _, stderr = run_git_command(['add', str(spec_file)], cwd=project_path)
             if code != 0:
                 return code, f"Failed to stage design spec: {stderr}"
-            
+
             # Create commit message
             commit_message = f"""feat[ui-ux-designer]: {changes_description}
 
@@ -786,94 +786,94 @@ Verification:
 - Tests: passed
 - Coverage: N/A
 - TDD: compliant"""
-            
+
             # Commit changes
-            code, stdout, stderr = run_git_command(['commit', '-m', commit_message], cwd=project_path)
-            
+            code, _stdout, stderr = run_git_command(['commit', '-m', commit_message], cwd=project_path)
+
             if code != 0:
                 return code, f"Failed to commit changes: {stderr}"
-            
+
             self.logger.info("Changes committed successfully")
             return 0, "Changes committed successfully"
-            
+
         except Exception as e:
             error_msg = f"Failed to commit changes: {e}"
             self.logger.error(error_msg)
             return ErrorCode.UNKNOWN_ERROR.value, error_msg
-    
+
     def update_pipeline_status(
         self,
         project_path: Path,
         phase_name: str,
         status: str = "in_progress"
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """
         Update pipeline status with completion status.
-        
+
         Args:
             project_path: Path to the project directory
             phase_name: Name of the phase
             status: Status of the phase (completed, in_progress, blocked)
-            
+
         Returns:
             Tuple of (exit_code, message)
         """
         pipeline_file = project_path / '.state' / 'pipeline-status.md'
-        
+
         try:
             if not pipeline_file.exists():
                 return ErrorCode.FILE_NOT_FOUND.value, f"Pipeline status not found: {pipeline_file}"
-            
-            with open(pipeline_file, 'r') as f:
+
+            with open(pipeline_file) as f:
                 content = f.read()
-            
+
             # Update current phase and status
             content = re.sub(
                 r'\*\*Phase:\*\* \d+/\d+ - (.+)',
                 f'**Phase:** 2/5 - {phase_name}',
                 content
             )
-            
+
             content = re.sub(
                 r'\*\*Status:\*\* (.+)',
                 f'**Status:** {status}',
                 content
             )
-            
+
             content = re.sub(
                 r'\*\*Progress:\*\* \d+%',
                 '**Progress:** 20%',
                 content
             )
-            
+
             # Update last updated timestamp
             content = re.sub(
                 r'\*\*Last Updated:\*\* .+',
                 f'**Last Updated:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}',
                 content
             )
-            
+
             with open(pipeline_file, 'w') as f:
                 f.write(content)
-            
+
             self.logger.info(f"Pipeline status updated: {pipeline_file}")
             return 0, f"Pipeline status updated: {pipeline_file}"
-            
-        except (IOError, OSError) as e:
+
+        except OSError as e:
             error_msg = f"Failed to update pipeline status: {e}"
             self.logger.error(error_msg)
             return ErrorCode.FILE_WRITE_ERROR.value, error_msg
-    
+
     def run_workflow(
         self,
         project_path: Path
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """
         Run the complete UI/UX designer workflow.
-        
+
         Args:
             project_path: Path to the project directory
-            
+
         Returns:
             Tuple of (exit_code, message)
         """
@@ -881,29 +881,29 @@ Verification:
         code, content = self.read_project_spec(project_path)
         if code != 0:
             return code, f"Failed to read project spec: {content}"
-        
+
         # Step 2: Extract user stories
         user_stories = self.extract_user_stories(content)
-        
+
         # Step 3: Create wireframes
         wireframes = self.create_wireframes(user_stories)
-        
+
         # Step 4: Create prototypes
         prototypes = self.create_prototypes(wireframes)
-        
+
         # Step 5: Define design system
         design_system = self.define_design_system()
-        
+
         # Step 6: Ensure accessibility compliance
         accessibility = self.ensure_accessibility_compliance()
-        
+
         # Step 7: Create design spec
         code, message = self.create_design_spec(
             project_path, user_stories, wireframes, prototypes, design_system, accessibility
         )
         if code != 0:
             return code, f"Failed to create design spec: {message}"
-        
+
         # Step 8: Commit changes
         if self.config.get('auto_commit', True):
             code, message = self.commit_changes(
@@ -912,7 +912,7 @@ Verification:
             )
             if code != 0:
                 return code, f"Failed to commit changes: {message}"
-        
+
         # Step 9: Update pipeline status
         code, message = self.update_pipeline_status(
             project_path,
@@ -921,7 +921,7 @@ Verification:
         )
         if code != 0:
             self.logger.warning(f"Failed to update pipeline status: {message}")
-        
+
         return 0, f"UI/UX designer workflow completed successfully. Created {len(wireframes)} wireframes, {len(prototypes)} prototypes, and comprehensive design system with {accessibility.get('standard', 'wcag_2_1_aa')} accessibility compliance."
 
 
@@ -929,77 +929,77 @@ def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(description='UI/UX Designer skill for design creation and user experience')
     parser.add_argument('--project-path', type=str, help='Path to the project directory')
-    
+
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
-    
+
     # Create wireframes command
-    wireframes_parser = subparsers.add_parser('create-wireframes', help='Create wireframes')
-    
+    subparsers.add_parser('create-wireframes', help='Create wireframes')
+
     # Create prototypes command
-    prototypes_parser = subparsers.add_parser('create-prototypes', help='Create prototypes')
-    
+    subparsers.add_parser('create-prototypes', help='Create prototypes')
+
     # Define design system command
-    system_parser = subparsers.add_parser('define-system', help='Define design system')
-    
+    subparsers.add_parser('define-system', help='Define design system')
+
     # Run workflow command
     workflow_parser = subparsers.add_parser('run', help='Run complete UI/UX designer workflow')
     workflow_parser.add_argument('--project-path', type=str, required=True, help='Path to the project directory')
-    
+
     args = parser.parse_args()
-    
+
     if not args.command:
         parser.print_help()
         return 0
-    
+
     designer = UxDesigner()
     project_path = Path(args.project_path) if args.project_path else Path.cwd()
-    
+
     if args.command == 'create-wireframes':
         code, content = designer.read_project_spec(project_path)
         if code != 0:
             print(f"Error: {content}", file=sys.stderr)
             return code
-        
+
         user_stories = designer.extract_user_stories(content)
         wireframes = designer.create_wireframes(user_stories)
-        
+
         print(f"Created {len(wireframes)} wireframes:")
         for wireframe in wireframes:
             print(f"  - {wireframe['id']}: {wireframe['title']}")
             for screen in wireframe.get('screens', []):
                 print(f"    - {screen['name']}")
-        
+
         return 0
-    
+
     elif args.command == 'create-prototypes':
         code, content = designer.read_project_spec(project_path)
         if code != 0:
             print(f"Error: {content}", file=sys.stderr)
             return code
-        
+
         user_stories = designer.extract_user_stories(content)
         wireframes = designer.create_wireframes(user_stories)
         prototypes = designer.create_prototypes(wireframes)
-        
+
         print(f"Created {len(prototypes)} prototypes:")
         for prototype in prototypes:
             print(f"  - {prototype['id']}: {prototype['title']}")
-        
+
         return 0
-    
+
     elif args.command == 'define-system':
         design_system = designer.define_design_system()
         print(f"Design System: {design_system.get('name', 'custom')}")
         print(f"Primary Color: {design_system.get('colors', {}).get('primary', {}).get('main', '#000000')}")
         print(f"Font Family: {design_system.get('typography', {}).get('font_family', 'Roboto')}")
-        
+
         return 0
-    
+
     elif args.command == 'run':
         code, output = designer.run_workflow(project_path)
         print(output)
         return code
-    
+
     else:
         print(f"Unknown command: {args.command}", file=sys.stderr)
         return 1

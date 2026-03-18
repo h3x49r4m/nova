@@ -4,51 +4,51 @@ Version validation utilities.
 Checks Python and Git version requirements.
 """
 
-import sys
 import subprocess
-from typing import Tuple, Optional
-from .exceptions import ValidationError, ErrorCode, ErrorCategory
+import sys
+
 from .constants import SystemRequirements
+from .exceptions import ErrorCode, ValidationError
 
 
 class VersionChecker:
     """Version checker utility class."""
-    
+
     def __init__(self):
         """Initialize version checker."""
         pass
-    
-    def check_python(self, min_version: Optional[Tuple[int, int]] = None) -> Tuple[bool, Optional[str]]:
+
+    def check_python(self, min_version: tuple[int, int] | None = None) -> tuple[bool, str | None]:
         """Check Python version."""
         return check_python_version(min_version)
-    
-    def check_git(self, min_version: Optional[Tuple[int, int, int]] = None) -> Tuple[bool, Optional[str]]:
+
+    def check_git(self, min_version: tuple[int, int, int] | None = None) -> tuple[bool, str | None]:
         """Check Git version."""
         return check_git_version(min_version)
-    
-    def validate_system(self, strict: bool = False) -> Tuple[bool, list]:
+
+    def validate_system(self, strict: bool = False) -> tuple[bool, list]:
         """Validate system requirements."""
         return validate_system_requirements(strict)
-    
-    def _parse_version(self, version_str: str) -> Tuple[int, int, int]:
+
+    def _parse_version(self, version_str: str) -> tuple[int, int, int]:
         """
         Parse version string into major, minor, patch components.
-        
+
         This method handles version strings that may have prefixes like
         "git version 2.39.5" or "python 3.14.2" and extracts the version numbers.
-        
+
         Args:
             version_str: Version string (e.g., "1.2.3", "git version 2.39.5")
-            
+
         Returns:
             Tuple of (major, minor, patch)
         """
         import re
-        
+
         # Extract version numbers from the string
         # Match patterns like "1.2.3", "2.39.5-rc1", "v3.14.2"
         version_match = re.search(r'(\d+)\.(\d+)\.(\d+)', version_str)
-        
+
         if version_match:
             major = int(version_match.group(1))
             minor = int(version_match.group(2))
@@ -59,50 +59,50 @@ class VersionChecker:
             major = int(parts[0]) if len(parts) > 0 and parts[0].isdigit() else 0
             minor = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
             patch = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
-        
+
         return (major, minor, patch)
 
 
-def check_python_version(min_version: Optional[Tuple[int, int]] = None) -> Tuple[bool, Optional[str]]:
+def check_python_version(min_version: tuple[int, int] | None = None) -> tuple[bool, str | None]:
     """
     Check if Python version meets minimum requirements.
-    
+
     Args:
         min_version: Minimum required version as (major, minor) tuple.
                    Defaults to SystemRequirements.PYTHON_MIN_VERSION.value
-    
+
     Returns:
         Tuple of (is_compatible, error_message)
     """
     if min_version is None:
         min_version = SystemRequirements.PYTHON_MIN_VERSION.value
-    
+
     current_version = (sys.version_info.major, sys.version_info.minor)
-    
+
     if current_version < min_version:
         error_msg = (
             f"Python {min_version[0]}.{min_version[1]} or higher required. "
             f"Current version: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
         )
         return False, error_msg
-    
+
     return True, None
 
 
-def check_git_version(min_version: Optional[Tuple[int, int, int]] = None) -> Tuple[bool, Optional[str]]:
+def check_git_version(min_version: tuple[int, int, int] | None = None) -> tuple[bool, str | None]:
     """
     Check if Git version meets minimum requirements.
-    
+
     Args:
         min_version: Minimum required version as (major, minor, patch) tuple.
                    Defaults to SystemRequirements.GIT_MIN_VERSION.value
-    
+
     Returns:
         Tuple of (is_compatible, error_message)
     """
     if min_version is None:
         min_version = SystemRequirements.GIT_MIN_VERSION.value
-    
+
     try:
         # Run git --version
         result = subprocess.run(
@@ -111,62 +111,62 @@ def check_git_version(min_version: Optional[Tuple[int, int, int]] = None) -> Tup
             text=True,
             timeout=10
         )
-        
+
         if result.returncode != 0:
             return False, "Git not found or not executable"
-        
+
         # Parse version string
         version_str = result.stdout.strip()
         # Expected format: "git version 2.39.5" or similar
         parts = version_str.split()
         if len(parts) < 3:
             return False, f"Unable to parse Git version: {version_str}"
-        
+
         version_parts = parts[2].split('.')
         if len(version_parts) < 3:
             return False, f"Invalid Git version format: {parts[2]}"
-        
+
         current_version = (
             int(version_parts[0]),
             int(version_parts[1]),
             int(version_parts[2].split('-')[0])  # Handle versions like "2.39.5-rc1"
         )
-        
+
         if current_version < min_version:
             error_msg = (
                 f"Git {min_version[0]}.{min_version[1]}.{min_version[2]} or higher required. "
                 f"Current version: {parts[2]}"
             )
             return False, error_msg
-        
+
         return True, None
-        
+
     except subprocess.TimeoutExpired:
         return False, "Git version check timed out"
     except FileNotFoundError:
         return False, "Git not found. Please install Git."
     except ValueError as e:
-        return False, f"Error parsing Git version: {str(e)}"
+        return False, f"Error parsing Git version: {e!s}"
     except Exception as e:
-        return False, f"Error checking Git version: {str(e)}"
+        return False, f"Error checking Git version: {e!s}"
 
 
-def validate_system_requirements(strict: bool = False) -> Tuple[bool, list]:
+def validate_system_requirements(strict: bool = False) -> tuple[bool, list]:
     """
     Validate all system requirements (Python and Git versions).
-    
+
     Args:
         strict: If True, raises exceptions on validation errors.
                 If False, returns results without raising.
-    
+
     Returns:
         Tuple of (all_compatible, list_of_error_messages)
-    
+
     Raises:
         ValidationError: If strict=True and validation fails
     """
     errors = []
-    
+
     # Check Python version
     python_ok, python_error = check_python_version()
     if not python_ok:
@@ -188,7 +188,7 @@ def validate_system_requirements(strict: bool = False) -> Tuple[bool, list]:
                 ErrorCode.VERSION_MISMATCH,
                 {"error": git_error or "Git version check failed"}
             )
-    
+
     return len(errors) == 0, errors
 
 
@@ -197,7 +197,7 @@ def print_version_info() -> None:
     print("System Version Information:")
     print(f"  Python: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
     print(f"  Python Location: {sys.executable}")
-    
+
     try:
         result = subprocess.run(['git', '--version'], capture_output=True, text=True, timeout=10)
         if result.returncode == 0:
@@ -206,12 +206,12 @@ def print_version_info() -> None:
             print("  Git: Not available")
     except Exception as e:
         print(f"  Git: Not available (Error: {e})")
-    
+
     # Check requirements
     print("\nVersion Requirements:")
     print(f"  Python Minimum: {SystemRequirements.PYTHON_MIN_VERSION.value[0]}.{SystemRequirements.PYTHON_MIN_VERSION.value[1]}")
     print(f"  Git Minimum: {SystemRequirements.GIT_MIN_VERSION.value[0]}.{SystemRequirements.GIT_MIN_VERSION.value[1]}.{SystemRequirements.GIT_MIN_VERSION.value[2]}")
-    
+
     # Validate
     all_ok, errors = validate_system_requirements()
     print("\nValidation:")
@@ -226,15 +226,15 @@ def print_version_info() -> None:
 def ensure_requirements(strict: bool = False) -> None:
     """
     Ensure system requirements are met, exiting if not.
-    
+
     Args:
         strict: If True, raises exceptions on validation errors.
-    
+
     Raises:
         SystemExit: If requirements not met
     """
     all_ok, errors = validate_system_requirements(strict=strict)
-    
+
     if not all_ok:
         print("System Requirements Not Met:", file=sys.stderr)
         for error in errors:

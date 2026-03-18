@@ -8,8 +8,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 T = TypeVar('T')
 
@@ -40,11 +42,11 @@ class RecoveryAttempt:
     strategy_type: RecoveryStrategyType
     timestamp: str
     status: RecoveryStatus = RecoveryStatus.PENDING
-    error: Optional[Exception] = None
+    error: Exception | None = None
     recovery_time: float = 0.0
-    details: Dict[str, Any] = field(default_factory=dict)
-    
-    def to_dict(self) -> Dict[str, Any]:
+    details: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert attempt to dictionary."""
         return {
             "attempt_id": self.attempt_id,
@@ -61,13 +63,13 @@ class RecoveryAttempt:
 class RecoveryResult:
     """Result of a recovery operation."""
     success: bool
-    strategy_used: Optional[RecoveryStrategyType] = None
-    attempts: List[RecoveryAttempt] = field(default_factory=list)
-    final_value: Optional[Any] = None
-    final_error: Optional[Exception] = None
-    recovery_strategy_applied: Optional[str] = None
-    
-    def to_dict(self) -> Dict[str, Any]:
+    strategy_used: RecoveryStrategyType | None = None
+    attempts: list[RecoveryAttempt] = field(default_factory=list)
+    final_value: Any | None = None
+    final_error: Exception | None = None
+    recovery_strategy_applied: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert result to dictionary."""
         return {
             "success": self.success,
@@ -81,42 +83,42 @@ class RecoveryResult:
 
 class RecoveryStrategy(ABC):
     """Base class for recovery strategies."""
-    
+
     def __init__(self, strategy_type: RecoveryStrategyType):
         """
         Initialize recovery strategy.
-        
+
         Args:
             strategy_type: Type of this recovery strategy
         """
         self.strategy_type = strategy_type
-    
+
     @abstractmethod
     def can_recover(self, error: Exception) -> bool:
         """
         Determine if this strategy can recover from the error.
-        
+
         Args:
             error: The error that occurred
-            
+
         Returns:
             True if this strategy can recover
         """
         pass
-    
+
     @abstractmethod
     def recover(
         self,
         error: Exception,
-        context: Dict[str, Any]
+        context: dict[str, Any]
     ) -> RecoveryAttempt:
         """
         Attempt to recover from the error.
-        
+
         Args:
             error: The error that occurred
             context: Context information for recovery
-            
+
         Returns:
             RecoveryAttempt with recovery details
         """
@@ -125,16 +127,16 @@ class RecoveryStrategy(ABC):
 
 class FallbackRecoveryStrategy(RecoveryStrategy):
     """Recovery strategy that uses fallback values or functions."""
-    
+
     def __init__(
         self,
-        fallback_value: Optional[Any] = None,
-        fallback_fn: Optional[Callable[..., Any]] = None,
-        retryable_errors: Optional[List[Type[Exception]]] = None
+        fallback_value: Any | None = None,
+        fallback_fn: Callable[..., Any] | None = None,
+        retryable_errors: list[type[Exception]] | None = None
     ):
         """
         Initialize fallback recovery strategy.
-        
+
         Args:
             fallback_value: Value to use as fallback
             fallback_fn: Function to call for fallback value
@@ -144,37 +146,37 @@ class FallbackRecoveryStrategy(RecoveryStrategy):
         self.fallback_value = fallback_value
         self.fallback_fn = fallback_fn
         self.retryable_errors = retryable_errors or []
-    
+
     def can_recover(self, error: Exception) -> bool:
         """Check if fallback can be applied."""
         if not self.retryable_errors:
             return True  # Apply to all errors if no specific list
-        
+
         for error_type in self.retryable_errors:
             if isinstance(error, error_type):
                 return True
         return False
-    
+
     def recover(
         self,
         error: Exception,
-        context: Dict[str, Any]
+        context: dict[str, Any]
     ) -> RecoveryAttempt:
         """Attempt to recover using fallback."""
         import uuid
-        
+
         attempt_id = str(uuid.uuid4())
         timestamp = datetime.now().isoformat()
         start_time = datetime.now().timestamp()
-        
+
         try:
             if self.fallback_fn:
                 value = self.fallback_fn(**context.get("kwargs", {}))
             else:
                 value = self.fallback_value
-            
+
             recovery_time = datetime.now().timestamp() - start_time
-            
+
             return RecoveryAttempt(
                 attempt_id=attempt_id,
                 strategy_type=self.strategy_type,
@@ -185,7 +187,7 @@ class FallbackRecoveryStrategy(RecoveryStrategy):
             )
         except Exception as e:
             recovery_time = datetime.now().timestamp() - start_time
-            
+
             return RecoveryAttempt(
                 attempt_id=attempt_id,
                 strategy_type=self.strategy_type,
@@ -198,15 +200,15 @@ class FallbackRecoveryStrategy(RecoveryStrategy):
 
 class RollbackRecoveryStrategy(RecoveryStrategy):
     """Recovery strategy that rolls back to a previous state."""
-    
+
     def __init__(
         self,
         rollback_fn: Callable[..., None],
-        retryable_errors: Optional[List[Type[Exception]]] = None
+        retryable_errors: list[type[Exception]] | None = None
     ):
         """
         Initialize rollback recovery strategy.
-        
+
         Args:
             rollback_fn: Function to call for rollback
             retryable_errors: List of error types to trigger rollback
@@ -214,34 +216,34 @@ class RollbackRecoveryStrategy(RecoveryStrategy):
         super().__init__(RecoveryStrategyType.ROLLBACK)
         self.rollback_fn = rollback_fn
         self.retryable_errors = retryable_errors or []
-    
+
     def can_recover(self, error: Exception) -> bool:
         """Check if rollback can be applied."""
         if not self.retryable_errors:
             return True
-        
+
         for error_type in self.retryable_errors:
             if isinstance(error, error_type):
                 return True
         return False
-    
+
     def recover(
         self,
         error: Exception,
-        context: Dict[str, Any]
+        context: dict[str, Any]
     ) -> RecoveryAttempt:
         """Attempt to recover using rollback."""
         import uuid
-        
+
         attempt_id = str(uuid.uuid4())
         timestamp = datetime.now().isoformat()
         start_time = datetime.now().timestamp()
-        
+
         try:
             self.rollback_fn(**context.get("kwargs", {}))
-            
+
             recovery_time = datetime.now().timestamp() - start_time
-            
+
             return RecoveryAttempt(
                 attempt_id=attempt_id,
                 strategy_type=self.strategy_type,
@@ -252,7 +254,7 @@ class RollbackRecoveryStrategy(RecoveryStrategy):
             )
         except Exception as e:
             recovery_time = datetime.now().timestamp() - start_time
-            
+
             return RecoveryAttempt(
                 attempt_id=attempt_id,
                 strategy_type=self.strategy_type,
@@ -265,15 +267,15 @@ class RollbackRecoveryStrategy(RecoveryStrategy):
 
 class CompensationRecoveryStrategy(RecoveryStrategy):
     """Recovery strategy that applies compensation actions."""
-    
+
     def __init__(
         self,
-        compensation_actions: List[Callable[..., None]],
-        retryable_errors: Optional[List[Type[Exception]]] = None
+        compensation_actions: list[Callable[..., None]],
+        retryable_errors: list[type[Exception]] | None = None
     ):
         """
         Initialize compensation recovery strategy.
-        
+
         Args:
             compensation_actions: List of compensation actions to execute
             retryable_errors: List of error types to trigger compensation
@@ -281,32 +283,32 @@ class CompensationRecoveryStrategy(RecoveryStrategy):
         super().__init__(RecoveryStrategyType.COMPENSATION)
         self.compensation_actions = compensation_actions
         self.retryable_errors = retryable_errors or []
-    
+
     def can_recover(self, error: Exception) -> bool:
         """Check if compensation can be applied."""
         if not self.retryable_errors:
             return True
-        
+
         for error_type in self.retryable_errors:
             if isinstance(error, error_type):
                 return True
         return False
-    
+
     def recover(
         self,
         error: Exception,
-        context: Dict[str, Any]
+        context: dict[str, Any]
     ) -> RecoveryAttempt:
         """Attempt to recover using compensation."""
         import uuid
-        
+
         attempt_id = str(uuid.uuid4())
         timestamp = datetime.now().isoformat()
         start_time = datetime.now().timestamp()
-        
+
         executed_actions = []
         failed_actions = []
-        
+
         try:
             for action in self.compensation_actions:
                 try:
@@ -317,9 +319,9 @@ class CompensationRecoveryStrategy(RecoveryStrategy):
                         "action": action.__name__,
                         "error": str(e)
                     })
-            
+
             recovery_time = datetime.now().timestamp() - start_time
-            
+
             if failed_actions:
                 return RecoveryAttempt(
                     attempt_id=attempt_id,
@@ -333,7 +335,7 @@ class CompensationRecoveryStrategy(RecoveryStrategy):
                         "failed_actions": failed_actions
                     }
                 )
-            
+
             return RecoveryAttempt(
                 attempt_id=attempt_id,
                 strategy_type=self.strategy_type,
@@ -347,7 +349,7 @@ class CompensationRecoveryStrategy(RecoveryStrategy):
             )
         except Exception as e:
             recovery_time = datetime.now().timestamp() - start_time
-            
+
             return RecoveryAttempt(
                 attempt_id=attempt_id,
                 strategy_type=self.strategy_type,
@@ -360,15 +362,15 @@ class CompensationRecoveryStrategy(RecoveryStrategy):
 
 class CustomRecoveryStrategy(RecoveryStrategy):
     """Recovery strategy that uses custom recovery logic."""
-    
+
     def __init__(
         self,
-        recovery_fn: Callable[[Exception, Dict[str, Any]], Any],
-        can_recover_fn: Optional[Callable[[Exception], bool]] = None
+        recovery_fn: Callable[[Exception, dict[str, Any]], Any],
+        can_recover_fn: Callable[[Exception], bool] | None = None
     ):
         """
         Initialize custom recovery strategy.
-        
+
         Args:
             recovery_fn: Custom recovery function
             can_recover_fn: Optional function to determine if recovery is possible
@@ -376,30 +378,30 @@ class CustomRecoveryStrategy(RecoveryStrategy):
         super().__init__(RecoveryStrategyType.CUSTOM)
         self.recovery_fn = recovery_fn
         self.can_recover_fn = can_recover_fn
-    
+
     def can_recover(self, error: Exception) -> bool:
         """Check if custom recovery can be applied."""
         if self.can_recover_fn:
             return self.can_recover_fn(error)
         return True
-    
+
     def recover(
         self,
         error: Exception,
-        context: Dict[str, Any]
+        context: dict[str, Any]
     ) -> RecoveryAttempt:
         """Attempt to recover using custom logic."""
         import uuid
-        
+
         attempt_id = str(uuid.uuid4())
         timestamp = datetime.now().isoformat()
         start_time = datetime.now().timestamp()
-        
+
         try:
             result = self.recovery_fn(error, context)
-            
+
             recovery_time = datetime.now().timestamp() - start_time
-            
+
             return RecoveryAttempt(
                 attempt_id=attempt_id,
                 strategy_type=self.strategy_type,
@@ -410,7 +412,7 @@ class CustomRecoveryStrategy(RecoveryStrategy):
             )
         except Exception as e:
             recovery_time = datetime.now().timestamp() - start_time
-            
+
             return RecoveryAttempt(
                 attempt_id=attempt_id,
                 strategy_type=self.strategy_type,
@@ -423,55 +425,55 @@ class CustomRecoveryStrategy(RecoveryStrategy):
 
 class ErrorRecoveryManager:
     """Manages error recovery strategies."""
-    
+
     def __init__(self):
         """Initialize error recovery manager."""
-        self.strategies: List[RecoveryStrategy] = []
-        self.recovery_history: List[RecoveryResult] = []
-    
+        self.strategies: list[RecoveryStrategy] = []
+        self.recovery_history: list[RecoveryResult] = []
+
     def add_strategy(self, strategy: RecoveryStrategy) -> None:
         """
         Add a recovery strategy.
-        
+
         Args:
             strategy: Recovery strategy to add
         """
         self.strategies.append(strategy)
-    
+
     def remove_strategy(self, strategy: RecoveryStrategy) -> None:
         """
         Remove a recovery strategy.
-        
+
         Args:
             strategy: Recovery strategy to remove
         """
         if strategy in self.strategies:
             self.strategies.remove(strategy)
-    
+
     def attempt_recovery(
         self,
         error: Exception,
-        context: Dict[str, Any]
+        context: dict[str, Any]
     ) -> RecoveryResult:
         """
         Attempt to recover from an error using available strategies.
-        
+
         Args:
             error: The error that occurred
             context: Context information for recovery
-            
+
         Returns:
             RecoveryResult with recovery details
         """
         attempts = []
-        
+
         for strategy in self.strategies:
             if not strategy.can_recover(error):
                 continue
-            
+
             attempt = strategy.recover(error, context)
             attempts.append(attempt)
-            
+
             if attempt.status == RecoveryStatus.SUCCESS:
                 # Recovery succeeded
                 result = RecoveryResult(
@@ -483,7 +485,7 @@ class ErrorRecoveryManager:
                 )
                 self.recovery_history.append(result)
                 return result
-        
+
         # All recovery attempts failed
         result = RecoveryResult(
             success=False,
@@ -493,37 +495,37 @@ class ErrorRecoveryManager:
         )
         self.recovery_history.append(result)
         return result
-    
-    def get_recovery_history(self, limit: int = 100) -> List[RecoveryResult]:
+
+    def get_recovery_history(self, limit: int = 100) -> list[RecoveryResult]:
         """
         Get recovery history.
-        
+
         Args:
             limit: Maximum number of results to return
-            
+
         Returns:
             List of recovery results
         """
         return self.recovery_history[-limit:]
-    
+
     def clear_history(self) -> None:
         """Clear recovery history."""
         self.recovery_history = []
 
 
 def fallback(
-    value: Optional[Any] = None,
-    fn: Optional[Callable[..., Any]] = None,
-    retryable_errors: Optional[List[Type[Exception]]] = None
+    value: Any | None = None,
+    fn: Callable[..., Any] | None = None,
+    retryable_errors: list[type[Exception]] | None = None
 ):
     """
     Decorator to apply fallback recovery.
-    
+
     Args:
         value: Fallback value
         fn: Fallback function
         retryable_errors: List of error types to apply fallback to
-        
+
     Returns:
         Decorator function
     """
@@ -537,11 +539,11 @@ def fallback(
                     fallback_fn=fn,
                     retryable_errors=retryable_errors
                 )
-                
+
                 # Only attempt recovery if the error is retryable
                 if strategy.can_recover(e):
                     attempt = strategy.recover(e, {"kwargs": kwargs})
-                    
+
                     if attempt.status == RecoveryStatus.SUCCESS:
                         return attempt.details.get("fallback_value")
                     else:
@@ -553,7 +555,7 @@ def fallback(
                 else:
                     # Error is not retryable, raise it as-is
                     raise
-        
+
         return wrapper
     return decorator
 
@@ -563,10 +565,10 @@ def recover_with(
 ):
     """
     Decorator to apply multiple recovery strategies.
-    
+
     Args:
         *strategies: Recovery strategies to apply
-        
+
     Returns:
         Decorator function
     """
@@ -578,14 +580,14 @@ def recover_with(
                 manager = ErrorRecoveryManager()
                 for strategy in strategies:
                     manager.add_strategy(strategy)
-                
+
                 result = manager.attempt_recovery(e, {"kwargs": kwargs})
-                
+
                 if result.success and result.final_value is not None:
                     return result.final_value
                 else:
                     raise
-        
+
         return wrapper
     return decorator
 
@@ -594,15 +596,15 @@ def recover_with(
 
 def create_fallback_strategy(
     fallback_value: Any,
-    error_types: Optional[List[Type[Exception]]] = None
+    error_types: list[type[Exception]] | None = None
 ) -> FallbackRecoveryStrategy:
     """
     Create a fallback recovery strategy.
-    
+
     Args:
         fallback_value: Value to use as fallback
         error_types: Error types to apply fallback to
-        
+
     Returns:
         FallbackRecoveryStrategy instance
     """
@@ -614,15 +616,15 @@ def create_fallback_strategy(
 
 def create_rollback_strategy(
     rollback_fn: Callable[..., None],
-    error_types: Optional[List[Type[Exception]]] = None
+    error_types: list[type[Exception]] | None = None
 ) -> RollbackRecoveryStrategy:
     """
     Create a rollback recovery strategy.
-    
+
     Args:
         rollback_fn: Function to call for rollback
         error_types: Error types to trigger rollback
-        
+
     Returns:
         RollbackRecoveryStrategy instance
     """

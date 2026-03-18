@@ -4,19 +4,19 @@ Unit tests for MetricsCollector module.
 """
 
 import json
-import pytest
-import time
-import tempfile
 import shutil
+import tempfile
+import time
 from pathlib import Path
 
+import pytest
 from utils.metrics_collector import (
-    MetricsCollector,
-    Metric,
-    MetricType,
-    MetricCategory,
     Histogram,
-    HistogramBucket
+    HistogramBucket,
+    Metric,
+    MetricCategory,
+    MetricsCollector,
+    MetricType,
 )
 
 

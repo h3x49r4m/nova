@@ -6,7 +6,6 @@ Defines all magic numbers, timeouts, and configuration constants used across the
 
 import re
 from enum import Enum
-from typing import Tuple
 
 
 class Timeouts(Enum):
@@ -378,7 +377,7 @@ def is_protected_branch(branch_name: str) -> bool:
     return branch_name in DEFAULT_PROTECTED_BRANCHES
 
 
-def get_secret_patterns() -> Tuple[str, ...]:
+def get_secret_patterns() -> tuple[str, ...]:
     """
     Get all secret detection patterns.
 

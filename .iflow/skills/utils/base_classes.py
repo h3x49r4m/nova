@@ -4,11 +4,13 @@ Base Classes for Skills and Pipelines
 Provides abstract base classes for consistent skill and pipeline implementations.
 """
 
-from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
-from enum import Enum
 import json
+from abc import ABC, abstractmethod
+from enum import Enum
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class SkillStatus(Enum):
@@ -36,17 +38,17 @@ class SkillResult:
     def __init__(
         self,
         success: bool,
-        output: Optional[str] = None,
-        error: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        output: str | None = None,
+        error: str | None = None,
+        metadata: dict[str, Any] | None = None
     ):
         self.success = success
         self.output = output
         self.error = error
         self.metadata = metadata or {}
-        self.execution_time_ms: Optional[float] = None
+        self.execution_time_ms: float | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert result to dictionary."""
         return {
             "success": self.success,
@@ -65,7 +67,7 @@ class BaseSkill(ABC):
     consistent interface and behavior across the iFlow CLI skills system.
     """
 
-    def __init__(self, skill_name: str, config_path: Optional[Path] = None):
+    def __init__(self, skill_name: str, config_path: Path | None = None):
         """
         Initialize the skill.
 
@@ -75,7 +77,7 @@ class BaseSkill(ABC):
         """
         self.skill_name = skill_name
         self.config_path = config_path
-        self.config: Dict[str, Any] = {}
+        self.config: dict[str, Any] = {}
         self.status = SkillStatus.PENDING
         self.logger = None  # Initialize logger when needed
 
@@ -110,7 +112,7 @@ class BaseSkill(ABC):
         pass
 
     @abstractmethod
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """
         Get the list of capabilities this skill provides.
 
@@ -119,7 +121,7 @@ class BaseSkill(ABC):
         """
         pass
 
-    def load_config(self, default_config: Optional[Dict[str, Any]] = None) -> None:
+    def load_config(self, default_config: dict[str, Any] | None = None) -> None:
         """
         Load skill configuration from config_path with defaults and error handling.
 
@@ -128,14 +130,14 @@ class BaseSkill(ABC):
         """
         # Start with default config or empty dict
         self.config = default_config or {}
-        
+
         # Load and merge user config if file exists
         if self.config_path and self.config_path.exists():
             try:
-                with open(self.config_path, 'r') as f:
+                with open(self.config_path) as f:
                     user_config = json.load(f)
                 self.config.update(user_config)
-            except (json.JSONDecodeError, IOError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 if self.logger:
                     self.logger.warning(
                         f"Failed to load config from {self.config_path}: {e}. Using defaults.",
@@ -159,7 +161,7 @@ class BaseSkill(ABC):
         return self.config.get(key, default)
 
     @abstractmethod
-    def validate_prerequisites(self, project_path: Path) -> Tuple[bool, Optional[str]]:
+    def validate_prerequisites(self, project_path: Path) -> tuple[bool, str | None]:
         """
         Validate that all prerequisites are met for skill execution.
 
@@ -223,7 +225,7 @@ class BasePipeline(ABC):
     consistent interface and behavior across the iFlow CLI pipeline system.
     """
 
-    def __init__(self, pipeline_name: str, config_path: Optional[Path] = None):
+    def __init__(self, pipeline_name: str, config_path: Path | None = None):
         """
         Initialize the pipeline.
 
@@ -233,9 +235,9 @@ class BasePipeline(ABC):
         """
         self.pipeline_name = pipeline_name
         self.config_path = config_path
-        self.config: Dict[str, Any] = {}
+        self.config: dict[str, Any] = {}
         self.status = PipelineStatus.PENDING
-        self.stages: List['PipelineStage'] = []
+        self.stages: list[PipelineStage] = []
 
     @abstractmethod
     def get_name(self) -> str:
@@ -268,7 +270,7 @@ class BasePipeline(ABC):
         pass
 
     @abstractmethod
-    def get_stages(self) -> List['PipelineStage']:
+    def get_stages(self) -> list[PipelineStage]:
         """
         Get the stages in this pipeline.
 
@@ -278,7 +280,7 @@ class BasePipeline(ABC):
         pass
 
     @abstractmethod
-    def get_required_skills(self) -> List[str]:
+    def get_required_skills(self) -> list[str]:
         """
         Get the list of skills required by this pipeline.
 
@@ -291,7 +293,7 @@ class BasePipeline(ABC):
         """Load pipeline configuration from config_path."""
         if self.config_path and self.config_path.exists():
             import json
-            with open(self.config_path, 'r') as f:
+            with open(self.config_path) as f:
                 self.config = json.load(f)
 
     def get_config(self, key: str, default: Any = None) -> Any:
@@ -308,7 +310,7 @@ class BasePipeline(ABC):
         return self.config.get(key, default)
 
     @abstractmethod
-    def validate_prerequisites(self, project_path: Path) -> Tuple[bool, Optional[str]]:
+    def validate_prerequisites(self, project_path: Path) -> tuple[bool, str | None]:
         """
         Validate that all prerequisites are met for pipeline execution.
 
@@ -387,8 +389,8 @@ class PipelineStage:
     def __init__(
         self,
         name: str,
-        skills: List[BaseSkill],
-        dependencies: Optional[List[str]] = None,
+        skills: list[BaseSkill],
+        dependencies: list[str] | None = None,
         optional: bool = False
     ):
         """
@@ -405,9 +407,9 @@ class PipelineStage:
         self.dependencies = dependencies or []
         self.optional = optional
         self.status = SkillStatus.PENDING
-        self.result: Optional[SkillResult] = None
+        self.result: SkillResult | None = None
 
-    def can_execute(self, completed_stages: List[str]) -> bool:
+    def can_execute(self, completed_stages: list[str]) -> bool:
         """
         Check if this stage can be executed based on dependencies.
 

@@ -7,8 +7,8 @@ the unified schema to ensure consistency and correctness.
 
 import json
 from pathlib import Path
-import pytest
 
+import pytest
 from utils.skill_config_schema import SkillConfigValidator
 
 
@@ -40,7 +40,7 @@ class TestAllConfigFiles:
         """Test that all config.json files are valid JSON."""
         for config_file in config_files:
             try:
-                with open(config_file, 'r') as f:
+                with open(config_file) as f:
                     json.load(f)
             except json.JSONDecodeError as e:
                 pytest.fail(f"Invalid JSON in {config_file}: {e}")
@@ -48,12 +48,12 @@ class TestAllConfigFiles:
     def test_all_configs_validate_against_schema(self, config_files, validator):
         """Test that all config.json files validate against the unified schema."""
         errors_by_file = {}
-        
+
         for config_file in config_files:
-            is_valid, errors, config = validator.validate_file(config_file)
+            is_valid, errors, _config = validator.validate_file(config_file)
             if not is_valid:
                 errors_by_file[str(config_file.relative_to(config_file.parent.parent))] = errors
-        
+
         if errors_by_file:
             error_message = "Configuration validation failed:\n"
             for file_path, file_errors in errors_by_file.items():
@@ -65,11 +65,11 @@ class TestAllConfigFiles:
     def test_required_fields_present(self, config_files, validator):
         """Test that all configs have required fields."""
         required_fields = ["name", "version", "type", "description"]
-        
+
         for config_file in config_files:
-            with open(config_file, 'r') as f:
+            with open(config_file) as f:
                 config = json.load(f)
-            
+
             for field in required_fields:
                 assert field in config, f"{config_file.name}: Missing required field '{field}'"
 
@@ -77,11 +77,11 @@ class TestAllConfigFiles:
         """Test that all versions follow semantic versioning."""
         import re
         version_pattern = re.compile(r'^\d+\.\d+\.\d+$')
-        
+
         for config_file in config_files:
-            with open(config_file, 'r') as f:
+            with open(config_file) as f:
                 config = json.load(f)
-            
+
             version = config.get("version")
             assert version is not None, f"{config_file.name}: Missing version"
             assert version_pattern.match(version), \
@@ -91,11 +91,11 @@ class TestAllConfigFiles:
         """Test that all names follow the naming convention."""
         import re
         name_pattern = re.compile(r'^[a-z][a-z0-9-]*$')
-        
+
         for config_file in config_files:
-            with open(config_file, 'r') as f:
+            with open(config_file) as f:
                 config = json.load(f)
-            
+
             name = config.get("name")
             assert name is not None, f"{config_file.name}: Missing name"
             assert name_pattern.match(name), \
@@ -104,11 +104,11 @@ class TestAllConfigFiles:
     def test_type_is_valid(self, config_files):
         """Test that all type fields are valid."""
         valid_types = ["role", "pipeline"]
-        
+
         for config_file in config_files:
-            with open(config_file, 'r') as f:
+            with open(config_file) as f:
                 config = json.load(f)
-            
+
             type_value = config.get("type")
             assert type_value is not None, f"{config_file.name}: Missing type"
             assert type_value in valid_types, \
@@ -117,11 +117,11 @@ class TestAllConfigFiles:
     def test_description_length(self, config_files):
         """Test that all descriptions meet minimum length requirements."""
         min_length = 10
-        
+
         for config_file in config_files:
-            with open(config_file, 'r') as f:
+            with open(config_file) as f:
                 config = json.load(f)
-            
+
             description = config.get("description")
             assert description is not None, f"{config_file.name}: Missing description"
             assert len(description) >= min_length, \
@@ -130,9 +130,9 @@ class TestAllConfigFiles:
     def test_capabilities_is_array(self, config_files):
         """Test that capabilities field is an array if present."""
         for config_file in config_files:
-            with open(config_file, 'r') as f:
+            with open(config_file) as f:
                 config = json.load(f)
-            
+
             if "capabilities" in config:
                 capabilities = config["capabilities"]
                 assert isinstance(capabilities, list), \
@@ -143,14 +143,14 @@ class TestAllConfigFiles:
     def test_dependencies_format(self, config_files):
         """Test that dependencies are properly formatted if present."""
         for config_file in config_files:
-            with open(config_file, 'r') as f:
+            with open(config_file) as f:
                 config = json.load(f)
-            
+
             if "dependencies" in config:
                 dependencies = config["dependencies"]
                 assert isinstance(dependencies, list), \
                     f"{config_file.name}: dependencies must be an array"
-                
+
                 for i, dep in enumerate(dependencies):
                     assert isinstance(dep, dict), \
                         f"{config_file.name}: dependency at index {i} must be an object"
@@ -162,9 +162,9 @@ class TestAllConfigFiles:
     def test_settings_structure(self, config_files):
         """Test that settings field has proper structure if present."""
         for config_file in config_files:
-            with open(config_file, 'r') as f:
+            with open(config_file) as f:
                 config = json.load(f)
-            
+
             if "settings" in config:
                 settings = config["settings"]
                 assert isinstance(settings, dict), \
@@ -176,16 +176,16 @@ class TestAllConfigFiles:
             # Skip version-specific configs
             if "versions" in config_file.parts:
                 continue
-            
-            with open(config_file, 'r') as f:
+
+            with open(config_file) as f:
                 config = json.load(f)
-            
+
             config_name = config.get("name")
             directory_name = config_file.parent.name
-            
+
             # Convert underscores to hyphens for comparison
             normalized_dir = directory_name.replace("_", "-")
-            
+
             assert config_name is not None, f"{config_file.name}: Missing name"
             assert config_name == normalized_dir, \
                 f"{config_file.name}: Config name '{config_name}' doesn't match directory name '{directory_name}'"
@@ -193,11 +193,11 @@ class TestAllConfigFiles:
     def test_no_duplicate_names(self, config_files):
         """Test that all configs have unique names."""
         names = {}
-        
+
         for config_file in config_files:
-            with open(config_file, 'r') as f:
+            with open(config_file) as f:
                 config = json.load(f)
-            
+
             name = config.get("name")
             if name in names:
                 pytest.fail(
@@ -214,17 +214,17 @@ class TestAllConfigFiles:
             "devops-engineer", "security-engineer", "documentation-specialist",
             "ui-ux-designer", "git-manage", "git-flow"
         ]
-        
+
         for config_file in config_files:
             # Check if this is a role directory
             if any(role_dir in str(config_file) for role_dir in role_directories):
                 # Skip version-specific configs
                 if "versions" in config_file.parts:
                     continue
-                
-                with open(config_file, 'r') as f:
+
+                with open(config_file) as f:
                     config = json.load(f)
-                
+
                 assert config.get("type") == "role", \
                     f"{config_file.name}: Role config must have type='role'"
 
@@ -236,10 +236,10 @@ class TestAllConfigFiles:
                 # Skip version-specific configs
                 if "versions" in config_file.parts:
                     continue
-                
-                with open(config_file, 'r') as f:
+
+                with open(config_file) as f:
                     config = json.load(f)
-                
+
                 assert config.get("type") == "pipeline", \
                     f"{config_file.name}: Pipeline config must have type='pipeline'"
 

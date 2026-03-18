@@ -1,22 +1,21 @@
 """Tests for notification_system module."""
 
-import pytest
-from pathlib import Path
 import sys
 from datetime import datetime
-from unittest.mock import Mock, patch, MagicMock
+from pathlib import Path
+
+import pytest
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.notification_system import (
-    NotificationSeverity,
     NotificationChannel,
-    NotificationMessage,
     NotificationConfig,
-    NotificationSystem
+    NotificationMessage,
+    NotificationSeverity,
+    NotificationSystem,
 )
-from utils.exceptions import IFlowError
 
 
 class TestNotificationSeverity:

@@ -7,22 +7,15 @@ quality gate enforcement.
 
 import json
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional
 from enum import Enum
+from typing import TYPE_CHECKING, Any
 
-from .review_tool_integration import (
-    ReviewToolIntegration,
-    create_review_integration
-)
-from .quality_gates import (
-    QualityGateEvaluator,
-    QualityGateStatus
-)
-from .exceptions import (
-    IFlowError,
-    ErrorCode
-)
+from .exceptions import ErrorCode, IFlowError
+from .quality_gates import QualityGateEvaluator, QualityGateStatus
+from .review_tool_integration import ReviewToolIntegration, create_review_integration
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class ReviewType(Enum):
@@ -54,7 +47,7 @@ class ReviewStatus(Enum):
 
 class ReviewRule:
     """Represents a review rule."""
-    
+
     def __init__(
         self,
         rule_id: str,
@@ -63,11 +56,11 @@ class ReviewRule:
         severity: ReviewSeverity,
         tool: str,
         enabled: bool = True,
-        condition: Optional[str] = None
+        condition: str | None = None
     ):
         """
         Initialize a review rule.
-        
+
         Args:
             rule_id: Unique identifier for the rule
             name: Human-readable name
@@ -84,8 +77,8 @@ class ReviewRule:
         self.tool = tool
         self.enabled = enabled
         self.condition = condition
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert rule to dictionary."""
         return {
             "rule_id": self.rule_id,
@@ -100,7 +93,7 @@ class ReviewRule:
 
 class ReviewFinding:
     """Represents a finding from a review."""
-    
+
     def __init__(
         self,
         finding_id: str,
@@ -108,16 +101,16 @@ class ReviewFinding:
         tool: str,
         severity: ReviewSeverity,
         message: str,
-        file_path: Optional[str] = None,
-        line_number: Optional[int] = None,
-        column_number: Optional[int] = None,
-        code_snippet: Optional[str] = None,
-        fix_suggestion: Optional[str] = None,
-        category: Optional[str] = None
+        file_path: str | None = None,
+        line_number: int | None = None,
+        column_number: int | None = None,
+        code_snippet: str | None = None,
+        fix_suggestion: str | None = None,
+        category: str | None = None
     ):
         """
         Initialize a review finding.
-        
+
         Args:
             finding_id: Unique identifier for the finding
             rule_id: ID of the rule that triggered this finding
@@ -143,8 +136,8 @@ class ReviewFinding:
         self.fix_suggestion = fix_suggestion
         self.category = category
         self.timestamp = datetime.now().isoformat()
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert finding to dictionary."""
         return {
             "finding_id": self.finding_id,
@@ -164,7 +157,7 @@ class ReviewFinding:
 
 class ReviewResult:
     """Represents the result of a review."""
-    
+
     def __init__(
         self,
         review_id: str,
@@ -173,7 +166,7 @@ class ReviewResult:
     ):
         """
         Initialize a review result.
-        
+
         Args:
             review_id: Unique identifier for the review
             review_type: Type of review performed
@@ -182,9 +175,9 @@ class ReviewResult:
         self.review_id = review_id
         self.review_type = review_type
         self.status = status
-        self.findings: List[ReviewFinding] = []
-        self.tool_results: Dict[str, Any] = {}
-        self.metrics: Dict[str, int] = {
+        self.findings: list[ReviewFinding] = []
+        self.tool_results: dict[str, Any] = {}
+        self.metrics: dict[str, int] = {
             "critical": 0,
             "high": 0,
             "medium": 0,
@@ -192,12 +185,12 @@ class ReviewResult:
             "info": 0,
             "total": 0
         }
-        self.start_time: Optional[str] = None
-        self.end_time: Optional[str] = None
-        self.duration_seconds: Optional[float] = None
-        self.quality_gate_status: Optional[QualityGateStatus] = None
+        self.start_time: str | None = None
+        self.end_time: str | None = None
+        self.duration_seconds: float | None = None
+        self.quality_gate_status: QualityGateStatus | None = None
         self.passed: bool = False
-    
+
     def add_finding(self, finding: ReviewFinding):
         """Add a finding to the review result."""
         self.findings.append(finding)
@@ -205,12 +198,12 @@ class ReviewResult:
         if severity in self.metrics:
             self.metrics[severity] += 1
         self.metrics["total"] += 1
-    
+
     def mark_started(self):
         """Mark the review as started."""
         self.status = ReviewStatus.RUNNING
         self.start_time = datetime.now().isoformat()
-    
+
     def mark_completed(self, passed: bool = False):
         """Mark the review as completed."""
         self.status = ReviewStatus.COMPLETED
@@ -220,7 +213,7 @@ class ReviewResult:
             end = datetime.fromisoformat(self.end_time)
             self.duration_seconds = (end - start).total_seconds()
         self.passed = passed
-    
+
     def mark_failed(self, error_message: str):
         """Mark the review as failed."""
         self.status = ReviewStatus.FAILED
@@ -232,8 +225,8 @@ class ReviewResult:
             severity=ReviewSeverity.CRITICAL,
             message=f"Review execution failed: {error_message}"
         ))
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert review result to dictionary."""
         return {
             "review_id": self.review_id,
@@ -252,31 +245,31 @@ class ReviewResult:
 
 class ReviewEngine:
     """Engine for executing automated code reviews."""
-    
+
     def __init__(
         self,
-        review_tool_integration: Optional[ReviewToolIntegration] = None,
-        rules_file: Optional[Path] = None
+        review_tool_integration: ReviewToolIntegration | None = None,
+        rules_file: Path | None = None
     ):
         """
         Initialize the review engine.
-        
+
         Args:
             review_tool_integration: Review tool integration instance
             rules_file: Path to rules configuration file
         """
         self.review_tool_integration = review_tool_integration or create_review_integration()
-        self.rules: Dict[str, ReviewRule] = {}
+        self.rules: dict[str, ReviewRule] = {}
         self.quality_gate_evaluator = QualityGateEvaluator()
         self._load_rules(rules_file)
-    
-    def _load_rules(self, rules_file: Optional[Path]):
+
+    def _load_rules(self, rules_file: Path | None):
         """Load review rules from file."""
         if rules_file and rules_file.exists():
             try:
-                with open(rules_file, 'r') as f:
+                with open(rules_file) as f:
                     data = json.load(f)
-                
+
                 for rule_data in data.get("rules", []):
                     rule = ReviewRule(
                         rule_id=rule_data["rule_id"],
@@ -291,11 +284,11 @@ class ReviewEngine:
             except Exception as e:
                     self.logger.warning(f"Failed to load rule {rule_id}: {e}")
                     pass
-        
+
         # Load default rules if no rules file or loading failed
         if not self.rules:
             self._load_default_rules()
-    
+
     def _load_default_rules(self):
         """Load default review rules."""
         default_rules = [
@@ -328,71 +321,71 @@ class ReviewEngine:
                 tool="pylint"
             )
         ]
-        
+
         for rule in default_rules:
             self.rules[rule.rule_id] = rule
-    
+
     def execute_review(
         self,
         project_path: Path,
         review_type: ReviewType = ReviewType.COMPREHENSIVE,
-        review_id: Optional[str] = None,
-        tools: Optional[List[str]] = None
+        review_id: str | None = None,
+        tools: list[str] | None = None
     ) -> ReviewResult:
         """
         Execute a code review.
-        
+
         Args:
             project_path: Path to the project to review
             review_type: Type of review to perform
             review_id: Optional custom review ID
             tools: Optional list of specific tools to use
-            
+
         Returns:
             ReviewResult object with findings
         """
         if not review_id:
             review_id = f"review_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
+
         result = ReviewResult(
             review_id=review_id,
             review_type=review_type
         )
-        
+
         try:
             result.mark_started()
-            
+
             # Determine tools to use based on review type
             if tools:
                 tools_to_run = tools
             else:
                 tools_to_run = self._get_tools_for_review_type(review_type)
-            
+
             # Run scans with review tool integration
             scan_results = self.review_tool_integration.run_all_scans(
                 project_path=project_path,
                 tool_names=tools_to_run
             )
-            
+
             result.tool_results = scan_results
-            
+
             # Parse findings from scan results
             self._parse_findings(scan_results, result)
-            
+
             # Evaluate quality gates
             result.quality_gate_status = self._evaluate_quality_gates(result)
-            
+
             # Determine if review passed
             result.passed = result.quality_gate_status == QualityGateStatus.PASSED
-            
+
             result.mark_completed(passed=result.passed)
-            
+
         except Exception as e:
             result.mark_failed(str(e))
-        
+
         return result
-    
-    def _get_tools_for_review_type(self, review_type: ReviewType) -> List[str]:
+
+    def _get_tools_for_review_type(self, review_type: ReviewType) -> list[str]:
         """Get tools to use for a given review type."""
         tool_mapping = {
             ReviewType.CODE_QUALITY: ["sonarqube", "eslint", "pylint"],
@@ -402,15 +395,15 @@ class ReviewEngine:
             ReviewType.COMPREHENSIVE: ["sonarqube", "snyk", "eslint", "pylint"]
         }
         return tool_mapping.get(review_type, [])
-    
-    def _parse_findings(self, scan_results: Dict[str, Any], result: ReviewResult):
+
+    def _parse_findings(self, scan_results: dict[str, Any], result: ReviewResult):
         """Parse findings from scan results."""
         for tool_name, tool_result in scan_results.get("results", {}).items():
             if not tool_result.get("success", False):
                 continue
-            
+
             findings_count = 0
-            
+
             # Parse vulnerabilities from Snyk
             if tool_name == "snyk" and "vulnerabilities" in tool_result:
                 for vuln in tool_result["vulnerabilities"]:
@@ -424,7 +417,7 @@ class ReviewEngine:
                     )
                     result.add_finding(finding)
                     findings_count += 1
-            
+
             # Parse issues from ESLint
             elif tool_name == "eslint" and "issues" in tool_result:
                 for issue in tool_result["issues"]:
@@ -441,7 +434,7 @@ class ReviewEngine:
                     )
                     result.add_finding(finding)
                     findings_count += 1
-            
+
             # Parse issues from Pylint
             elif tool_name == "pylint" and "issues" in tool_result:
                 for issue in tool_result["issues"]:
@@ -458,7 +451,7 @@ class ReviewEngine:
                     )
                     result.add_finding(finding)
                     findings_count += 1
-    
+
     def _map_snyk_severity(self, snyk_severity: str) -> ReviewSeverity:
         """Map Snyk severity to ReviewSeverity."""
         severity_map = {
@@ -468,7 +461,7 @@ class ReviewEngine:
             "low": ReviewSeverity.LOW
         }
         return severity_map.get(snyk_severity.lower(), ReviewSeverity.MEDIUM)
-    
+
     def _map_eslint_severity(self, eslint_severity: int) -> ReviewSeverity:
         """Map ESLint severity to ReviewSeverity."""
         if eslint_severity == 2:
@@ -476,7 +469,7 @@ class ReviewEngine:
         elif eslint_severity == 1:
             return ReviewSeverity.MEDIUM
         return ReviewSeverity.LOW
-    
+
     def _map_pylint_severity(self, pylint_type: str) -> ReviewSeverity:
         """Map Pylint type to ReviewSeverity."""
         type_map = {
@@ -488,7 +481,7 @@ class ReviewEngine:
             "info": ReviewSeverity.INFO
         }
         return type_map.get(pylint_type.lower(), ReviewSeverity.LOW)
-    
+
     def _evaluate_quality_gates(self, result: ReviewResult) -> QualityGateStatus:
         """Evaluate quality gates for the review result."""
         # Build metrics for quality gate evaluation
@@ -504,29 +497,29 @@ class ReviewEngine:
             "test_coverage": 80.0,  # Default placeholder
             "lint_errors": result.metrics["critical"] + result.metrics["high"]
         }
-        
+
         # Evaluate all quality gates
         status = self.quality_gate_evaluator.evaluate_all(metrics)
-        
+
         return status
-    
+
     def add_rule(self, rule: ReviewRule):
         """Add a review rule."""
         self.rules[rule.rule_id] = rule
-    
+
     def remove_rule(self, rule_id: str):
         """Remove a review rule."""
         if rule_id in self.rules:
             del self.rules[rule_id]
-    
-    def get_rules(self) -> List[Dict[str, Any]]:
+
+    def get_rules(self) -> list[dict[str, Any]]:
         """Get all review rules."""
         return [rule.to_dict() for rule in self.rules.values()]
-    
+
     def save_review_result(self, result: ReviewResult, output_file: Path):
         """
         Save review result to file.
-        
+
         Args:
             result: ReviewResult to save
             output_file: Path to output file
@@ -536,45 +529,45 @@ class ReviewEngine:
                 json.dump(result.to_dict(), f, indent=2)
         except Exception as e:
             raise IFlowError(
-                f"Failed to save review result: {str(e)}",
+                f"Failed to save review result: {e!s}",
                 ErrorCode.FILE_WRITE_ERROR
             )
-    
+
     def generate_report(self, result: ReviewResult) -> str:
         """
         Generate a human-readable report for a review result.
-        
+
         Args:
             result: ReviewResult to generate report for
-            
+
         Returns:
             Formatted report string
         """
         lines = [
-            f"Code Review Report",
-            f"=" * 50,
+            "Code Review Report",
+            "=" * 50,
             f"Review ID: {result.review_id}",
             f"Type: {result.review_type.value}",
             f"Status: {result.status.value}",
             f"Passed: {'YES' if result.passed else 'NO'}",
-            f"",
+            "",
             f"Duration: {result.duration_seconds:.2f}s" if result.duration_seconds else "Duration: N/A",
-            f"",
-            f"Findings Summary",
-            f"-" * 50
+            "",
+            "Findings Summary",
+            "-" * 50
         ]
-        
+
         for severity, count in result.metrics.items():
             if severity != "total":
                 lines.append(f"  {severity.capitalize()}: {count}")
-        
+
         lines.append(f"  Total: {result.metrics['total']}")
         lines.append("")
-        
+
         if result.findings:
             lines.append("Detailed Findings")
             lines.append("-" * 50)
-            
+
             for finding in result.findings:
                 lines.append(f"\n[{finding.severity.value.upper()}] {finding.message}")
                 if finding.file_path:
@@ -588,13 +581,13 @@ class ReviewEngine:
                     lines.append(f"  Suggestion: {finding.fix_suggestion}")
         else:
             lines.append("No findings detected.")
-        
+
         return "\n".join(lines)
 
 
 def create_review_engine(
-    config: Optional[Dict[str, Any]] = None,
-    rules_file: Optional[Path] = None
+    config: dict[str, Any] | None = None,
+    rules_file: Path | None = None
 ) -> ReviewEngine:
     """Create a review engine instance."""
     integration = create_review_integration(config) if config else None

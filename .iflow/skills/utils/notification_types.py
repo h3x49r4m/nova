@@ -7,7 +7,7 @@ throughout the notification system.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class NotificationChannel(Enum):
@@ -45,11 +45,11 @@ class NotificationConfig:
     """Configuration for a notification channel."""
     channel: NotificationChannel
     enabled: bool = True
-    triggers: List[NotificationTrigger] = field(default_factory=list)
-    min_severity: Optional[NotificationSeverity] = None
-    config: Dict[str, Any] = field(default_factory=dict)
-    
-    def to_dict(self) -> Dict[str, Any]:
+    triggers: list[NotificationTrigger] = field(default_factory=list)
+    min_severity: NotificationSeverity | None = None
+    config: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "channel": self.channel.value,
@@ -58,9 +58,9 @@ class NotificationConfig:
             "min_severity": self.min_severity.value if self.min_severity else None,
             "config": self.config
         }
-    
+
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'NotificationConfig':
+    def from_dict(cls, data: dict[str, Any]) -> NotificationConfig:
         """Create from dictionary."""
         return cls(
             channel=NotificationChannel(data["channel"]),
@@ -79,11 +79,11 @@ class NotificationMessage:
     severity: NotificationSeverity
     title: str
     message: str
-    details: Dict[str, Any] = field(default_factory=dict)
-    recipients: List[str] = field(default_factory=list)
+    details: dict[str, Any] = field(default_factory=dict)
+    recipients: list[str] = field(default_factory=list)
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "channel": self.channel.value,
@@ -95,9 +95,9 @@ class NotificationMessage:
             "recipients": self.recipients,
             "timestamp": self.timestamp
         }
-    
+
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'NotificationMessage':
+    def from_dict(cls, data: dict[str, Any]) -> NotificationMessage:
         """Create from dictionary."""
         return cls(
             channel=NotificationChannel(data["channel"]),

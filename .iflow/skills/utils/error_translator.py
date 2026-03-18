@@ -4,10 +4,10 @@ This module provides functionality for translating technical error messages
 into user-friendly, actionable messages that non-technical users can understand.
 """
 
-from typing import Any, Dict, Optional
 from enum import Enum
+from typing import Any
 
-from .exceptions import IFlowError, ErrorCode
+from .exceptions import ErrorCode, IFlowError
 
 
 class Audience(Enum):
@@ -20,7 +20,7 @@ class Audience(Enum):
 
 class ErrorTranslator:
     """Translates technical errors to user-friendly messages."""
-    
+
     # User-friendly message templates
     USER_FRIENDLY_MESSAGES = {
         ErrorCode.GIT_ERROR: {
@@ -362,7 +362,7 @@ class ErrorTranslator:
             )
         }
     }
-    
+
     def __init__(
         self,
         default_audience: Audience = Audience.END_USER,
@@ -370,59 +370,59 @@ class ErrorTranslator:
     ):
         """
         Initialize the error translator.
-        
+
         Args:
             default_audience: Default target audience
             include_context: Whether to include technical context
         """
         self.default_audience = default_audience
         self.include_context = include_context
-    
+
     def translate(
         self,
         error: IFlowError,
-        audience: Optional[Audience] = None,
-        context: Optional[Dict[str, Any]] = None
+        audience: Audience | None = None,
+        context: dict[str, Any] | None = None
     ) -> str:
         """
         Translate an error to a user-friendly message.
-        
+
         Args:
             error: The error to translate
             audience: Target audience (uses default if None)
             context: Additional context for template formatting
-            
+
         Returns:
             User-friendly error message
         """
         audience = audience or self.default_audience
-        
+
         # Get the template
         templates = self.USER_FRIENDLY_MESSAGES.get(error.code)
         if not templates:
             return self._fallback_message(error, audience)
-        
+
         template = templates.get(audience)
         if not template:
             template = templates.get(Audience.END_USER, self._fallback_message(error, audience))
-        
+
         # Format template with context
         message = self._format_template(template, context or {})
-        
+
         # Add context if requested
         if self.include_context and audience in [Audience.DEVELOPER, Audience.ADMINISTRATOR, Audience.SUPPORT]:
             message = self._add_context(message, error, context or {})
-        
+
         return message
-    
-    def _format_template(self, template: str, context: Dict[str, Any]) -> str:
+
+    def _format_template(self, template: str, context: dict[str, Any]) -> str:
         """
         Format a template with context values.
-        
+
         Args:
             template: Template string with placeholders
             context: Context values
-            
+
         Returns:
             Formatted template
         """
@@ -431,21 +431,21 @@ class ErrorTranslator:
         except KeyError:
             # Missing placeholder, return template as-is
             return template
-    
+
     def _add_context(
         self,
         message: str,
         error: IFlowError,
-        context: Dict[str, Any]
+        context: dict[str, Any]
     ) -> str:
         """
         Add technical context to the message.
-        
+
         Args:
             message: Original message
             error: The error
             context: Additional context
-            
+
         Returns:
             Message with added context
         """
@@ -455,13 +455,13 @@ class ErrorTranslator:
         lines.append("-" * 30)
         lines.append(f"Error Code: {error.code.name} ({error.code.value})")
         lines.append(f"Category: {error.category.value}")
-        
+
         if context:
             for key, value in context.items():
                 lines.append(f"{key}: {value}")
-        
+
         return "\n".join(lines)
-    
+
     def _fallback_message(
         self,
         error: IFlowError,
@@ -469,11 +469,11 @@ class ErrorTranslator:
     ) -> str:
         """
         Generate a fallback message when no template is found.
-        
+
         Args:
             error: The error
             audience: Target audience
-            
+
         Returns:
             Fallback message
         """
@@ -483,58 +483,58 @@ class ErrorTranslator:
                 "Please try again or contact support if the problem continues."
             )
         elif audience == Audience.DEVELOPER:
-            return f"Error: {error.code.name} - {str(error)}"
+            return f"Error: {error.code.name} - {error!s}"
         elif audience == Audience.ADMINISTRATOR:
             return f"System error: {error.code.name} - Category: {error.category.value}"
         else:  # SUPPORT
-            return f"Error: {error.code.name} ({error.code.value}) - {str(error)}"
-    
+            return f"Error: {error.code.name} ({error.code.value}) - {error!s}"
+
     def translate_for_support(
         self,
         error: IFlowError,
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> str:
         """
         Translate an error for support personnel.
-        
+
         Args:
             error: The error to translate
             context: Additional context
-            
+
         Returns:
             Support-oriented error message
         """
         return self.translate(error, Audience.SUPPORT, context)
-    
+
     def translate_for_user(
         self,
         error: IFlowError,
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> str:
         """
         Translate an error for end users.
-        
+
         Args:
             error: The error to translate
             context: Additional context
-            
+
         Returns:
             User-friendly error message
         """
         return self.translate(error, Audience.END_USER, context)
-    
+
     def translate_for_developer(
         self,
         error: IFlowError,
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> str:
         """
         Translate an error for developers.
-        
+
         Args:
             error: The error to translate
             context: Additional context
-            
+
         Returns:
         """
         return self.translate(error, Audience.DEVELOPER, context)
@@ -542,17 +542,17 @@ class ErrorTranslator:
 
 def translate_error(
     error: IFlowError,
-    audience: Optional[Audience] = None,
-    context: Optional[Dict[str, Any]] = None
+    audience: Audience | None = None,
+    context: dict[str, Any] | None = None
 ) -> str:
     """
     Translate an error to a user-friendly message.
-    
+
     Args:
         error: The error to translate
         audience: Target audience
         context: Additional context
-        
+
     Returns:
         User-friendly error message
     """
@@ -562,15 +562,15 @@ def translate_error(
 
 def translate_for_user(
     error: IFlowError,
-    context: Optional[Dict[str, Any]] = None
+    context: dict[str, Any] | None = None
 ) -> str:
     """
     Translate an error for end users.
-    
+
     Args:
         error: The error to translate
         context: Additional context
-        
+
     Returns:
         User-friendly error message
     """

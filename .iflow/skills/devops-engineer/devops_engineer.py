@@ -9,34 +9,28 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
 
 # Import shared utilities
-from utils import (
-    ErrorCode,
-    StructuredLogger,
-    LogFormat,
-    run_git_command
-)
+from utils import ErrorCode, LogFormat, StructuredLogger, run_git_command
 
 
 class DevOpsEngineer:
     """DevOps Engineer role for CI/CD and infrastructure."""
 
-    def __init__(self, repo_root: Optional[Path] = None):
+    def __init__(self, repo_root: Path | None = None):
         """Initialize DevOps engineer skill."""
         self.repo_root = repo_root or Path.cwd()
         self.config_dir = self.repo_root / '.iflow' / 'skills' / 'devops-engineer'
         self.config_file = self.config_dir / 'config.json'
         self.state_dir = self.repo_root / '.state'
-        
+
         self.logger = StructuredLogger(
             name="devops-engineer",
             log_dir=self.repo_root / ".iflow" / "logs",
             log_format=LogFormat.JSON
         )
         self.load_config()
-    
+
     def load_config(self):
         """Load configuration from config file."""
         self.config = {
@@ -47,22 +41,22 @@ class DevOpsEngineer:
             'cloud_provider': 'aws',
             'auto_commit': True
         }
-        
+
         if self.config_file.exists():
             try:
-                with open(self.config_file, 'r') as f:
+                with open(self.config_file) as f:
                     user_config = json.load(f)
                 self.config.update(user_config)
-            except (json.JSONDecodeError, IOError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 self.logger.warning(f"Failed to load config: {e}. Using defaults.")
-    
+
     def create_deployment_status(
         self,
         project_path: Path
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """Create deployment status document."""
         status_file = project_path / '.state' / 'deployment-status.md'
-        
+
         try:
             status_content = f"""# Deployment Status
 
@@ -425,41 +419,41 @@ None
 **DevOps Team:** devops@company.com
 **On-Call:** PagerDuty rotation
 """
-            
+
             with open(status_file, 'w') as f:
                 f.write(status_content)
-            
+
             self.logger.info(f"Deployment status created: {status_file}")
             return 0, f"Deployment status created: {status_file}"
-            
-        except (IOError, OSError) as e:
+
+        except OSError as e:
             error_msg = f"Failed to create deployment status: {e}"
             self.logger.error(error_msg)
             return ErrorCode.FILE_WRITE_ERROR.value, error_msg
-    
+
     def commit_changes(
         self,
         project_path: Path,
         changes_description: str
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """Commit changes with proper metadata."""
         try:
             # Get current branch
             code, branch, _ = run_git_command(['rev-parse', '--abbrev-ref', 'HEAD'], cwd=project_path)
             if code != 0:
-                return code, f"Failed to get current branch"
-            
+                return code, "Failed to get current branch"
+
             # Stage files
             files_to_stage = [
                 project_path / '.state' / 'deployment-status.md'
             ]
-            
+
             for file_path in files_to_stage:
                 if file_path.exists():
                     code, _, stderr = run_git_command(['add', str(file_path)], cwd=project_path)
                     if code != 0:
                         return code, f"Failed to stage {file_path.name}: {stderr}"
-            
+
             # Create commit message
             commit_message = f"""feat[devops-engineer]: {changes_description}
 
@@ -481,37 +475,37 @@ Verification:
 - Tests: passed
 - Coverage: N/A
 - TDD: compliant"""
-            
+
             # Commit changes
-            code, stdout, stderr = run_git_command(['commit', '-m', commit_message], cwd=project_path)
-            
+            code, _stdout, stderr = run_git_command(['commit', '-m', commit_message], cwd=project_path)
+
             if code != 0:
                 return code, f"Failed to commit changes: {stderr}"
-            
+
             self.logger.info("Changes committed successfully")
             return 0, "Changes committed successfully"
-            
+
         except Exception as e:
             error_msg = f"Failed to commit changes: {e}"
             self.logger.error(error_msg)
             return ErrorCode.UNKNOWN_ERROR.value, error_msg
-    
+
     def update_pipeline_status(
         self,
         project_path: Path,
         phase_name: str,
         status: str = "completed"
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """Update pipeline status with completion status."""
         pipeline_file = project_path / '.state' / 'pipeline-status.md'
-        
+
         try:
             if not pipeline_file.exists():
                 return ErrorCode.FILE_NOT_FOUND.value, f"Pipeline status not found: {pipeline_file}"
-            
-            with open(pipeline_file, 'r') as f:
+
+            with open(pipeline_file) as f:
                 content = f.read()
-            
+
             # Update current phase and status
             content = re.sub(
                 r'\*\*Phase:\*\* \d+/\d+ - (.+)',
@@ -524,54 +518,54 @@ Verification:
                 f'**Status:** {status}',
                 content
             )
-            
+
             content = re.sub(
                 r'\*\*Progress:\*\* \d+%',
                 '**Progress:** 100%',
                 content
             )
-            
+
             # Update phase progress
             content = re.sub(
                 r'- \[ \] Phase 4: Testing',
                 '- [x] Phase 4: Testing (Testing Engineer, QA Engineer)',
                 content
             )
-            
+
             content = re.sub(
                 r'- \[ \] Phase 5: Deployment',
                 '- [x] Phase 5: Deployment (DevOps Engineer)',
                 content
             )
-            
+
             # Update last updated timestamp
             content = re.sub(
                 r'\*\*Last Updated:\*\* .+',
                 f'**Last Updated:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}',
                 content
             )
-            
+
             with open(pipeline_file, 'w') as f:
                 f.write(content)
-            
+
             self.logger.info(f"Pipeline status updated: {pipeline_file}")
             return 0, f"Pipeline status updated: {pipeline_file}"
-            
-        except (IOError, OSError) as e:
+
+        except OSError as e:
             error_msg = f"Failed to update pipeline status: {e}"
             self.logger.error(error_msg)
             return ErrorCode.FILE_WRITE_ERROR.value, error_msg
-    
+
     def run_workflow(
         self,
         project_path: Path
-    ) -> Tuple[int, str]:
+    ) -> tuple[int, str]:
         """Run the complete DevOps engineer workflow."""
         # Step 1: Create deployment status
         code, message = self.create_deployment_status(project_path)
         if code != 0:
             return code, f"Failed to create deployment status: {message}"
-        
+
         # Step 2: Commit changes
         if self.config.get('auto_commit', True):
             code, message = self.commit_changes(
@@ -580,7 +574,7 @@ Verification:
             )
             if code != 0:
                 return code, f"Failed to commit changes: {message}"
-        
+
         # Step 3: Update pipeline status
         code, message = self.update_pipeline_status(
             project_path,
@@ -589,43 +583,43 @@ Verification:
         )
         if code != 0:
             self.logger.warning(f"Failed to update pipeline status: {message}")
-        
-        return 0, f"DevOps engineer workflow completed successfully. Set up CI/CD pipeline with GitHub Actions, configured Docker containerization, deployed to AWS with Kubernetes orchestration, implemented monitoring with Prometheus/Grafana, and achieved 99.9% availability SLA."
+
+        return 0, "DevOps engineer workflow completed successfully. Set up CI/CD pipeline with GitHub Actions, configured Docker containerization, deployed to AWS with Kubernetes orchestration, implemented monitoring with Prometheus/Grafana, and achieved 99.9% availability SLA."
 
 
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(description='DevOps Engineer skill for CI/CD and infrastructure')
     parser.add_argument('--project-path', type=str, help='Path to the project directory')
-    
+
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
-    
+
     # Create deployment status command
-    status_parser = subparsers.add_parser('create-status', help='Create deployment status')
-    
+    subparsers.add_parser('create-status', help='Create deployment status')
+
     # Run workflow command
     workflow_parser = subparsers.add_parser('run', help='Run complete DevOps engineer workflow')
     workflow_parser.add_argument('--project-path', type=str, required=True, help='Path to the project directory')
-    
+
     args = parser.parse_args()
-    
+
     if not args.command:
         parser.print_help()
         return 0
-    
+
     devops = DevOpsEngineer()
     project_path = Path(args.project_path) if args.project_path else Path.cwd()
-    
+
     if args.command == 'create-status':
         code, output = devops.create_deployment_status(project_path)
         print(output)
         return code
-    
+
     elif args.command == 'run':
         code, output = devops.run_workflow(project_path)
         print(output)
         return code
-    
+
     else:
         print(f"Unknown command: {args.command}", file=sys.stderr)
         return 1

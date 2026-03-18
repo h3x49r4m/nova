@@ -11,16 +11,17 @@ from pathlib import Path
 from unittest.mock import patch
 
 from git_flow.git_flow import (
-    GitFlow,
-    BranchStatus,
-    PhaseStatus,
-    WorkflowStatus,
-    ReviewEvent,
     BranchState,
+    BranchStatus,
+    DependencyGraph,
+    GitFlow,
     Phase,
+    PhaseStatus,
+    ReviewEvent,
     WorkflowState,
-    DependencyGraph
+    WorkflowStatus,
 )
+
 # Import exceptions and constants from utils
 
 

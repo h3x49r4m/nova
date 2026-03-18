@@ -4,12 +4,11 @@ Unit tests for DeadlockDetector module.
 """
 
 import pytest
-
 from utils.deadlock_detector import (
-    DeadlockDetector,
     Deadlock,
+    DeadlockDetector,
     DeadlockType,
-    DependencyType
+    DependencyType,
 )
 
 

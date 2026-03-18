@@ -4,29 +4,28 @@ Git Management Skill - Implementation
 Provides standardized git operations with safety checks and best practices.
 """
 
-import sys
 import argparse
 import json
 import re
 import subprocess
+import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 # Import shared utilities
 from utils import (
-    run_git_command,
-    get_current_branch,
-    IFlowError,
-    ErrorCode,
-    Timeouts,
-    CoverageThresholds,
-    CommitTypes,
-    SecretPatterns,
-    DEFAULT_PROTECTED_BRANCHES,
     DEFAULT_COVERAGE_THRESHOLDS,
-    StructuredLogger,
+    DEFAULT_PROTECTED_BRANCHES,
+    CommitTypes,
+    CoverageThresholds,
+    ErrorCode,
+    IFlowError,
+    InputSanitizer,
     LogFormat,
-    InputSanitizer
+    SecretPatterns,
+    StructuredLogger,
+    Timeouts,
+    get_current_branch,
+    run_git_command,
 )
 
 
@@ -42,8 +41,8 @@ class GitManage:
     # Use constants for coverage thresholds
     COVERAGE_THRESHOLD = CoverageThresholds.LINES.value
     BRANCH_COVERAGE_THRESHOLD = CoverageThresholds.BRANCHES.value
-    
-    def __init__(self, repo_root: Optional[Path] = None):
+
+    def __init__(self, repo_root: Path | None = None):
         """Initialize git manager."""
         self.repo_root = repo_root or Path.cwd()
         self.config_dir = self.repo_root / '.iflow' / 'skills' / 'git-manage'
@@ -54,7 +53,7 @@ class GitManage:
             log_format=LogFormat.JSON
         )
         self.load_config()
-    
+
     def load_config(self) -> None:
         """Load configuration from config file."""
         self.config = {
@@ -70,12 +69,12 @@ class GitManage:
             'branch_coverage_threshold': self.BRANCH_COVERAGE_THRESHOLD,
             'coverage_thresholds': DEFAULT_COVERAGE_THRESHOLDS.copy()
         }
-        
+
         if self.config_file.exists():
             try:
-                with open(self.config_file, 'r') as f:
+                with open(self.config_file) as f:
                     user_config = json.load(f)
-                    
+
                 # Validate user config against schema
                 from utils import validate_json_schema
                 from utils.exceptions import ConfigError, ErrorCode
@@ -93,20 +92,23 @@ class GitManage:
                     else:
                         self.logger.warning(error_msg)
                         # Even if validation fails, apply the user config when strict_validation is False
-                        self.config.update(user_config)
+                        settings_config = user_config.get('settings', {})
+                        self.config.update(settings_config)
                 else:
-                    self.config.update(user_config)
-                    
+                    # Extract settings from nested structure
+                    settings_config = user_config.get('settings', {})
+                    self.config.update(settings_config)
+
                     # Merge coverage thresholds if provided
                     if 'coverage_thresholds' in user_config:
                         self.config['coverage_thresholds'].update(user_config['coverage_thresholds'])
                         # Update legacy thresholds for backward compatibility
                         self.config['coverage_threshold'] = self.config['coverage_thresholds'].get('lines', self.COVERAGE_THRESHOLD)
                         self.config['branch_coverage_threshold'] = self.config['coverage_thresholds'].get('branches', self.BRANCH_COVERAGE_THRESHOLD)
-            except (json.JSONDecodeError, IOError):
+            except (OSError, json.JSONDecodeError):
                 pass
-    
-    def run_git_command(self, command: List[str], capture: bool = True, timeout: Optional[int] = None) -> Tuple[int, str, str]:
+
+    def run_git_command(self, command: list[str], capture: bool = True, timeout: int | None = None) -> tuple[int, str, str]:
         """Run a git command and return exit code, stdout, stderr."""
         if timeout is None:
             timeout = Timeouts.GIT_DEFAULT.value
@@ -115,52 +117,52 @@ class GitManage:
         except IFlowError as e:
             return e.code.value, '', str(e)
         except Exception as e:
-            return ErrorCode.UNKNOWN_ERROR.value, '', f'Unexpected error: {str(e)}'
-    
+            return ErrorCode.UNKNOWN_ERROR.value, '', f'Unexpected error: {e!s}'
+
     def get_current_branch(self) -> str:
         """Get current branch name."""
         try:
             return get_current_branch(self.repo_root)
-        except (GitError, IOError, OSError) as e:
+        except (GitError, OSError) as e:
             self.logger.error(f"Failed to get current branch: {e}")
             return 'unknown'
-    
-    def get_staged_files(self) -> List[str]:
+
+    def get_staged_files(self) -> list[str]:
         """Get list of staged files."""
-        code, stdout, _ = self.run_git_command(['diff', '--name-only', '--cached'])
+        _code, stdout, _ = self.run_git_command(['diff', '--name-only', '--cached'])
         output = stdout.strip() if isinstance(stdout, str) else stdout.decode('utf-8').strip()
         return output.split('\n') if output else []
-    
-    def get_unstaged_files(self) -> List[str]:
+
+    def get_unstaged_files(self) -> list[str]:
         """Get list of unstaged files."""
-        code, stdout, _ = self.run_git_command(['diff', '--name-only'])
+        _code, stdout, _ = self.run_git_command(['diff', '--name-only'])
         output = stdout.strip() if isinstance(stdout, str) else stdout.decode('utf-8').strip()
         return output.split('\n') if output else []
-    
-    def detect_secrets(self, files: List[str]) -> Tuple[bool, List[str]]:
+
+    def detect_secrets(self, files: list[str]) -> tuple[bool, list[str]]:
         """Scan files for potential secrets."""
         secrets_found = []
-        
+
         for file_path in files:
             full_path = self.repo_root / file_path
             if not full_path.exists():
                 continue
-            
+
             try:
-                with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
+                with open(full_path, encoding='utf-8', errors='ignore') as f:
                     content = f.read()
-                    
+
                     for pattern in self.SECRET_PATTERNS:
                         if re.search(pattern, content, re.IGNORECASE):
                             secrets_found.append(f"{file_path}: matches pattern")
                             break
-            except (IOError, UnicodeDecodeError):
+            except (OSError, UnicodeDecodeError):
                 # Skip binary files or unreadable files
                 continue
-        
+
         return len(secrets_found) > 0, secrets_found
-    
-    def run_tests(self) -> Tuple[int, str]:
+
+    def run_tests(self) -> tuple[int, str]:
         """Run test suite."""
         if not self.config['run_tests']:
             return 0, 'Tests skipped (disabled in config)'
@@ -181,16 +183,16 @@ class GitManage:
         )
 
         return result.returncode, result.stdout
-    
-    def check_coverage(self) -> Tuple[int, float, float]:
+
+    def check_coverage(self) -> tuple[int, float, float]:
         """Check test coverage with configurable thresholds."""
         if not self.config['check_coverage']:
             return 0, 100.0, 100.0
 
         # Get configured thresholds
         thresholds = self.config.get('coverage_thresholds', {})
-        line_threshold = thresholds.get('lines', self.COVERAGE_THRESHOLD)
-        branch_threshold = thresholds.get('branches', self.BRANCH_COVERAGE_THRESHOLD)
+        thresholds.get('lines', self.COVERAGE_THRESHOLD)
+        thresholds.get('branches', self.BRANCH_COVERAGE_THRESHOLD)
 
         # Run coverage check
         try:
@@ -202,36 +204,36 @@ class GitManage:
             )
         except subprocess.TimeoutExpired:
             return 1, 0.0, 0.0
-        
+
         if result.returncode != 0:
             return 0, 0.0, 0.0
-        
+
         # Parse coverage report
         coverage_file = self.repo_root / 'coverage.json'
         if coverage_file.exists():
-            with open(coverage_file, 'r') as f:
+            with open(coverage_file) as f:
                 data = json.load(f)
                 line_coverage = data.get('totals', {}).get('percent_covered', 0)
                 branch_coverage = data.get('totals', {}).get('branch_percent_covered', line_coverage)
                 return 0, line_coverage, branch_coverage
-        
+
         return 0, 0.0, 0.0
-    
-    def check_branch_protection(self) -> Tuple[bool, str]:
+
+    def check_branch_protection(self) -> tuple[bool, str]:
         """Check if current branch is protected."""
         if not self.config['branch_protection']:
             return False, ''
-        
+
         branch = self.get_current_branch()
         if branch in self.config['protected_branches']:
             return True, f'Branch "{branch}" is protected. Use feature branch workflow.'
         return False, ''
-    
-    def parse_commit_message(self, message: str) -> Dict:
+
+    def parse_commit_message(self, message: str) -> dict:
         """Parse conventional commit message."""
         pattern = r'^(\w+)(?:\(([^)]+)\))?: (.+)$'
         match = re.match(pattern, message)
-        
+
         if match:
             return {
                 'type': match.group(1),
@@ -239,14 +241,14 @@ class GitManage:
                 'description': match.group(3),
                 'valid': match.group(1) in self.COMMIT_TYPES
             }
-        
+
         return {'valid': False, 'message': message}
-    
-    def generate_commit_message(self, type_: str, scope: Optional[str],
-                                description: str, body: Optional[str] = None,
-                                files_changed: Optional[List[str]] = None,
-                                test_results: Optional[str] = None,
-                                coverage: Optional[float] = None,
+
+    def generate_commit_message(self, type_: str, scope: str | None,
+                                description: str, body: str | None = None,
+                                files_changed: list[str] | None = None,
+                                test_results: str | None = None,
+                                coverage: float | None = None,
                                 architecture_check: bool = False,
                                 tdd_check: bool = False) -> str:
         """Generate formatted commit message."""
@@ -288,9 +290,9 @@ class GitManage:
                 message.append('- TDD: ✓ compliant')
 
         return '\n'.join(message)
-    
-    def commit(self, type_: str, scope: Optional[str], description: str,
-               body: Optional[str] = None, no_verify: bool = False) -> Tuple[int, str]:
+
+    def commit(self, type_: str, scope: str | None, description: str,
+               body: str | None = None, no_verify: bool = False) -> tuple[int, str]:
         """Create a commit with formatted message."""
 
         # Check if there are staged changes
@@ -323,7 +325,7 @@ class GitManage:
         if not no_verify and self.config['detect_secrets']:
             has_secrets, secrets = self.detect_secrets(staged_files)
             if has_secrets:
-                return ErrorCode.SECRET_DETECTED.value, f'Secrets detected in staged files:\n' + '\n'.join(secrets)
+                return ErrorCode.SECRET_DETECTED.value, 'Secrets detected in staged files:\n' + '\n'.join(secrets)
 
         # Run pre-commit checks
         test_status = 'skipped'
@@ -341,7 +343,7 @@ class GitManage:
 
             # Check coverage
             if self.config['check_coverage']:
-                code, line_cov, branch_cov = self.check_coverage()
+                code, line_cov, _branch_cov = self.check_coverage()
                 if line_cov < self.config['coverage_threshold']:
                     return ErrorCode.COVERAGE_BELOW_THRESHOLD.value, f'Coverage below threshold: {line_cov:.1f}% < {self.config["coverage_threshold"]}%'
                 coverage = line_cov
@@ -367,28 +369,28 @@ class GitManage:
             return ErrorCode.SUCCESS.value, f'Commit successful:\n{stdout}'
         else:
             return ErrorCode.GIT_COMMAND_FAILED.value, f'Commit failed:\n{stderr}'
-    
-    def add_files(self, files: List[str]) -> Tuple[int, str]:
+
+    def add_files(self, files: list[str]) -> tuple[int, str]:
         """Stage files for commit."""
         if not files:
             return 1, 'No files specified'
-        
+
         # Convert files to strings if they are Path objects
         file_strings = [str(f) for f in files]
-        code, stdout, stderr = self.run_git_command(['add'] + file_strings)
-        
+        code, _stdout, stderr = self.run_git_command(['add', *file_strings])
+
         if code == 0:
             return 0, f'Staged {len(files)} file(s)'
         else:
             return code, f'Failed to stage files:\n{stderr}'
-    
-    def get_file_diffs(self, files: List[str], max_size_mb: int = 10) -> str:
+
+    def get_file_diffs(self, files: list[str], max_size_mb: int = 10) -> str:
         """Get diff output for the specified files with streaming for large files.
-        
+
         Args:
             files: List of files to get diffs for
             max_size_mb: Maximum diff size in MB before truncating with warning
-            
+
         Returns:
             Diff output as string
         """
@@ -398,43 +400,43 @@ class GitManage:
             if has_secrets:
                 return '[SECRET DETECTED: Potential secrets found in files. Review and remove before committing.]'
         max_size_bytes = max_size_mb * 1024 * 1024
-        
+
         # Try streaming approach first for large diffs
         try:
             result = subprocess.run(
-                ['git', 'diff', '--cached'] + files,
+                ['git', 'diff', '--cached', *files],
                 cwd=self.repo_root,
                 capture_output=True,
                 timeout=Timeouts.GIT_DEFAULT.value
             )
-            
+
             if result.returncode != 0:
                 return ''
-            
+
             # Check size and truncate if necessary
             diff_size = len(result.stdout)
             if diff_size > max_size_bytes:
                 truncated_diff = result.stdout[:max_size_bytes]
                 warning = f"\n\n[DIFF TRUNCATED: Diff size ({diff_size/1024/1024:.1f}MB) exceeds limit ({max_size_mb}MB). Use --diff-max-size to adjust limit.]"
                 return truncated_diff.decode('utf-8', errors='ignore') + warning
-            
+
             return result.stdout.decode('utf-8', errors='ignore')
-            
+
         except subprocess.TimeoutExpired:
             return '[DIFF TIMEOUT: Diff generation exceeded time limit. Try reducing number of files or use smaller changes.]'
         except Exception as e:
-            return f'[DIFF ERROR: {str(e)}]'
-    
-    def get_file_diffs_streaming(self, files: List[str], max_size_mb: int = 10) -> str:
+            return f'[DIFF ERROR: {e!s}]'
+
+    def get_file_diffs_streaming(self, files: list[str], max_size_mb: int = 10) -> str:
         """Get diff output with streaming support for very large files.
-        
+
         This method streams the diff output in chunks to avoid memory issues
         with extremely large diffs. Suitable for files with thousands of lines.
-        
+
         Args:
             files: List of files to get diffs for
             max_size_mb: Maximum diff size in MB before truncating
-            
+
         Returns:
             Diff output as string
         """
@@ -442,25 +444,25 @@ class GitManage:
         max_size_bytes = max_size_mb * 1024 * 1024
         buffer = io.StringIO()
         total_size = 0
-        
+
         try:
             # Start git diff process
             process = subprocess.Popen(
-                ['git', 'diff', '--cached'] + files,
+                ['git', 'diff', '--cached', *files],
                 cwd=self.repo_root,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 bufsize=8192  # 8KB buffer
             )
-            
+
             # Read output in chunks
             chunk_size = 8192
             while True:
                 chunk = process.stdout.read(chunk_size)
                 if not chunk:
                     break
-                
+
                 # Check if we've exceeded max size
                 if total_size + len(chunk) > max_size_bytes:
                     # Write remaining space and add warning
@@ -470,83 +472,83 @@ class GitManage:
                     buffer.write(f"\n\n[DIFF TRUNCATED: Diff exceeds {max_size_mb}MB limit]")
                     process.terminate()
                     break
-                
+
                 buffer.write(chunk)
                 total_size += len(chunk)
-            
+
             # Wait for process to complete
             process.wait(timeout=Timeouts.GIT_DEFAULT.value)
-            
+
             if process.returncode != 0:
                 stderr = process.stderr.read()
                 return f'[DIFF ERROR: {stderr}]'
-            
+
             return buffer.getvalue()
-            
+
         except subprocess.TimeoutExpired:
             process.terminate()
             return '[DIFF TIMEOUT: Diff generation exceeded time limit]'
         except Exception as e:
-            return f'[DIFF ERROR: {str(e)}]'
+            return f'[DIFF ERROR: {e!s}]'
         finally:
             buffer.close()
-    
-    def get_file_diffs_by_line_count(self, files: List[str], max_lines: int = 10000) -> str:
+
+    def get_file_diffs_by_line_count(self, files: list[str], max_lines: int = 10000) -> str:
         """Get diff output limited by line count.
-        
+
         This method limits the diff output by the number of lines rather than
         file size, which is often more useful for code reviews.
-        
+
         Args:
             files: List of files to get diffs for
             max_lines: Maximum number of lines to include in diff
-            
+
         Returns:
             Diff output as string
         """
         try:
             # Start git diff process
             process = subprocess.Popen(
-                ['git', 'diff', '--cached'] + files,
+                ['git', 'diff', '--cached', *files],
                 cwd=self.repo_root,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True
             )
-            
+
             lines = []
             line_count = 0
-            
+
             # Read lines one by one
             while line_count < max_lines:
                 line = process.stdout.readline()
                 if not line:
                     break
-                
+
                 lines.append(line)
                 line_count += 1
-            
+
             # Check if there are more lines
             if process.stdout.read(1):  # Try to read one more character
                 lines.append(f"\n\n[DIFF TRUNCATED: Output limited to {max_lines} lines. Use --diff-max-lines to adjust limit.]")
                 process.terminate()
-            
+
             # Wait for process to complete
             process.wait(timeout=Timeouts.GIT_DEFAULT.value)
-            
+
             if process.returncode != 0:
                 stderr = process.stderr.read()
                 return f'[DIFF ERROR: {stderr}]'
-            
+
             return ''.join(lines)
-            
+
         except subprocess.TimeoutExpired:
             process.terminate()
             return '[DIFF TIMEOUT: Diff generation exceeded time limit]'
         except Exception as e:
-            return f'[DIFF ERROR: {str(e)}]'
-    
-    def analyze_files(self, files: List[str]) -> str:
+            return f'[DIFF ERROR: {e!s}]'
+
+    def analyze_files(self, files: list[str]) -> str:
         """Analyze files to provide context for LLM."""
         context = []
         for file_path in files:
@@ -557,23 +559,23 @@ class GitManage:
                 if full_path.is_file():
                     # Try to read first few lines to understand content
                     try:
-                        with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        with open(full_path, encoding='utf-8', errors='ignore') as f:
                             lines = f.readlines()[:5]  # First 5 lines
                             if lines:
                                 context.append(f"Content preview:\n{''.join(lines)}")
-                    except (OSError, UnicodeDecodeError, IOError):
+                    except (OSError, UnicodeDecodeError):
                         pass
                 context.append("---")
         return '\n'.join(context)
-    
-    def collect_commit_context(self, files: List[str], use_streaming: bool = True, max_diff_size_mb: int = 10) -> Dict:
+
+    def collect_commit_context(self, files: list[str], use_streaming: bool = True, max_diff_size_mb: int = 10) -> dict:
         """Collect context for LLM-based commit message generation (called by iFlow CLI).
-        
+
         Args:
             files: List of files to collect context for
             use_streaming: Whether to use streaming for large diffs
             max_diff_size_mb: Maximum diff size in MB when streaming
-            
+
         Returns:
             Dictionary with diff, file_context, branch, and files
         """
@@ -582,13 +584,13 @@ class GitManage:
             diff_output = self.get_file_diffs_streaming(files, max_diff_size_mb)
         else:
             diff_output = self.get_file_diffs(files)
-        
+
         # Check for secrets in diff output
         if diff_output and self.config['detect_secrets']:
             has_secrets, _ = self.detect_secrets(files)
             if has_secrets:
                 self.logger.warning("Potential secrets detected in diff output")
-        
+
         file_context = self.analyze_files(files)
         branch = self.get_current_branch()
 
@@ -599,25 +601,25 @@ class GitManage:
             'files': files,
             'streaming_used': use_streaming
         }
-    
-    
-    
-    def status(self) -> Tuple[int, str]:
+
+
+
+    def status(self) -> tuple[int, str]:
         """Show git status with additional information."""
         code, stdout, stderr = self.run_git_command(['status', '--short'])
-        
+
         if code != 0:
             return code, stderr
-        
+
         status = stdout.strip() if isinstance(stdout, str) else stdout.decode('utf-8').strip()
         if not status:
             return 0, 'Working tree clean'
-        
+
         # Parse status
         staged = []
         unstaged = []
         untracked = []
-        
+
         for line in status.split('\n'):
             if line.startswith('M '):
                 unstaged.append(line[3:])
@@ -627,7 +629,7 @@ class GitManage:
                 untracked.append(line[3:])
             elif line.startswith('M'):
                 staged.append(line[2:])
-        
+
         output = []
         if staged:
             output.append('Staged changes:')
@@ -641,47 +643,47 @@ class GitManage:
             output.append('Untracked files:')
             for f in untracked:
                 output.append(f'  ?? {f}')
-        
+
         return 0, '\n'.join(output)
-    
-    def diff(self, staged: bool = False) -> Tuple[int, str]:
+
+    def diff(self, staged: bool = False) -> tuple[int, str]:
         """Show changes."""
         if staged:
             code, stdout, _ = self.run_git_command(['diff', '--cached'])
         else:
             code, stdout, _ = self.run_git_command(['diff'])
-        
+
         if code == 0:
             return 0, stdout if stdout else 'No changes'
         return code, ''
-    
-    def log(self, count: int = 10, full: bool = False) -> Tuple[int, str]:
+
+    def log(self, count: int = 10, full: bool = False) -> tuple[int, str]:
         """Show commit history."""
         if full:
             code, stdout, _ = self.run_git_command(['log', f'-{count}', '--pretty=format:%h%nAuthor: %an%nDate: %ad%n%n%s%n%n%b%n---'])
         else:
             code, stdout, _ = self.run_git_command(['log', f'-{count}', '--oneline'])
-        
+
         if code == 0:
             return 0, stdout
         return code, ''
-    
-    def undo(self, mode: str = 'soft') -> Tuple[int, str]:
+
+    def undo(self, mode: str = 'soft') -> tuple[int, str]:
         """Undo last commit."""
         if mode not in ['soft', 'hard']:
             return 1, 'Invalid mode. Use "soft" or "hard"'
-        
+
         # Create backup stash
         self.run_git_command(['stash', 'save', f'backup-before-undo-{mode}'])
-        
+
         code, _, stderr = self.run_git_command(['reset', f'--{mode}', 'HEAD~1'])
-        
+
         if code == 0:
             return 0, f'Undo successful ({mode} mode)'
         else:
             return code, f'Undo failed:\n{stderr}'
-    
-    def amend(self, description: Optional[str] = None) -> Tuple[int, str]:
+
+    def amend(self, description: str | None = None) -> tuple[int, str]:
         """Amend last commit."""
         if description:
             # Get current commit message
@@ -694,13 +696,13 @@ class GitManage:
                 return code, 'Failed to get current commit message'
         else:
             code, _, stderr = self.run_git_command(['commit', '--amend', '--no-edit'])
-        
+
         if code == 0:
             return 0, 'Commit amended successfully'
         else:
             return code, f'Amend failed:\n{stderr}'
-    
-    def stash(self, action: str, message: Optional[str] = None) -> Tuple[int, str]:
+
+    def stash(self, action: str, message: str | None = None) -> tuple[int, str]:
         """Stash operations."""
         if action == 'save':
             if not message:
@@ -717,19 +719,19 @@ class GitManage:
             code, _, stderr = self.run_git_command(['stash', 'drop'])
         else:
             return 1, f'Invalid stash action: {action}'
-        
+
         if code == 0:
             return 0, f'Stash {action} successful'
         else:
             return code, f'Stash {action} failed:\n{stderr}'
-    
-    def push(self, remote: str = 'origin', branch: Optional[str] = None) -> Tuple[int, str]:
+
+    def push(self, remote: str = 'origin', branch: str | None = None) -> tuple[int, str]:
         """Push commits to remote."""
         if not branch:
             branch = self.get_current_branch()
-        
+
         code, _, stderr = self.run_git_command(['push', remote, branch])
-        
+
         if code == 0:
             return 0, f'Pushed to {remote}/{branch}'
         else:
@@ -742,16 +744,16 @@ def main():
         description='Git Management Skill',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    
+
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
-    
+
     # Status command
     subparsers.add_parser('status', help='Show git status')
-    
+
     # Add command
     add_parser = subparsers.add_parser('add', help='Stage files for commit')
     add_parser.add_argument('files', nargs='+', help='Files to stage')
-    
+
     # Commit command
     commit_parser = subparsers.add_parser('commit', help='Create a commit')
     commit_parser.add_argument('files', nargs='+', help='Files to commit')
@@ -760,42 +762,42 @@ def main():
     commit_parser.add_argument('--description', help='Commit description (from LLM)')
     commit_parser.add_argument('--body', help='Commit body with Changes section (from LLM)')
     commit_parser.add_argument('--no-verify', action='store_true', help='Skip pre-commit checks')
-    
+
     # Diff command
     diff_parser = subparsers.add_parser('diff', help='Show changes')
     diff_parser.add_argument('--staged', action='store_true', help='Show staged changes')
-    
+
     # Log command
     log_parser = subparsers.add_parser('log', help='Show commit history')
     log_parser.add_argument('-n', '--count', type=int, default=10, help='Number of commits')
     log_parser.add_argument('--full', action='store_true', help='Show full commit details')
-    
+
     # Undo command
     undo_parser = subparsers.add_parser('undo', help='Undo last commit')
     undo_parser.add_argument('mode', nargs='?', default='soft', choices=['soft', 'hard'], help='Undo mode')
-    
+
     # Amend command
     amend_parser = subparsers.add_parser('amend', help='Amend last commit')
     amend_parser.add_argument('description', nargs='?', help='Additional description')
-    
+
     # Stash command
     stash_parser = subparsers.add_parser('stash', help='Stash operations')
     stash_parser.add_argument('action', choices=['save', 'pop', 'list', 'drop'], help='Stash action')
     stash_parser.add_argument('message', nargs='?', help='Stash message (for save)')
-    
+
     # Push command
     push_parser = subparsers.add_parser('push', help='Push to remote')
     push_parser.add_argument('remote', nargs='?', default='origin', help='Remote name')
     push_parser.add_argument('branch', nargs='?', help='Branch name')
-    
+
     args = parser.parse_args()
-    
+
     if not args.command:
         parser.print_help()
         return 0
-    
+
     git = GitManage()
-    
+
     # Execute command
     if args.command == 'status':
         code, output = git.status()
@@ -856,7 +858,7 @@ def main():
         code, output = git.push(remote, branch)
     else:
         code, output = 1, f'Unknown command: {args.command}'
-    
+
     logger = StructuredLogger(name="git-manage-cli", log_format=LogFormat.TEXT)
     logger.info(output)
     return code

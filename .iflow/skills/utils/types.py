@@ -4,11 +4,11 @@ This module provides TypedDict definitions for common data structures
 used throughout the iFlow CLI skills system to improve type safety.
 """
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any, TypedDict
 
 
-class ScaleLevel(str, Enum):
+class ScaleLevel(StrEnum):
     """Scale levels for project requirements."""
 
     SMALL = "small"
@@ -66,7 +66,7 @@ class SkillConfig(TypedDict):
     config: ConfigValues
 
 
-class PipelineStageStatus(str, Enum):
+class PipelineStageStatus(StrEnum):
     """Pipeline stage status."""
 
     PENDING = "pending"

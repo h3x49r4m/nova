@@ -5,20 +5,22 @@ streaming support for large files.
 """
 
 import asyncio
-import os
-import sys
-from pathlib import Path
-from typing import Optional, List, Tuple, AsyncIterator, Union
 import hashlib
+import os
+from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .exceptions import GitError, ErrorCode, SecurityError
 from .constants import SecretPatterns, Timeouts
+from .exceptions import ErrorCode, GitError, SecurityError
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 
 class AsyncGitCommand:
     """Async git command executor with streaming support."""
 
-    def __init__(self, repo_root: Optional[Path] = None):
+    def __init__(self, repo_root: Path | None = None):
         """
         Initialize async git command executor.
 
@@ -29,13 +31,13 @@ class AsyncGitCommand:
 
     async def run_git_command(
         self,
-        command: List[str],
-        cwd: Optional[Union[str, Path]] = None,
-        timeout: Optional[int] = None,
-        env: Optional[dict] = None,
+        command: list[str],
+        cwd: str | Path | None = None,
+        timeout: int | None = None,
+        env: dict | None = None,
         check_secrets: bool = True,
         stream_output: bool = False
-    ) -> Tuple[int, str, str]:
+    ) -> tuple[int, str, str]:
         """
         Run a git command asynchronously.
 
@@ -74,7 +76,7 @@ class AsyncGitCommand:
                     process.communicate(),
                     timeout=timeout
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 process.kill()
                 raise GitError(
                     f"Git command timed out after {timeout}s: {' '.join(command)}",
@@ -107,13 +109,13 @@ class AsyncGitCommand:
 
     async def run_git_command_stream(
         self,
-        command: List[str],
-        cwd: Optional[Union[str, Path]] = None,
-        timeout: Optional[int] = None,
-        env: Optional[dict] = None,
+        command: list[str],
+        cwd: str | Path | None = None,
+        timeout: int | None = None,
+        env: dict | None = None,
         chunk_size: int = 8192,
         check_secrets: bool = True
-    ) -> AsyncIterator[Tuple[int, str, str]]:
+    ) -> AsyncIterator[tuple[int, str, str]]:
         """
         Run a git command with streaming output.
 
@@ -165,7 +167,7 @@ class AsyncGitCommand:
             # Wait for completion with timeout
             try:
                 await asyncio.wait_for(process.wait(), timeout=timeout)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 process.kill()
                 raise GitError(
                     f"Git command timed out after {timeout}s: {' '.join(command)}",
@@ -198,11 +200,11 @@ class AsyncGitCommand:
 
     async def run_git_commands_parallel(
         self,
-        commands: List[List[str]],
-        cwd: Optional[Union[str, Path]] = None,
-        timeout: Optional[int] = None,
+        commands: list[list[str]],
+        cwd: str | Path | None = None,
+        timeout: int | None = None,
         check_secrets: bool = True
-    ) -> List[Tuple[int, str, str]]:
+    ) -> list[tuple[int, str, str]]:
         """
         Run multiple git commands in parallel.
 
@@ -260,7 +262,7 @@ class AsyncGitCommand:
 
 
 async def get_current_branch_async(
-    repo_root: Optional[Path] = None
+    repo_root: Path | None = None
 ) -> str:
     """
     Get the current git branch name asynchronously.
@@ -312,7 +314,7 @@ async def get_repo_root_async() -> Path:
     return Path(stdout.strip())
 
 
-async def validate_git_repo_async(repo_root: Optional[Path] = None) -> bool:
+async def validate_git_repo_async(repo_root: Path | None = None) -> bool:
     """
     Validate that a directory is a git repository asynchronously.
 
@@ -378,12 +380,12 @@ async def calculate_file_hash_async(
 
 # Convenience functions for backward compatibility
 async def run_git_command_async(
-    command: List[str],
-    cwd: Optional[Union[str, Path]] = None,
-    timeout: Optional[int] = None,
-    env: Optional[dict] = None,
+    command: list[str],
+    cwd: str | Path | None = None,
+    timeout: int | None = None,
+    env: dict | None = None,
     check_secrets: bool = True
-) -> Tuple[int, str, str]:
+) -> tuple[int, str, str]:
     """
     Convenience function to run a git command asynchronously.
 

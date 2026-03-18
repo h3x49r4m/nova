@@ -6,9 +6,8 @@ Centralized path management using environment variables with fallback defaults.
 
 import os
 from pathlib import Path
-from typing import Optional
 
-from .structured_logger import StructuredLogger, LogFormat
+from .structured_logger import LogFormat, StructuredLogger
 
 # Module-level logger for static methods
 _logger = StructuredLogger(
@@ -173,7 +172,7 @@ class EnvPaths:
         os.environ[name] = value
 
     @staticmethod
-    def get_env_var(name: str, default: Optional[str] = None) -> Optional[str]:
+    def get_env_var(name: str, default: str | None = None) -> str | None:
         """
         Get an environment variable.
 

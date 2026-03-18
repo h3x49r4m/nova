@@ -8,10 +8,13 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
-from .exceptions import IFlowError, ErrorCode
+from .exceptions import ErrorCode, IFlowError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from pathlib import Path
 
 
 class RuleSeverity(Enum):
@@ -48,11 +51,11 @@ class ReviewRule:
     enabled: bool = True
     blocking: bool = False
     configurable: bool = True
-    parameters: Dict[str, Any] = field(default_factory=dict)
+    parameters: dict[str, Any] = field(default_factory=dict)
     message_template: str = ""
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert rule to dictionary."""
         return {
             "id": self.id,
@@ -67,9 +70,9 @@ class ReviewRule:
             "message_template": self.message_template,
             "created_at": self.created_at
         }
-    
+
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'ReviewRule':
+    def from_dict(cls, data: dict[str, Any]) -> ReviewRule:
         """Create from dictionary."""
         return cls(
             id=data["id"],
@@ -84,20 +87,20 @@ class ReviewRule:
             message_template=data.get("message_template", ""),
             created_at=data.get("created_at", datetime.now().isoformat())
         )
-    
-    def evaluate(self, context: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+
+    def evaluate(self, context: dict[str, Any]) -> tuple[bool, str | None]:
         """
         Evaluate the rule against context.
-        
+
         Args:
             context: Context data for evaluation
-            
+
         Returns:
             Tuple of (passed, message)
         """
         if not self.enabled:
             return True, None
-        
+
         # Default implementation - subclasses should override
         return True, None
 
@@ -108,11 +111,11 @@ class RuleSet:
     id: str
     name: str
     description: str
-    rules: List[str] = field(default_factory=list)
+    rules: list[str] = field(default_factory=list)
     enabled: bool = True
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert rule set to dictionary."""
         return {
             "id": self.id,
@@ -126,40 +129,40 @@ class RuleSet:
 
 class ReviewRulesManager:
     """Manages configurable review rules."""
-    
+
     def __init__(
         self,
         repo_root: Path,
-        rules_file: Optional[Path] = None
+        rules_file: Path | None = None
     ):
         """
         Initialize the review rules manager.
-        
+
         Args:
             repo_root: Repository root directory
             rules_file: Path to rules configuration file
         """
         self.repo_root = repo_root
         self.rules_file = rules_file or (repo_root / ".iflow" / "skills" / "review_rules.json")
-        
-        self.rules: Dict[str, ReviewRule] = {}
-        self.rule_sets: Dict[str, RuleSet] = {}
-        self.custom_evaluators: Dict[str, Callable] = {}
-        
+
+        self.rules: dict[str, ReviewRule] = {}
+        self.rule_sets: dict[str, RuleSet] = {}
+        self.custom_evaluators: dict[str, Callable] = {}
+
         self._load_rules()
         self._initialize_default_rules()
-    
+
     def _load_rules(self):
         """Load rules from configuration file."""
         if self.rules_file.exists():
             try:
-                with open(self.rules_file, 'r') as f:
+                with open(self.rules_file) as f:
                     data = json.load(f)
-                
+
                 for rule_data in data.get("rules", []):
                     rule = ReviewRule.from_dict(rule_data)
                     self.rules[rule.id] = rule
-                
+
                 for ruleset_data in data.get("rule_sets", []):
                     ruleset = RuleSet(
                         id=ruleset_data["id"],
@@ -169,10 +172,10 @@ class ReviewRulesManager:
                         enabled=ruleset_data.get("enabled", True)
                     )
                     self.rule_sets[ruleset.id] = ruleset
-            
-            except (json.JSONDecodeError, IOError):
+
+            except (OSError, json.JSONDecodeError):
                 pass
-    
+
     def _save_rules(self):
         """Save rules to configuration file."""
         data = {
@@ -180,16 +183,16 @@ class ReviewRulesManager:
             "rule_sets": [ruleset.to_dict() for ruleset in ruleset.values()],
             "last_updated": datetime.now().isoformat()
         }
-        
+
         try:
             with open(self.rules_file, 'w') as f:
                 json.dump(data, f, indent=2)
-        except IOError as e:
+        except OSError as e:
             raise IFlowError(
-                f"Failed to save rules: {str(e)}",
+                f"Failed to save rules: {e!s}",
                 ErrorCode.FILE_WRITE_ERROR
             )
-    
+
     def _initialize_default_rules(self):
         """Initialize default review rules."""
         default_rules = [
@@ -343,64 +346,64 @@ class ReviewRulesManager:
                 message_template="Missing error handling: {location}"
             )
         ]
-        
+
         # Add rules that don't exist
         for rule in default_rules:
             if rule.id not in self.rules:
                 self.rules[rule.id] = rule
-    
+
     def register_rule(self, rule: ReviewRule):
         """
         Register a new review rule.
-        
+
         Args:
             rule: ReviewRule to register
         """
         self.rules[rule.id] = rule
         self._save_rules()
-    
-    def get_rule(self, rule_id: str) -> Optional[ReviewRule]:
+
+    def get_rule(self, rule_id: str) -> ReviewRule | None:
         """
         Get a rule by ID.
-        
+
         Args:
             rule_id: Rule ID
-            
+
         Returns:
             ReviewRule or None
         """
         return self.rules.get(rule_id)
-    
+
     def enable_rule(self, rule_id: str):
         """
         Enable a rule.
-        
+
         Args:
             rule_id: Rule ID
         """
         if rule_id in self.rules:
             self.rules[rule_id].enabled = True
             self._save_rules()
-    
+
     def disable_rule(self, rule_id: str):
         """
         Disable a rule.
-        
+
         Args:
             rule_id: Rule ID
         """
         if rule_id in self.rules:
             self.rules[rule_id].enabled = False
             self._save_rules()
-    
+
     def configure_rule(
         self,
         rule_id: str,
-        parameters: Dict[str, Any]
+        parameters: dict[str, Any]
     ):
         """
         Configure a rule's parameters.
-        
+
         Args:
             rule_id: Rule ID
             parameters: Parameters to set
@@ -408,23 +411,23 @@ class ReviewRulesManager:
         if rule_id in self.rules:
             self.rules[rule_id].parameters.update(parameters)
             self._save_rules()
-    
+
     def create_rule_set(
         self,
         ruleset_id: str,
         name: str,
         description: str,
-        rule_ids: List[str]
+        rule_ids: list[str]
     ) -> RuleSet:
         """
         Create a rule set.
-        
+
         Args:
             ruleset_id: Rule set ID
             name: Rule set name
             description: Rule set description
             rule_ids: List of rule IDs to include
-            
+
         Returns:
             Created RuleSet object
         """
@@ -434,63 +437,63 @@ class ReviewRulesManager:
             description=description,
             rules=rule_ids
         )
-        
+
         self.rule_sets[ruleset_id] = ruleset
         self._save_rules()
-        
+
         return ruleset
-    
+
     def get_rules(
         self,
-        category: Optional[RuleCategory] = None,
-        severity: Optional[RuleSeverity] = None,
+        category: RuleCategory | None = None,
+        severity: RuleSeverity | None = None,
         enabled_only: bool = False
-    ) -> List[ReviewRule]:
+    ) -> list[ReviewRule]:
         """
         Get filtered list of rules.
-        
+
         Args:
             category: Optional category filter
             severity: Optional severity filter
             enabled_only: Whether to only return enabled rules
-            
+
         Returns:
             List of matching rules
         """
         rules = list(self.rules.values())
-        
+
         if category:
             rules = [r for r in rules if r.category == category]
-        
+
         if severity:
             rules = [r for r in rules if r.severity == severity]
-        
+
         if enabled_only:
             rules = [r for r in rules if r.enabled]
-        
+
         return rules
-    
-    def get_blocking_rules(self) -> List[ReviewRule]:
+
+    def get_blocking_rules(self) -> list[ReviewRule]:
         """
         Get all blocking rules.
-        
+
         Returns:
             List of blocking rules
         """
         return [r for r in self.rules.values() if r.blocking and r.enabled]
-    
+
     def evaluate_rules(
         self,
-        context: Dict[str, Any],
-        ruleset_id: Optional[str] = None
-    ) -> Tuple[List[Tuple[ReviewRule, bool, Optional[str]]], bool]:
+        context: dict[str, Any],
+        ruleset_id: str | None = None
+    ) -> tuple[list[tuple[ReviewRule, bool, str | None]], bool]:
         """
         Evaluate rules against context.
-        
+
         Args:
             context: Context data for evaluation
             ruleset_id: Optional rule set ID to use
-            
+
         Returns:
             Tuple of (results, passed_all)
         """
@@ -500,32 +503,32 @@ class ReviewRulesManager:
             rules = [self.rules[rid] for rid in rule_ids if rid in self.rules]
         else:
             rules = [r for r in self.rules.values() if r.enabled]
-        
+
         results = []
         passed_all = True
-        
+
         for rule in rules:
             # Check if custom evaluator exists
             if rule.id in self.custom_evaluators:
                 try:
                     passed, message = self.custom_evaluators[rule.id](context)
                     results.append((rule, passed, message))
-                    
+
                     if not passed:
                         passed_all = False
                 except Exception as e:
-                    results.append((rule, False, f"Rule evaluation error: {str(e)}"))
+                    results.append((rule, False, f"Rule evaluation error: {e!s}"))
                     passed_all = False
             else:
                 # Use default evaluation
                 passed, message = rule.evaluate(context)
                 results.append((rule, passed, message))
-                
+
                 if not passed:
                     passed_all = False
-        
+
         return results, passed_all
-    
+
     def register_custom_evaluator(
         self,
         rule_id: str,
@@ -533,20 +536,20 @@ class ReviewRulesManager:
     ):
         """
         Register a custom rule evaluator.
-        
+
         Args:
             rule_id: Rule ID
             evaluator: Evaluator function
         """
         self.custom_evaluators[rule_id] = evaluator
-    
-    def export_rules(self, output_file: Optional[Path] = None) -> str:
+
+    def export_rules(self, output_file: Path | None = None) -> str:
         """
         Export rules configuration.
-        
+
         Args:
             output_file: Optional file to save to
-            
+
         Returns:
             JSON string of rules configuration
         """
@@ -555,36 +558,36 @@ class ReviewRulesManager:
             "rule_sets": [ruleset.to_dict() for ruleset in self.rule_sets.values()],
             "exported_at": datetime.now().isoformat()
         }
-        
+
         json_str = json.dumps(data, indent=2)
-        
+
         if output_file:
             try:
                 with open(output_file, 'w') as f:
                     f.write(json_str)
-            except IOError as e:
+            except OSError as e:
                 raise IFlowError(
-                    f"Failed to export rules: {str(e)}",
+                    f"Failed to export rules: {e!s}",
                     ErrorCode.FILE_WRITE_ERROR
                 )
-        
+
         return json_str
-    
+
     def import_rules(self, input_file: Path):
         """
         Import rules configuration.
-        
+
         Args:
             input_file: File to import from
         """
         try:
-            with open(input_file, 'r') as f:
+            with open(input_file) as f:
                 data = json.load(f)
-            
+
             for rule_data in data.get("rules", []):
                 rule = ReviewRule.from_dict(rule_data)
                 self.rules[rule.id] = rule
-            
+
             for ruleset_data in data.get("rule_sets", []):
                 ruleset = RuleSet(
                     id=ruleset_data["id"],
@@ -593,19 +596,19 @@ class ReviewRulesManager:
                     rules=ruleset_data.get("rules", [])
                 )
                 self.rule_sets[ruleset.id] = ruleset
-            
+
             self._save_rules()
-        
-        except (json.JSONDecodeError, IOError) as e:
+
+        except (OSError, json.JSONDecodeError) as e:
             raise IFlowError(
-                f"Failed to import rules: {str(e)}",
+                f"Failed to import rules: {e!s}",
                 ErrorCode.FILE_READ_ERROR
             )
 
 
 def create_rules_manager(
     repo_root: Path,
-    rules_file: Optional[Path] = None
+    rules_file: Path | None = None
 ) -> ReviewRulesManager:
     """Create a review rules manager instance."""
     return ReviewRulesManager(repo_root, rules_file)
