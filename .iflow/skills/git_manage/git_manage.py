@@ -24,6 +24,7 @@ from utils import (
     SecretPatterns,
     StructuredLogger,
     Timeouts,
+    check_for_secrets,
     get_current_branch,
     run_git_command,
 )
@@ -441,6 +442,13 @@ class GitManage:
             if result.returncode != 0:
                 return ''
 
+            # Decode output
+            diff_output = result.stdout.decode('utf-8', errors='ignore')
+
+            # Check for secrets in diff output
+            if check_for_secrets(diff_output, ''):
+                return '[SECRET DETECTED: Potential secrets found in diff output. Review and remove before committing.]'
+
             # Check size and truncate if necessary
             diff_size = len(result.stdout)
             if diff_size > max_size_bytes:
@@ -448,7 +456,7 @@ class GitManage:
                 warning = f"\n\n[DIFF TRUNCATED: Diff size ({diff_size/1024/1024:.1f}MB) exceeds limit ({max_size_mb}MB). Use --diff-max-size to adjust limit.]"
                 return truncated_diff.decode('utf-8', errors='ignore') + warning
 
-            return result.stdout.decode('utf-8', errors='ignore')
+            return diff_output
 
         except subprocess.TimeoutExpired:
             return '[DIFF TIMEOUT: Diff generation exceeded time limit. Try reducing number of files or use smaller changes.]'
@@ -511,7 +519,14 @@ class GitManage:
                 stderr = process.stderr.read()
                 return f'[DIFF ERROR: {stderr}]'
 
-            return buffer.getvalue()
+            # Get the diff output
+            diff_output = buffer.getvalue()
+
+            # Check for secrets in diff output
+            if check_for_secrets(diff_output, ''):
+                return '[SECRET DETECTED: Potential secrets found in diff output. Review and remove before committing.]'
+
+            return diff_output
 
         except subprocess.TimeoutExpired:
             process.terminate()
@@ -568,7 +583,14 @@ class GitManage:
                 stderr = process.stderr.read()
                 return f'[DIFF ERROR: {stderr}]'
 
-            return ''.join(lines)
+            # Combine lines into diff output
+            diff_output = ''.join(lines)
+
+            # Check for secrets in diff output
+            if check_for_secrets(diff_output, ''):
+                return '[SECRET DETECTED: Potential secrets found in diff output. Review and remove before committing.]'
+
+            return diff_output
 
         except subprocess.TimeoutExpired:
             process.terminate()

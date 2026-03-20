@@ -15,6 +15,7 @@ from utils.exceptions import (
     GitCommandTimeout,
     GitError,
     IFlowError,
+    SchemaValidationError,
     SecurityError,
     SkillError,
     ValidationError,
@@ -204,6 +205,148 @@ class TestErrorUtilities(unittest.TestCase):
         """Test is_retryable with regular exception (not IFlowError)."""
         error = ValueError("Regular exception")
         self.assertFalse(is_retryable(error))
+
+
+class TestSchemaValidationError(unittest.TestCase):
+    """Test cases for SchemaValidationError class."""
+
+    def test_basic_error_creation(self):
+        """Test basic SchemaValidationError creation."""
+        error = SchemaValidationError("Schema validation failed")
+        self.assertEqual(error.message, "Schema validation failed")
+        self.assertEqual(error.code, ErrorCode.SCHEMA_VALIDATION_FAILED)
+        self.assertEqual(error.category, ErrorCategory.USER_ERROR)
+        self.assertEqual(error.errors, [])
+        self.assertEqual(error.path, "")
+        self.assertIsNone(error.error_type)
+
+    def test_error_with_errors_parameter(self):
+        """Test SchemaValidationError with errors parameter (schema_validator style)."""
+        errors = ["Missing required field: name", "Invalid type for age"]
+        error = SchemaValidationError("Validation failed", errors=errors)
+        self.assertEqual(error.errors, errors)
+        self.assertIn("errors", error.details)
+        self.assertEqual(error.details["errors"], errors)
+
+    def test_error_with_path_parameter(self):
+        """Test SchemaValidationError with path parameter (json_schema_validator style)."""
+        error = SchemaValidationError("Type mismatch", path="user.age")
+        self.assertEqual(error.path, "user.age")
+        self.assertIn("path", error.details)
+        self.assertEqual(error.details["path"], "user.age")
+
+    def test_error_with_error_type_parameter(self):
+        """Test SchemaValidationError with error_type parameter (json_schema_validator style)."""
+        error = SchemaValidationError("Type mismatch", error_type="TYPE_MISMATCH")
+        self.assertEqual(error.error_type, "TYPE_MISMATCH")
+        self.assertIn("error_type", error.details)
+        self.assertEqual(error.details["error_type"], "TYPE_MISMATCH")
+
+    def test_error_with_all_parameters(self):
+        """Test SchemaValidationError with all parameters."""
+        errors = ["Invalid value"]
+        error = SchemaValidationError(
+            "Multiple validation errors",
+            errors=errors,
+            path="user.email",
+            error_type="FORMAT_INVALID"
+        )
+        self.assertEqual(error.errors, errors)
+        self.assertEqual(error.path, "user.email")
+        self.assertEqual(error.error_type, "FORMAT_INVALID")
+        self.assertIn("errors", error.details)
+        self.assertIn("path", error.details)
+        self.assertIn("error_type", error.details)
+
+    def test_inheritance_from_validation_error(self):
+        """Test that SchemaValidationError inherits from ValidationError."""
+        error = SchemaValidationError("Test error")
+        self.assertIsInstance(error, ValidationError)
+
+    def test_inheritance_from_iflow_error(self):
+        """Test that SchemaValidationError inherits from IFlowError."""
+        error = SchemaValidationError("Test error")
+        self.assertIsInstance(error, IFlowError)
+
+    def test_error_code_is_schema_validation_failed(self):
+        """Test that error code is SCHEMA_VALIDATION_FAILED."""
+        error = SchemaValidationError("Test error")
+        self.assertEqual(error.code, ErrorCode.SCHEMA_VALIDATION_FAILED)
+        self.assertEqual(error.code.value, 34)
+
+    def test_to_dict_includes_errors(self):
+        """Test that to_dict includes errors in details."""
+        errors = ["Error 1", "Error 2"]
+        error = SchemaValidationError("Test", errors=errors)
+        result = error.to_dict()
+        self.assertIn("details", result)
+        self.assertIn("errors", result["details"])
+        self.assertEqual(result["details"]["errors"], errors)
+
+    def test_to_dict_includes_path(self):
+        """Test that to_dict includes path in details."""
+        error = SchemaValidationError("Test", path="field.path")
+        result = error.to_dict()
+        self.assertIn("details", result)
+        self.assertIn("path", result["details"])
+        self.assertEqual(result["details"]["path"], "field.path")
+
+    def test_to_dict_includes_error_type(self):
+        """Test that to_dict includes error_type in details."""
+        error = SchemaValidationError("Test", error_type="ENUM_MISMATCH")
+        result = error.to_dict()
+        self.assertIn("details", result)
+        self.assertIn("error_type", result["details"])
+        self.assertEqual(result["details"]["error_type"], "ENUM_MISMATCH")
+
+    def test_str_representation_with_errors(self):
+        """Test string representation with errors."""
+        error = SchemaValidationError("Test", errors=["Error 1"])
+        error_str = str(error)
+        self.assertIn("SCHEMA_VALIDATION_FAILED", error_str)
+        self.assertIn("Test", error_str)
+
+    def test_empty_errors_list(self):
+        """Test SchemaValidationError with empty errors list."""
+        error = SchemaValidationError("Test", errors=[])
+        self.assertEqual(error.errors, [])
+
+    def test_none_error_type(self):
+        """Test SchemaValidationError with None error_type."""
+        error = SchemaValidationError("Test", error_type=None)
+        self.assertIsNone(error.error_type)
+
+    def test_empty_path_string(self):
+        """Test SchemaValidationError with empty path string."""
+        error = SchemaValidationError("Test", path="")
+        self.assertEqual(error.path, "")
+
+    def test_details_not_included_when_empty(self):
+        """Test that details are not included when all parameters are empty."""
+        error = SchemaValidationError("Test")
+        result = error.to_dict()
+        # Details should not be in result when all optional parameters are empty
+        self.assertNotIn("details", result)
+
+    def test_backwards_compatibility_schema_validator_style(self):
+        """Test backwards compatibility with schema_validator usage pattern."""
+        # This simulates how schema_validator.py was using the exception
+        errors = ["Missing required field: name"]
+        error = SchemaValidationError("Schema validation failed", errors=errors)
+        self.assertEqual(error.message, "Schema validation failed")
+        self.assertEqual(error.errors, errors)
+
+    def test_backwards_compatibility_json_schema_validator_style(self):
+        """Test backwards compatibility with json_schema_validator usage pattern."""
+        # This simulates how json_schema_validator.py was using the exception
+        error = SchemaValidationError(
+            "Schema validation failed",
+            path="user.name",
+            error_type="TYPE_MISMATCH"
+        )
+        self.assertEqual(error.message, "Schema validation failed")
+        self.assertEqual(error.path, "user.name")
+        self.assertEqual(error.error_type, "TYPE_MISMATCH")
 
 
 if __name__ == '__main__':

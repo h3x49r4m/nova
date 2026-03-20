@@ -31,6 +31,7 @@ from utils import (
     PrerequisiteChecker,
     StructuredLogger,
     WorkflowStatus,
+    check_for_secrets,
     get_current_branch,
     read_locked_json,
     run_git_command,
@@ -306,6 +307,11 @@ class GitFlow:
                 text=True,
                 timeout=timeout
             )
+
+            # Check for secrets in git-manage output
+            if check_for_secrets(result.stdout, result.stderr):
+                return 1, '', '[SECRET DETECTED: Potential secrets found in git-manage output]'
+
             return result.returncode, result.stdout, result.stderr
         except subprocess.TimeoutExpired:
             return 124, '', f'git-manage command timed out after {timeout} seconds'

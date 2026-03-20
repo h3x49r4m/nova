@@ -201,6 +201,47 @@ class ValidationError(IFlowError):
         super().__init__(message, code, ErrorCategory.USER_ERROR, details, cause)
 
 
+class SchemaValidationError(ValidationError):
+    """Exception raised when schema validation fails.
+
+    Consolidates functionality from json_schema_validator and schema_validator modules.
+    Supports both simple error list validation and detailed JSON path tracking.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        errors: list[str] | None = None,
+        path: str = "",
+        error_type: Any = None
+    ):
+        """
+        Initialize schema validation error.
+
+        Args:
+            message: Error message
+            errors: List of validation error messages (from schema_validator)
+            path: JSON path to the invalid value (from json_schema_validator)
+            error_type: Type of validation error (from json_schema_validator)
+        """
+        details: dict[str, Any] = {}
+        if errors:
+            details["errors"] = errors
+        if path:
+            details["path"] = path
+        if error_type:
+            details["error_type"] = str(error_type)
+
+        super().__init__(
+            message=message,
+            code=ErrorCode.SCHEMA_VALIDATION_FAILED,
+            details=details if details else None
+        )
+        self.errors = errors or []
+        self.path = path
+        self.error_type = error_type
+
+
 class SecurityError(IFlowError):
     """Security-related errors."""
 

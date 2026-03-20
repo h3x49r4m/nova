@@ -6,44 +6,10 @@ against JSON Schema specifications, ensuring data integrity and correctness.
 
 import json
 import re
-from enum import Enum
 from pathlib import Path
 from typing import Any
 
-
-class ValidationErrorType(Enum):
-    """Types of validation errors."""
-    TYPE_MISMATCH = "type_mismatch"
-    REQUIRED_MISSING = "required_missing"
-    ADDITIONAL_PROPERTIES = "additional_properties"
-    PATTERN_MISMATCH = "pattern_mismatch"
-    ENUM_MISMATCH = "enum_mismatch"
-    RANGE_VIOLATION = "range_violation"
-    FORMAT_INVALID = "format_invalid"
-    UNIQUE_ITEMS = "unique_items"
-    MIN_ITEMS = "min_items"
-    MAX_ITEMS = "max_items"
-    MIN_LENGTH = "min_length"
-    MAX_LENGTH = "max_length"
-    DEPENDENCY_FAILED = "dependency_failed"
-    REF_NOT_FOUND = "ref_not_found"
-
-
-class SchemaValidationError(Exception):
-    """Exception raised when schema validation fails."""
-
-    def __init__(self, message: str, path: str = "", error_type: ValidationErrorType | None = None):
-        """
-        Initialize schema validation error.
-
-        Args:
-            message: Error message
-            path: JSON path to the invalid value
-            error_type: Type of validation error
-        """
-        super().__init__(message)
-        self.path = path
-        self.error_type = error_type
+from .exceptions import SchemaValidationError
 
 
 class JSONSchemaValidator:

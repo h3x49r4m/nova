@@ -7,16 +7,10 @@ Validates state files against JSON schemas to ensure data integrity.
 import json
 from typing import TYPE_CHECKING, Any
 
+from .exceptions import SchemaValidationError
+
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-class SchemaValidationError(Exception):
-    """Exception raised when schema validation fails."""
-    def __init__(self, message: str, errors: list[str]):
-        self.message = message
-        self.errors = errors
-        super().__init__(self.message)
 
 
 class SchemaValidator:

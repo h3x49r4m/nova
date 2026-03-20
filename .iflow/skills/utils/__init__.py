@@ -25,6 +25,7 @@ from .exceptions import (
     GitCommandTimeout,
     GitError,
     IFlowError,
+    SchemaValidationError,
     SecurityError,
     ValidationError,
 )
@@ -36,6 +37,7 @@ from .file_lock import (
     write_locked_json,
 )
 from .git_command import (
+    check_for_secrets,
     get_current_branch,
     get_repo_root,
     run_git_command,
@@ -46,7 +48,6 @@ from .git_command import (
 from .input_sanitizer import InputSanitizer
 from .prerequisite_checker import PrerequisiteChecker, validate_workflow_prerequisites
 from .schema_validator import (
-    SchemaValidationError,
     SchemaValidator,
     validate_branch_state,
     validate_json_schema,
@@ -86,6 +87,7 @@ __all__ = [
     'Timeouts',
     'ValidationError',
     'WorkflowStatus',
+    'check_for_secrets',
     'get_current_branch',
     'get_repo_root',
     'locked_file',
