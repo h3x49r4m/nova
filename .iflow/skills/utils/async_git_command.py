@@ -236,7 +236,8 @@ class AsyncGitCommand:
                     cause=result
                 )
 
-        return results  # type: ignore
+        # Type narrowing: we've filtered out all exceptions
+        return cast(list[tuple[int, str, str]], results)
 
     def _check_for_secrets(self, stdout: str, stderr: str) -> None:
         """

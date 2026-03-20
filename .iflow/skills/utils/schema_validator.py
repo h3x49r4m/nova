@@ -188,7 +188,7 @@ class SchemaValidator:
         Returns:
             True if type matches
         """
-        type_map = {
+        type_map: dict[str, type[Any] | tuple[type[Any], ...]] = {
             'string': str,
             'integer': int,
             'number': (int, float),
@@ -199,6 +199,7 @@ class SchemaValidator:
         }
 
         if expected_type in type_map:
+            # Dynamic type lookup for runtime validation
             return isinstance(value, type_map[expected_type])  # type: ignore[arg-type]
 
         # Handle union types (e.g., ["string", "null"])

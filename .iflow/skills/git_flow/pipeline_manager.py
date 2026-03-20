@@ -5,6 +5,7 @@ Handles pipeline versioning, migrations, and updates with rollback support.
 """
 
 import hashlib
+import importlib.util
 import json
 import shutil
 from copy import deepcopy
@@ -76,15 +77,18 @@ class PipelineVersionManager:
         return migrations
 
     def _load_migration(self, migration_file: Path) -> Callable:
-        """Load a migration function from a file."""
-        spec = {}
-        with open(migration_file) as f:
-            exec(f.read(), spec)
+        """Load a migration function from a file using importlib."""
+        spec = importlib.util.spec_from_file_location(f"migration_{migration_file.stem}", migration_file)
+        if spec is None or spec.loader is None:
+            raise ValueError(f"Could not load migration from {migration_file}")
 
-        if 'migrate' in spec:
-            return spec['migrate']
-        elif 'migrate_state' in spec:
-            return spec['migrate_state']
+        migration_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(migration_module)
+
+        if hasattr(migration_module, 'migrate'):
+            return migration_module.migrate
+        elif hasattr(migration_module, 'migrate_state'):
+            return migration_module.migrate_state
         else:
             raise ValueError(f"No migration function found in {migration_file}")
 

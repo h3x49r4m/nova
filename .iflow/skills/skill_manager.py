@@ -4,6 +4,7 @@ Skill Version Manager
 Manages skill versioning, capabilities, and compatibility with pipelines.
 """
 
+import importlib.util
 import json
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any
@@ -13,9 +14,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 try:
-    from .utils.structured_logger import StructuredLogger
+    from .utils.structured_logger import StructuredLogger, get_logger
 except ImportError:
-    from utils.structured_logger import StructuredLogger
+    from utils.structured_logger import StructuredLogger, get_logger
 
 
 class SkillVersionManager:
@@ -26,7 +27,7 @@ class SkillVersionManager:
         self.skill_dir = skills_dir / skill_name
         self.versions_dir = self.skill_dir / 'versions'
         self.config_file = self.skill_dir / 'config.json'
-        self.logger = StructuredLogger.get_logger(f"skill.{skill_name}")
+        self.logger = get_logger(f"skill.{skill_name}")
 
         self.current_version = self.load_current_version()
         self.available_versions = self.load_available_versions()
@@ -168,15 +169,26 @@ class SkillVersionManager:
             return None
 
         try:
-            spec: dict[str, Any] = {}
-            with open(migration_file) as f:
-                exec(f.read(), spec)
+            spec = importlib.util.spec_from_file_location(f"migration_{migration_file.stem}", migration_file)
+            if spec is None or spec.loader is None:
+                self.logger.warning(
+                    f"Could not load migration from {migration_file}",
+                    extra={
+                        "file": str(migration_file),
+                        "from_version": from_version,
+                        "to_version": to_version
+                    }
+                )
+                return None
+
+            migration_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(migration_module)
 
             # Look for migrate or migrate_state function
-            if 'migrate' in spec:
-                return spec['migrate']
-            elif 'migrate_state' in spec:
-                return spec['migrate_state']
+            if hasattr(migration_module, 'migrate'):
+                return migration_module.migrate
+            elif hasattr(migration_module, 'migrate_state'):
+                return migration_module.migrate_state
         except Exception as e:
             self.logger.warning(
                 f"Failed to load migration function from {migration_file}: {e}",

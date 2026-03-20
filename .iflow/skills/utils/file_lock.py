@@ -10,13 +10,24 @@ import sys
 import time
 from contextlib import contextmanager, suppress
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 # Platform-specific imports
 if sys.platform == 'win32':
     import msvcrt
 else:
     import fcntl
+
+if TYPE_CHECKING:
+    if sys.platform == 'win32':
+        from typing import Protocol
+
+        class MsvcrtProtocol(Protocol):
+            """Protocol for msvcrt module type checking."""
+            @staticmethod
+            def locking(fd: int, mode: int, nbytes: int) -> None: ...
+
+        msvcrt = cast(MsvcrtProtocol, msvcrt)  # type: ignore[name-defined]
 
 
 class FileLockError(Exception):
@@ -102,7 +113,7 @@ class FileLock:
             self._lock_fd = self._file_handle.fileno()
 
             # Try to lock the file
-            msvcrt.locking(self._lock_fd, msvcrt.LK_NBLCK, 1)  # type: ignore
+            msvcrt.locking(self._lock_fd, msvcrt.LK_NBLCK, 1)
 
             # Write our PID to the lock file
             self._file_handle.write(str(os.getpid()).encode())
@@ -201,7 +212,7 @@ def read_locked_json(file_path: str | Path, timeout: float = 30.0) -> dict[str, 
         Parsed JSON dictionary
     """
     with locked_file(file_path, 'r', timeout=timeout) as f:
-        return json.load(f)  # type: ignore[no-any-return]
+        return cast(dict[str, Any], json.load(f))
 
 
 def write_locked_json(file_path: str | Path, data: dict, timeout: float = 30.0) -> None:

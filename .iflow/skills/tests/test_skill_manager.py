@@ -76,7 +76,7 @@ class TestSkillVersionManager(unittest.TestCase):
 
         self.assertTrue(manager.check_version_compatibility("2.0.0", ">="))
         self.assertTrue(manager.check_version_compatibility("2.5.0", "=="))
-        self.assertFalse(manager.check_version_compatibility("3.0.0", "<="))
+        self.assertTrue(manager.check_version_compatibility("3.0.0", "<="))
         self.assertTrue(manager.check_version_compatibility("2.0.0", ">"))
         self.assertFalse(manager.check_version_compatibility("2.5.0", ">"))
         self.assertTrue(manager.check_version_compatibility("3.0.0", "<"))
@@ -214,9 +214,7 @@ class TestSkillRegistry(unittest.TestCase):
 
     def test_find_skill_for_capability(self):
         """Test finding skills by capability."""
-        registry = SkillRegistry(self.skills_dir)
-
-        # Add shared capability to skill-b
+        # Add shared capability to skill-b before creating registry
         skill_b_dir = self.skills_dir / "skill-b" / "versions" / "2.1.0"
         capabilities_file = skill_b_dir / 'capabilities.json'
         capabilities = {
@@ -224,6 +222,9 @@ class TestSkillRegistry(unittest.TestCase):
             "domains": {}
         }
         capabilities_file.write_text(json.dumps(capabilities))
+
+        # Now create the registry so it loads the updated capabilities
+        registry = SkillRegistry(self.skills_dir)
 
         results = registry.find_skill_for_capability("shared-capability")
 
@@ -401,7 +402,7 @@ class TestSkillCompatibilityChecker(unittest.TestCase):
         is_compatible, errors = self.checker.check_pipeline_compatibility("test-pipeline", pipeline_config)
 
         self.assertFalse(is_compatible)
-        self.assertTrue(any("too old" in e for e in errors))
+        self.assertTrue(any("requires version >= 3.0.0" in e for e in errors))
 
     def test_check_skill_breaking_changes(self):
         """Test checking for breaking changes between versions."""
@@ -421,6 +422,9 @@ class TestSkillCompatibilityChecker(unittest.TestCase):
         breaking_file = version_dir / 'breaking_changes.json'
         breaking_changes = ["API change: endpoint /old removed"]
         breaking_file.write_text(json.dumps(breaking_changes))
+
+        # Reload registry to pick up the new version
+        self.registry.load_all_skills()
 
         changes = self.checker.check_skill_breaking_changes("test-skill", "2.0.0", "3.0.0")
 

@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    import requests
     from .notification_types import NotificationMessage
 
 
@@ -168,7 +169,7 @@ class SlackNotificationHandler(NotificationChannelHandler):
     def send(self, message: NotificationMessage) -> bool:
         """Send Slack notification."""
         try:
-            import requests  # type: ignore
+            import requests
 
             # Build Slack message
             slack_msg = self._build_slack_message(message)

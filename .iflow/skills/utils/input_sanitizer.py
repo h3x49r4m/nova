@@ -29,7 +29,7 @@ class InputSanitizer:
     SQL_INJECTION_PATTERNS = [
         r"['\"]\s*(OR|AND|XOR)\s*['\"]",
         r"['\"]\s*(=|!=|<>|<|>)\s*['\"]",
-        r";\s*(DROP|DELETE|INSERT|UPDATE|EXEC|UNION)\s",
+        r"(;|)\s*(DROP|DELETE|INSERT|UPDATE|EXEC|UNION)\s",
         r"--\s*$",  # SQL comments
         r"/\\*.*\\*/",  # SQL block comments
     ]
@@ -90,13 +90,29 @@ class InputSanitizer:
         # Apply allowed character filter
         if allowed_chars:
             # Build a pattern that matches disallowed characters
-            pattern = f'[^{allowed_chars}]'
-            if re.search(pattern, input_str):
-                # Extract disallowed characters for error message
-                disallowed = set(re.findall(pattern, input_str))
-                raise ValueError(
-                    f"Input contains disallowed characters: {', '.join(sorted(disallowed))}"
-                )
+            # If allowed_chars already starts with '[', it's a character class pattern
+            if allowed_chars.startswith('['):
+                # Extract the inner pattern for character class
+                match = re.match(r'\[(.*?)\](.*?)$', allowed_chars)
+                if match:
+                    char_class = match.group(1)
+                    # Use negated character class to find disallowed characters
+                    pattern = f'[^{char_class}]'
+                    if re.search(pattern, input_str):
+                        # Extract disallowed characters for error message
+                        disallowed = set(re.findall(pattern, input_str))
+                        raise ValueError(
+                            f"Input contains disallowed characters: {', '.join(sorted(disallowed))}"
+                        )
+            else:
+                # Simple character list pattern
+                pattern = f'[^{allowed_chars}]'
+                if re.search(pattern, input_str):
+                    # Extract disallowed characters for error message
+                    disallowed = set(re.findall(pattern, input_str))
+                    raise ValueError(
+                        f"Input contains disallowed characters: {', '.join(sorted(disallowed))}"
+                    )
 
         return input_str.strip()
 
@@ -114,6 +130,10 @@ class InputSanitizer:
         Raises:
             ValueError: If branch name is invalid
         """
+        # Check for @{ before sanitization (Git-specific special sequence)
+        if '@{' in branch_name:
+            raise ValueError("Branch name cannot contain '@{'")
+
         # Basic sanitization
         sanitized = InputSanitizer.sanitize_string(
             branch_name,
@@ -130,9 +150,6 @@ class InputSanitizer:
 
         if sanitized.startswith('-') or sanitized.endswith('-'):
             raise ValueError("Branch name cannot start or end with a hyphen")
-
-        if '@{' in sanitized:
-            raise ValueError("Branch name cannot contain '@{'")
 
         if sanitized.endswith('.lock'):
             raise ValueError("Branch name cannot end with '.lock'")
@@ -186,7 +203,7 @@ class InputSanitizer:
 
         # Check for path traversal
         if '../' in sanitized or '..\\' in sanitized:
-            raise ValueError("Path traversal detected")
+            raise ValueError("path traversal detected")
 
         if '~' in sanitized:
             raise ValueError("Tilde expansion not allowed")
@@ -314,7 +331,7 @@ class InputSanitizer:
         Returns:
             HTML-escaped string
         """
-        return html.escape(input_str)
+        return html.escape(input_str, quote=False)
 
     @staticmethod
     def sanitize_json(input_str: str) -> str:
