@@ -255,7 +255,7 @@ def validate_branch_name(branch_name: str) -> tuple[bool, str | None]:
         Tuple of (is_valid, error_message)
     """
     result = SharedValidators.validate_branch_name(branch_name)
-    return (result.is_valid, result.error_message)
+    return result.is_valid, result.error_message
 
 
 def validate_file_path(file_path: str, repo_root: Path | None = None) -> tuple[bool, str | None]:
@@ -273,7 +273,7 @@ def validate_file_path(file_path: str, repo_root: Path | None = None) -> tuple[b
         Tuple of (is_valid, error_message)
     """
     result = SharedValidators.validate_file_path(file_path, repo_root)
-    return (result.is_valid, result.error_message)
+    return result.is_valid, result.error_message
 
 
 def get_git_metrics() -> dict[str, Any] | None:

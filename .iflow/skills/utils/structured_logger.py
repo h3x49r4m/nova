@@ -117,6 +117,7 @@ class StructuredLogger:
             # Generic hex strings that might be secrets
             r'\b[0-9a-fA-F]{32,}\b',
         ]
+        # Compile patterns individually to avoid regex parsing issues
         self._compiled_patterns = [re.compile(pattern) for pattern in self.secret_patterns]
 
         # Create log directory if it doesn't exist
@@ -218,7 +219,7 @@ class StructuredLogger:
         Returns:
             Tuple of (filtered_message, filtered_extra)
         """
-        # Filter message
+        # Filter message using all compiled patterns
         filtered_message = message
         for pattern in self._compiled_patterns:
             filtered_message = pattern.sub('[REDACTED]', filtered_message)
@@ -229,7 +230,7 @@ class StructuredLogger:
             filtered_extra = {}
             for key, value in extra.items():
                 if isinstance(value, str):
-                    # Filter string values
+                    # Filter string values using all compiled patterns
                     filtered_value = value
                     for pattern in self._compiled_patterns:
                         filtered_value = pattern.sub('[REDACTED]', filtered_value)

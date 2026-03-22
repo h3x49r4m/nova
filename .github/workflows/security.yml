@@ -28,7 +28,17 @@ jobs:
 
     - name: Run bandit security scanner
       run: |
-        bandit -r .iflow/skills/ -f json -o bandit-report.json || true
+        bandit -r .iflow/skills/ -f json -o bandit-report.json --severity-level medium || true
+
+    - name: Check bandit results
+      run: |
+        if [ -f bandit-report.json ]; then
+          HIGH_COUNT=$(python3 -c "import json; data=json.load(open('bandit-report.json')); print(len([r for r in data.get('results', []) if r.get('issue_severity') == 'HIGH']))" || echo "0")
+          if [ "$HIGH_COUNT" -gt 0 ]; then
+            echo "Found $HIGH_COUNT HIGH severity issues"
+            exit 1
+          fi
+        fi
 
     - name: Upload bandit report
       uses: actions/upload-artifact@v4
@@ -40,6 +50,16 @@ jobs:
     - name: Run safety dependency check
       run: |
         safety check --json > safety-report.json || true
+
+    - name: Check safety results
+      run: |
+        if [ -f safety-report.json ]; then
+          if grep -q '"vulnerabilities"' safety-report.json && [ "$(python3 -c "import json; data=json.load(open('safety-report.json')); print(len(data.get('vulnerabilities', [])))")" -gt 0 ]; then
+            echo "Found security vulnerabilities"
+            cat safety-report.json
+            exit 1
+          fi
+        fi
 
     - name: Upload safety report
       uses: actions/upload-artifact@v4
@@ -71,7 +91,18 @@ jobs:
 
     - name: Run pip-audit
       run: |
-        pip-audit --format json --output pip-audit-report.json || true
+        pip-audit --format json --output pip-audit-report.json || exit_code=$?
+
+    - name: Check pip-audit results
+      run: |
+        if [ -f pip-audit-report.json ]; then
+          VULN_COUNT=$(python3 -c "import json; data=json.load(open('pip-audit-report.json')); print(len(data.get('vulnerabilities', [])))" || echo "0")
+          if [ "$VULN_COUNT" -gt 0 ]; then
+            echo "Found $VULN_COUNT vulnerabilities in dependencies"
+            cat pip-audit-report.json
+            exit 1
+          fi
+        fi
 
     - name: Upload pip-audit report
       uses: actions/upload-artifact@v4

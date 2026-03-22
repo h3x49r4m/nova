@@ -1,1 +1,174 @@
-{"$schema": "http://json-schema.org/draft-07/schema#", "title": "Branch State Schema", "description": "Schema for validating individual branch state", "type": "object", "required": ["name", "role", "status", "phase", "created_at"], "properties": {"name": {"type": "string", "minLength": 1, "pattern": "^[^~^:\\\?*\[ \t\n\r]+$", "description": "Branch name (must follow git naming rules)"}, "role": {"type": "string", "minLength": 1, "description": "Role associated with the branch"}, "status": {"type": "string", "enum": ["pending", "reviewing", "approved", "merged", "unapproved", "reverted", "needs_changes", "rejected"], "description": "Current branch status"}, "phase": {"type": "integer", "minimum": 1, "description": "Phase number this branch belongs to"}, "created_at": {"type": "string", "format": "date-time", "description": "Branch creation timestamp"}, "commits": {"type": "array", "items": {"type": "object", "properties": {"hash": {"type": "string"}, "message": {"type": "string"}, "timestamp": {"type": "string", "format": "date-time"}}}, "description": "List of commits on this branch"}, "merge_commit": {"type": ["string", "null"], "pattern": "^[a-f0-9]{40}$", "description": "Merge commit SHA (if merged)"}, "approved_by": {"type": ["string", "null"], "description": "Who approved this branch"}, "approved_at": {"type": ["string", "null"], "format": "date-time", "description": "When the branch was approved"}, "unapproved_by": {"type": ["string", "null"], "description": "Who unapproved this branch"}, "unapproved_at": {"type": ["string", "null"], "format": "date-time", "description": "When the branch was unapproved"}, "dependencies": {"type": "array", "items": {"type": "string", "minLength": 1}, "description": "Branches this branch depends on"}, "dependents": {"type": "array", "items": {"type": "string", "minLength": 1}, "description": "Branches that depend on this one"}, "review_history": {"type": "array", "items": {"type": "object", "required": ["action", "actor", "timestamp"], "properties": {"action": {"type": "string", "enum": ["approve", "reject", "request_changes", "unapprove", "merge"]}, "actor": {"type": "string", "minLength": 1}, "timestamp": {"type": "string", "format": "date-time"}, "comment": {"type": ["string", "null"]}, "reason": {"type": ["string", "null"]}, "merge_commit": {"type": ["string", "null"], "pattern": "^[a-f0-9]{40}$"}}}, "description": "Review event history"}}}}
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Branch State Schema",
+  "description": "Schema for validating individual branch state",
+  "type": "object",
+  "required": [
+    "name",
+    "role",
+    "status",
+    "phase",
+    "created_at"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^~^:?*[ \\t\\n\\r]+$",
+      "description": "Branch name (must follow git naming rules)"
+    },
+    "role": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Role associated with the branch"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "reviewing",
+        "approved",
+        "merged",
+        "unapproved",
+        "reverted",
+        "needs_changes",
+        "rejected"
+      ],
+      "description": "Current branch status"
+    },
+    "phase": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Phase number this branch belongs to"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Branch creation timestamp"
+    },
+    "commits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "hash": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "description": "List of commits on this branch"
+    },
+    "merge_commit": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-f0-9]{40}$",
+      "description": "Merge commit SHA (if merged)"
+    },
+    "approved_by": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Who approved this branch"
+    },
+    "approved_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "When the branch was approved"
+    },
+    "unapproved_by": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Who unapproved this branch"
+    },
+    "unapproved_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "When the branch was unapproved"
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Branches this branch depends on"
+    },
+    "dependents": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Branches that depend on this one"
+    },
+    "review_history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "action",
+          "actor",
+          "timestamp"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject",
+              "request_changes",
+              "unapprove",
+              "merge"
+            ]
+          },
+          "actor": {
+            "type": "string",
+            "minLength": 1
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "comment": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "merge_commit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-f0-9]{40}$"
+          }
+        }
+      },
+      "description": "Review event history"
+    }
+  }
+}

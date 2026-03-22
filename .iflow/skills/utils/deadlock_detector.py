@@ -300,7 +300,7 @@ class DeadlockDetector:
         chains = []
         visited = set()
 
-        def dfs(current: str, path: list[str]):
+        def dfs(current: str, path: list[str]) -> None:
             """DFS to find all chains."""
             if current in visited:
                 return

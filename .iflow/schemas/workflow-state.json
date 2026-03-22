@@ -1,1 +1,245 @@
-{"$schema": "http://json-schema.org/draft-07/schema#", "title": "Git-Flow Workflow State Schema", "description": "Schema for validating git-flow workflow state", "type": "object", "required": ["feature", "status", "current_phase", "phases", "branches", "created_at", "updated_at"], "properties": {"feature": {"type": "string", "minLength": 1, "description": "Feature name for the workflow"}, "status": {"type": "string", "enum": ["initialized", "in_progress", "complete", "paused"], "description": "Current workflow status"}, "current_phase": {"type": "integer", "minimum": 0, "description": "Current active phase number (0 if no active phase)"}, "phases": {"type": "array", "items": {"type": "object", "required": ["name", "role", "order", "required", "status"], "properties": {"name": {"type": "string", "minLength": 1}, "role": {"type": "string", "minLength": 1}, "order": {"type": "integer", "minimum": 1}, "required": {"type": "boolean"}, "status": {"type": "string", "enum": ["pending", "active", "complete", "blocked"]}, "branch": {"type": ["string", "null"]}, "dependencies": {"type": "array", "items": {"type": "integer"}}, "started_at": {"type": ["string", "null"], "format": "date-time"}, "completed_at": {"type": ["string", "null"], "format": "date-time"}}}}, "branches": {"type": "object", "additionalProperties": {"type": "object", "required": ["name", "role", "status", "phase", "created_at"], "properties": {"name": {"type": "string", "minLength": 1}, "role": {"type": "string", "minLength": 1}, "status": {"type": "string", "enum": ["pending", "reviewing", "approved", "merged", "unapproved", "reverted", "needs_changes", "rejected"]}, "phase": {"type": "integer", "minimum": 1}, "created_at": {"type": "string", "format": "date-time"}, "commits": {"type": "array", "items": {"type": "object"}}, "merge_commit": {"type": ["string", "null"]}, "approved_by": {"type": ["string", "null"]}, "approved_at": {"type": ["string", "null"], "format": "date-time"}, "unapproved_by": {"type": ["string", "null"]}, "unapproved_at": {"type": ["string", "null"], "format": "date-time"}, "dependencies": {"type": "array", "items": {"type": "string"}}, "dependents": {"type": "array", "items": {"type": "string"}}, "review_history": {"type": "array", "items": {"type": "object", "required": ["action", "actor", "timestamp"], "properties": {"action": {"type": "string"}, "actor": {"type": "string"}, "timestamp": {"type": "string", "format": "date-time"}, "comment": {"type": ["string", "null"]}, "reason": {"type": ["string", "null"]}, "merge_commit": {"type": ["string", "null"]}}}}}}}, "created_at": {"type": "string", "format": "date-time"}, "updated_at": {"type": "string", "format": "date-time"}}}
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Git-Flow Workflow State Schema",
+  "description": "Schema for validating git-flow workflow state",
+  "type": "object",
+  "required": [
+    "feature",
+    "status",
+    "current_phase",
+    "phases",
+    "branches",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "feature": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Feature name for the workflow"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "initialized",
+        "in_progress",
+        "complete",
+        "paused"
+      ],
+      "description": "Current workflow status"
+    },
+    "current_phase": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Current active phase number (0 if no active phase)"
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "role",
+          "order",
+          "required",
+          "status"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "type": "string",
+            "minLength": 1
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "active",
+              "complete",
+              "blocked"
+            ]
+          },
+          "branch": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "branches": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "name",
+          "role",
+          "status",
+          "phase",
+          "created_at"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "reviewing",
+              "approved",
+              "merged",
+              "unapproved",
+              "reverted",
+              "needs_changes",
+              "rejected"
+            ]
+          },
+          "phase": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "commits": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "merge_commit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "approved_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "approved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "unapproved_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unapproved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dependents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "review_history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "action",
+                "actor",
+                "timestamp"
+              ],
+              "properties": {
+                "action": {
+                  "type": "string"
+                },
+                "actor": {
+                  "type": "string"
+                },
+                "timestamp": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "comment": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "reason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "merge_commit": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

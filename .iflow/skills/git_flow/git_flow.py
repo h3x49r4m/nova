@@ -292,16 +292,34 @@ class GitFlow:
             return 124, '', str(e)
 
     def run_git_manage(self, args: list[str], timeout: int | None = 120) -> tuple[int, str, str]:
-        """Run git-manage script with timeout handling."""
+        """Run git-manage script with arguments."""
         git_manage_path = self.config.get("git_manage", {}).get("command_path", ".iflow/skills/git-manage/git-manage.py")
         git_manage_script = self.repo_root / git_manage_path
 
         if not git_manage_script.exists():
             return 1, '', f'git-manage not found at {git_manage_path}'
 
+        # Validate arguments to prevent command injection
+        validated_args = []
+        for arg in args:
+            # Ensure arg is a string
+            if not isinstance(arg, str):
+                return 1, '', f'Invalid argument type: {type(arg).__name__}'
+            
+            # Check for dangerous patterns that could indicate injection attempts
+            dangerous_patterns = [';', '|', '&', '$(', '`', '\n', '\r', '\t']
+            if any(pattern in arg for pattern in dangerous_patterns):
+                return 1, '', f'Invalid argument: contains potentially dangerous characters'
+            
+            # Ensure argument doesn't start with a dash (could be interpreted as option)
+            if arg.startswith('-'):
+                return 1, '', f'Invalid argument: cannot start with dash'
+            
+            validated_args.append(arg)
+
         try:
             result = subprocess.run(
-                [sys.executable, str(git_manage_script), *args],
+                [sys.executable, str(git_manage_script), *validated_args],
                 cwd=self.repo_root,
                 capture_output=True,
                 text=True,
