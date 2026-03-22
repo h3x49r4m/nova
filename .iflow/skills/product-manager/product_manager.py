@@ -14,12 +14,14 @@ from typing import Any
 
 # Import shared utilities
 from utils import (
+    ConfigManager,
     ErrorCode,
     InputSanitizer,
     LogFormat,
     StructuredLogger,
     run_git_command,
 )
+from utils.exceptions import GitError
 
 
 class PrioritizationMethod:
@@ -58,20 +60,15 @@ class ProductManager:
 
     def load_config(self):
         """Load configuration from config file."""
-        self.config = {
+        default_config = {
             'version': '1.0.0',
             'prioritization_method': PrioritizationMethod.MOSCOW,
             'use_invest_criteria': True,
             'auto_commit': True
         }
-
-        if self.config_file.exists():
-            try:
-                with open(self.config_file) as f:
-                    user_config = json.load(f)
-                self.config.update(user_config)
-            except (OSError, json.JSONDecodeError) as e:
-                self.logger.warning(f"Failed to load config: {e}. Using defaults.")
+        self.config = ConfigManager.load_runtime_config(
+            self.config_file, default_config, self.logger
+        )
 
     def read_project_spec(self, project_path: Path) -> tuple[int, str]:
         """
@@ -452,6 +449,14 @@ Verification:
             self.logger.info("Changes committed successfully")
             return 0, "Changes committed successfully"
 
+        except GitError as e:
+            error_msg = f"Git error during commit: {e}"
+            self.logger.error(error_msg)
+            return e.code.value, error_msg
+        except OSError as e:
+            error_msg = f"File system error: {e}"
+            self.logger.error(error_msg)
+            return ErrorCode.FILE_OPERATION_ERROR.value, error_msg
         except Exception as e:
             error_msg = f"Failed to commit changes: {e}"
             self.logger.error(error_msg)

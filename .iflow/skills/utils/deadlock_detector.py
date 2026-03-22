@@ -49,7 +49,7 @@ class Deadlock:
         self.description = description
         self.severity = severity
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, str | list[str]]:
         """Convert deadlock to dictionary."""
         return {
             "type": self.deadlock_type.value,
@@ -62,7 +62,7 @@ class Deadlock:
 class DeadlockDetector:
     """Detects deadlocks in dependency graphs."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the deadlock detector."""
         self.graph: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
         self.nodes: set[str] = set()
@@ -72,7 +72,7 @@ class DeadlockDetector:
         from_node: str,
         to_node: str,
         dependency_type: DependencyType = DependencyType.REQUIRES
-    ):
+    ) -> None:
         """
         Add a dependency relationship.
 
@@ -88,7 +88,7 @@ class DeadlockDetector:
     def add_dependencies(
         self,
         dependencies: list[tuple[str, str, DependencyType]]
-    ):
+    ) -> None:
         """
         Add multiple dependencies.
 
@@ -98,7 +98,7 @@ class DeadlockDetector:
         for from_node, to_node, dep_type in dependencies:
             self.add_dependency(from_node, to_node, dep_type)
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all dependencies."""
         self.graph.clear()
         self.nodes.clear()
@@ -368,14 +368,14 @@ class DeadlockDetector:
 
         return len(deadlocks) == 0, deadlocks
 
-    def get_dependency_report(self) -> dict:
+    def get_dependency_report(self) -> dict[str, int | dict[str, dict[str, list[str]]]]:
         """
         Generate a report of the dependency graph.
 
         Returns:
             Dictionary with dependency graph information
         """
-        report = {
+        report: dict[str, int | dict[str, dict[str, list[str]]]] = {
             "total_nodes": len(self.nodes),
             "total_dependencies": 0,
             "nodes": {},
@@ -383,10 +383,10 @@ class DeadlockDetector:
         }
 
         # Count dependencies by type
-        type_counts = defaultdict(int)
+        type_counts: dict[str, int] = defaultdict(int)
 
         for node in self.nodes:
-            node_info = {
+            node_info: dict[str, dict[str, list[str]]] = {
                 "dependencies": {},
                 "dependents": []
             }

@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 
 # Import shared utilities
-from utils import ErrorCode, LogFormat, StructuredLogger, run_git_command
+from utils import ConfigManager, ErrorCode, LogFormat, StructuredLogger, run_git_command
 
 
 class DocumentationSpecialist:
@@ -33,18 +33,13 @@ class DocumentationSpecialist:
 
     def load_config(self) -> None:
         """Load configuration from config file."""
-        self.config = {
+        default_config = {
             'version': '1.0.0',
             'auto_commit': True
         }
-
-        if self.config_file.exists():
-            try:
-                with self.config_file.open() as f:
-                    user_config = json.load(f)
-                self.config.update(user_config)
-            except (OSError, json.JSONDecodeError) as e:
-                self.logger.warning(f"Failed to load config: {e}. Using defaults.")
+        self.config = ConfigManager.load_runtime_config(
+            self.config_file, default_config, self.logger
+        )
 
     def create_api_docs(
         self,

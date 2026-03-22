@@ -333,6 +333,51 @@ class ConfigManager:
         return config
 
     @staticmethod
+    def load_runtime_config(
+        config_file: Path,
+        default_config: dict[str, Any],
+        logger: Any | None = None
+    ) -> dict[str, Any]:
+        """
+        Load runtime configuration from a JSON file with defaults and error handling.
+
+        This is a common pattern used by all skill implementations to load their
+        runtime configuration (e.g., iteration_mode, auto_commit, etc.) from
+        config.json files in their skill directories.
+
+        Args:
+            config_file: Path to the configuration file
+            default_config: Default configuration values
+            logger: Optional logger instance for warnings
+
+        Returns:
+            Configuration dictionary with defaults and user config merged
+        """
+        config = default_config.copy()
+
+        if config_file.exists():
+            try:
+                with open(config_file) as f:
+                    user_config = json.load(f)
+                config.update(user_config)
+                if logger:
+                    logger.info(f"Configuration loaded from {config_file}")
+            except (OSError, json.JSONDecodeError) as e:
+                if logger:
+                    logger.warning(
+                        f"Failed to load config from {config_file}: {e}. Using defaults.",
+                        extra={
+                            "config_file": str(config_file),
+                            "error_type": type(e).__name__,
+                        },
+                    )
+        else:
+            if logger:
+                logger.info(f"No config file found at {config_file}. Using defaults.")
+
+        return config
+
+    @staticmethod
     def get_config_schema() -> dict[str, Any]:
         """
         Get the standard configuration schema.

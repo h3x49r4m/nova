@@ -14,6 +14,7 @@ from typing import Any
 
 # Import shared utilities
 from utils import (
+    ConfigManager,
     ErrorCode,
     InputSanitizer,
     LogFormat,
@@ -45,26 +46,15 @@ class Client:
 
     def load_config(self) -> None:
         """Load configuration from config file."""
-        self.config = {
+        default_config = {
             "version": "1.0.0",
             "iteration_mode": "feature",
             "require_all_features": False,
             "auto_commit": True,
         }
-
-        if self.config_file.exists():
-            try:
-                with self.config_file.open() as f:
-                    user_config = json.load(f)
-                self.config.update(user_config)
-            except (OSError, json.JSONDecodeError) as e:
-                self.logger.warning(
-                    f"Failed to load config from {self.config_file}: {e}. Using defaults.",
-                    extra={
-                        "config_file": str(self.config_file),
-                        "error_type": type(e).__name__,
-                    },
-                )
+        self.config = ConfigManager.load_runtime_config(
+            self.config_file, default_config, self.logger
+        )
 
     def initialize_project_state(self, project_path: Path) -> tuple[int, str]:
         """

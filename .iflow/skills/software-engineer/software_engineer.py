@@ -14,6 +14,7 @@ from typing import Any
 
 # Import shared utilities
 from utils import (
+    ConfigManager,
     ErrorCode,
     FileError,
     InputSanitizer,
@@ -22,6 +23,7 @@ from utils import (
     StructuredLogger,
     run_git_command,
 )
+from utils.exceptions import GitError
 
 
 class SoftwareEngineer:
@@ -52,23 +54,9 @@ class SoftwareEngineer:
             'test_coverage_threshold': 80,
             'auto_commit': True
         }
-
-        # Use improved config loading pattern
-        self.config = default_config
-
-        if self.config_file.exists():
-            try:
-                with open(self.config_file) as f:
-                    user_config = json.load(f)
-                self.config.update(user_config)
-            except (OSError, json.JSONDecodeError) as e:
-                self.logger.warning(
-                    f"Failed to load config from {self.config_file}: {e}. Using defaults.",
-                    extra={
-                        "config_file": str(self.config_file),
-                        "error_type": type(e).__name__
-                    }
-                )
+        self.config = ConfigManager.load_runtime_config(
+            self.config_file, default_config, self.logger
+        )
 
     def read_architecture_spec(self, project_path: Path) -> str:
         """Read architecture specification."""
@@ -932,6 +920,14 @@ Verification:
             self.logger.info("Changes committed successfully")
             return 0, "Changes committed successfully"
 
+        except GitError as e:
+            error_msg = f"Git error during commit: {e}"
+            self.logger.error(error_msg)
+            return e.code.value, error_msg
+        except OSError as e:
+            error_msg = f"File system error: {e}"
+            self.logger.error(error_msg)
+            return ErrorCode.FILE_OPERATION_ERROR.value, error_msg
         except Exception as e:
             error_msg = f"Failed to commit changes: {e}"
             self.logger.error(error_msg)

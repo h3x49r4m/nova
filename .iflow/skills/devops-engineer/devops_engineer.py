@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 # Import shared utilities
-from utils import ErrorCode, LogFormat, StructuredLogger, run_git_command
+from utils import ConfigManager, ErrorCode, LogFormat, StructuredLogger, run_git_command
 
 
 class DevOpsEngineer:
@@ -34,7 +34,7 @@ class DevOpsEngineer:
 
     def load_config(self):
         """Load configuration from config file."""
-        self.config = {
+        default_config = {
             'version': '1.0.0',
             'ci_cd_platform': 'github-actions',
             'container_runtime': 'docker',
@@ -42,14 +42,9 @@ class DevOpsEngineer:
             'cloud_provider': 'aws',
             'auto_commit': True
         }
-
-        if self.config_file.exists():
-            try:
-                with self.config_file.open() as f:
-                    user_config = json.load(f)
-                self.config.update(user_config)
-            except (OSError, json.JSONDecodeError) as e:
-                self.logger.warning(f"Failed to load config: {e}. Using defaults.")
+        self.config = ConfigManager.load_runtime_config(
+            self.config_file, default_config, self.logger
+        )
 
     def create_deployment_status(
         self,

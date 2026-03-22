@@ -14,6 +14,7 @@ from typing import Any
 
 # Import shared utilities
 from utils import (
+    ConfigManager,
     ErrorCode,
     InputSanitizer,
     LogFormat,
@@ -56,7 +57,7 @@ class UxDesigner:
 
     def load_config(self) -> None:
         """Load configuration from config file."""
-        self.config = {
+        default_config = {
             'version': '1.0.0',
             'design_system': DesignSystem.MATERIAL_DESIGN,
             'accessibility_standard': AccessibilityStandard.WCAG_2_1_AA,
@@ -65,14 +66,9 @@ class UxDesigner:
             'font_family': 'Roboto',
             'auto_commit': True
         }
-
-        if self.config_file.exists():
-            try:
-                with open(self.config_file) as f:
-                    user_config = json.load(f)
-                self.config.update(user_config)
-            except (OSError, json.JSONDecodeError) as e:
-                self.logger.warning(f"Failed to load config: {e}. Using defaults.")
+        self.config = ConfigManager.load_runtime_config(
+            self.config_file, default_config, self.logger
+        )
 
     def read_project_spec(self, project_path: Path) -> tuple[int, str]:
         """

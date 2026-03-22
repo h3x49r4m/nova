@@ -376,5 +376,9 @@ Files changed:
 
         return 0, f"Committed {len(staged_files)} file(s) successfully"
 
+    except GitError as e:
+        return 1, f"Git error during commit: {e!s}"
+    except OSError as e:
+        return 1, f"File system error during commit: {e!s}"
     except Exception as e:
         return 1, f"Error during commit: {e!s}"
